@@ -6,6 +6,11 @@
 # version: 0.1
 # script:  python
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+  from tic80 import *
+
 t=0
 x=96
 y=24

@@ -1,0 +1,8 @@
+{
+    "include": [
+        "tic80/python/**/*.py",
+        "pyxel/**/*.py"
+    ],
+    "stubPath": "tic80/python/stubs",
+    "typeCheckingMode": "basic"
+}
