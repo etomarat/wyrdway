@@ -9,7 +9,7 @@ from typing import (
 )
 
 if TYPE_CHECKING:
-    from tic80 import *
+    from tic80 import *  # noqa: F403
 
     from ..contracts import DriveEnterParams, ResultEnterParams
     from .game_state import GameState

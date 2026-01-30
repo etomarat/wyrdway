@@ -56,24 +56,22 @@ include("test")
 - If you’re unsure whether something works, assume it doesn’t until validated inside TIC-80.
 
 ### Hard bans (unsupported / incompatible features)
-- **Do not use `__slots__`** (not implemented in pocketpy).
+- **Do not use `__slots__`** (appears to be ignored; instances still have `__dict__`).
 - **Do not use multiple inheritance** (only single inheritance).
-- **Do not use custom descriptors** (`__get__` / `__set__`), except `property`.
+- **Do not use custom descriptors** (`__get__` / `__set__`), except `property` (custom `__get__` did not trigger in testing).
 - **Do not use `__del__`** finalizers.
 - **Do not use** `try/except/else` or `try/except/finally` clauses.
 - **Do not use `%` string formatting** (`"x=%d" % n`) — use f-strings or `.format(...)` with positional args.
 - **Do not rely on CPython-only string literal concatenation** (`'a' 'b'`).
 - **Do not use `str.format()` with keyword arguments** (`"{x}".format(x=1)`) — positional-only.
 - **Do not use starred assignment** except at the end (`a, b, *rest = ...` is ok; `a, *mid, b = ...` is not).
-- **Do not use raw strings** ending with a backslash (`r"\"`).
-- **Do not use `++x` / `--x`** (pocketpy supports these but CPython doesn’t; banning avoids portability traps).
+- **Do not use raw strings** ending with a backslash (`r"\"`) (PocketPy accepts this, CPython doesn’t).
 
 ### Known behavioral differences (avoid relying on CPython semantics)
 - `bool` is **not** a subclass of `int`; don’t mix booleans into arithmetic as numbers.
-- `int` is 64-bit; huge integers and bit hacks may behave differently.
-- `match/case` behaves like an `if/elif` chain; avoid clever pattern matching.
-- `locals()` / `globals()` semantics differ; avoid metaprogramming and dynamic scope tricks.
-- `//` and `%` are not defined for float or negative numbers; keep them to non-negative ints.
+- `int` is 64-bit signed with overflow/wraparound (no big-int).
+- `match/case` seems supported, but keep patterns simple until explicitly tested.
+- Avoid metaprogramming and dynamic scope tricks (`locals()` / `globals()`); assume subtle differences.
 
 ### References
 - https://github.com/nesbox/TIC-80/pull/2315

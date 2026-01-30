@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from tic80 import *
+    from tic80 import *  # noqa: F403
 
 
 class _BaseProbe:
