@@ -9,32 +9,33 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-  from tic80 import *
-  from .test import *
+    from tic80 import *
+    from .core.debug import *
+    from .data.tuning import *
+    from .scenes.stub_scene import *
 
-include("test")
+include("data.tuning")
+include("core.debug")
+include("scenes.stub_scene")
 
-t=0
-x=96
-y=24
+_debug_inited: bool = False
 
-def TIC():
-  global t
-  global x
-  global y
 
-  if btn(0): y-=1
-  if btn(1): y+=1
-  if btn(2): x-=1
-  if btn(3): x+=1
+def TIC() -> None:
+    global _debug_inited
+    dt = TUNING["CORE"]["dt"]
 
-  cls(13)
-  spr(
-    1+t%60//30*2,
-    x,y,
-    colorkey=14,
-    scale=3,
-    w=2,h=2
-  )
-  print("HELLO WORLD!!" + msg,84,84)
-  t+=1
+    if not _debug_inited:
+        debug_set_enabled(TUNING["DEBUG"]["overlay_default"])
+        _debug_inited = True
+
+    debug_handle_input()
+    stub_scene_update(dt)
+    stub_scene_draw()
+
+    debug_draw(
+        [
+            "scene=STUB",
+            "dt=" + str(dt),
+        ]
+    )

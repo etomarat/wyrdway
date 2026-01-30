@@ -1,3 +1,4 @@
 {
-    "python.analysis.stubPath": "stubs"
+    "python.analysis.stubPath": "stubs",
+    "chatgpt.openOnStartup": true
 }

@@ -6,6 +6,9 @@
 - `pyxel/` is a placeholder sandbox and should not be used unless explicitly requested.
 - `docs/` captures design and architecture references (expect this area to grow over time).
 - `run_tic80_python.bat` is the primary local run/build helper on Windows.
+  - `tic80/python/main.py` is the game entry point.
+  - `tic80/python/game.py` is the TIC-80 cart resource file (sprites/sfx/etc). Avoid editing directly unless explicitly requested.
+  - `tic80/python/build.py` is the bundler output (main + game); do not edit.
 
 ## Build, Test, and Development Commands
 - `run_tic80_python.bat` bundles `tic80/python/game.py` into `tic80/python/main.py` and launches TIC-80.
@@ -17,13 +20,22 @@
 - Python files use 4-space indentation; Lua prototype uses tabs in `tic80/lua/main.lua` if touched.
 - Keep TIC-80 entry points named `TIC()` (Python) or `TIC` (Lua).
 - No formatter or linter is configured yet; keep diffs tidy and consistent with surrounding code.
+- Aim for typed code in editor: define shared types in `tic80/python/types.py` and import them under `if TYPE_CHECKING:`.
+- Prefer string annotations (e.g. `value: "MyType"`) for runtime safety, since TIC-80 doesn't execute TYPE_CHECKING imports.
 
 ## TIC-80 Python Import/Bundling Rules
 - TIC-80 Python does not support normal imports; we bundle everything into `main.py`.
 - Use `tq-bundler` via `run_tic80_python.bat` to resolve imports and emit a single cart.
 - In code, do imports in two layers (see `tic80/python/main.py`):
-  - Real runtime dependencies are pulled with `include("module")` for the bundler/TIC-80.
+  - Real runtime dependencies are pulled with `include("module")` for the bundler/TIC-80. Use dot paths (e.g. `include("data.tuning")`), not slashes.
   - Editor-only imports go under `if TYPE_CHECKING:` so Pyright/IDE can resolve types without breaking runtime.
+- Every Python file should start with the TIC-80 typing shim:
+```python
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from tic80 import *
+```
 ```python
 from typing import TYPE_CHECKING
 
