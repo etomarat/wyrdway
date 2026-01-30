@@ -1,2 +1,3 @@
 **/.local/
 tic80/python/build.py
+**/.mypy_cache

@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from tic80 import *
 
     from ..contracts import DriveEnterParams, ResultEnterParams
+    from .game_state import GameState
     from .scene_base import Scene
     from .scene_ids import SceneId
 
@@ -22,6 +23,8 @@ SceneKeyResult = Literal["RESULT"]
 
 
 class SceneNavigator(Protocol):
+    state: GameState
+
     @overload
     def go(self, scene_id: SceneKeyDrive,
            params: DriveEnterParams) -> None: ...
@@ -43,6 +46,7 @@ class SceneManager(SceneNavigator):
     """Replace-mode менеджер сцен: в каждый момент активна одна сцена."""
 
     def __init__(self) -> None:
+        self.state = GameState()
         self._scenes: Dict[str, SceneFactory] = {}
         self._current_scene_id: Optional[str] = None
         self._current_scene: Optional[Scene] = None

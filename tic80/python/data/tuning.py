@@ -1,16 +1,20 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from ..contracts import TuningDict
+    from ..contracts import Tuning
 
-TUNING: "TuningDict" = {
-    "tuning_version": 1,
-    "CORE": {
-        # Fixed timestep in seconds (TIC-80 runs at 60 FPS by default).
-        "dt": 1 / 60,
-    },
-    "DEBUG": {
-        # Initial debug overlay state on boot.
-        "overlay_default": True,
-    },
-}
+TUNING: "Tuning" = Tuning()
+TUNING.tuning_version = 2
+
+# Fixed timestep in seconds (TIC-80 runs at 60 FPS by default).
+TUNING.CORE.dt = 1 / 60
+
+# Initial debug overlay state on boot.
+TUNING.DEBUG.overlay_default = True
+
+TUNING.PROFILE.start_money = 0
+TUNING.PROFILE.start_garage_hp = 100
+TUNING.PROFILE.start_garage_fuel = 50.0
+
+TUNING.DRIVE.fuel_per_sec = 1.0
+TUNING.POI.timer_seconds = 10.0

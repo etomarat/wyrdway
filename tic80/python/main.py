@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from .core.debug import debug_draw, debug_handle_input, debug_set_enabled
     from .core.scene_ids import SceneId
     from .core.scene_manager import SceneManager
-    from .data.tuning import TUNING, TuningDict
+    from .data.tuning import TUNING
     from .scenes.drive_scene import make_drive_scene
     from .scenes.garage_scene import make_garage_scene
     from .scenes.poi_scene import make_poi_scene
@@ -27,6 +27,7 @@ include("data.tuning")
 include("core.class_probe")
 include("core.debug")
 include("core.input_buttons")
+include("core.game_state")
 include("core.scene_ids")
 include("core.scene_base")
 include("core.scene_manager")
@@ -41,7 +42,7 @@ SCENE_MANAGER = SceneManager()
 
 
 def BOOT() -> None:
-    debug_set_enabled(TUNING["DEBUG"]["overlay_default"])
+    debug_set_enabled(TUNING.DEBUG.overlay_default)
     SCENE_MANAGER.register(SceneId.GARAGE, make_garage_scene)
     SCENE_MANAGER.register(SceneId.REGION_MAP, make_region_map_scene)
     SCENE_MANAGER.register(SceneId.DRIVE, make_drive_scene)
@@ -51,7 +52,7 @@ def BOOT() -> None:
 
 
 def TIC() -> None:
-    dt = TUNING["CORE"]["dt"]
+    dt = TUNING.CORE.dt
 
     debug_handle_input()
     SCENE_MANAGER.update(dt)
