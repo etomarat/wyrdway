@@ -1,7 +1,4 @@
-from enum import IntEnum
-
-
-class Button(IntEnum):
+class Button:
     UP = 0
     DOWN = 1
     LEFT = 2

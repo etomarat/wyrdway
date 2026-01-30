@@ -3,6 +3,9 @@
         "tic80/python/**/*.py",
         "pyxel/**/*.py"
     ],
+    "exclude": [
+        "tic80/python/build.py"
+    ],
     "stubPath": "tic80/python/stubs",
     "typeCheckingMode": "basic"
 }

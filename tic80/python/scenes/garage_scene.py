@@ -1,30 +1,33 @@
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from tic80 import cls, print
-    from ..types import GarageEnterParams
+    from tic80 import btnp, cls, print
+
+    from ..core.input_buttons import Button
+    from ..core.scene_ids import SceneId
+    from ..core.scene_manager import SceneNavigator
 
 
-def garage_scene_reset_state() -> None:
-    pass
+class GarageScene:
+    def __init__(self, nav: "SceneNavigator") -> None:
+        self._nav = nav
+        self.note = "Press A to start run"
+
+    def enter(self, params: object | None = None) -> None:
+        pass
+
+    def update(self, dt: float) -> None:
+        if btnp(Button.A):
+            self._nav.go(SceneId.REGION_MAP)
+
+    def draw(self) -> None:
+        cls(0)
+        print("GARAGE", 98, 40, 12)
+        print(self.note, 56, 60, 12)
+
+    def exit(self) -> None:
+        pass
 
 
-garage_scene_reset_state()
-
-
-def garage_scene_enter(params: Optional[GarageEnterParams] = None) -> None:
-    garage_scene_reset_state()
-
-
-def garage_scene_update(dt: float) -> None:
-    pass
-
-
-def garage_scene_draw() -> None:
-    cls(0)
-    print("GARAGE", 98, 40, 12)
-    print("Press A to start run", 56, 60, 12)
-
-
-def garage_scene_exit() -> None:
-    pass
+def make_garage_scene(nav: "SceneNavigator") -> "GarageScene":
+    return GarageScene(nav)

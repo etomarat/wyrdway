@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from ..types import TuningDict
+    from ..contracts import TuningDict
 
 TUNING: "TuningDict" = {
     "tuning_version": 1,

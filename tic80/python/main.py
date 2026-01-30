@@ -9,54 +9,26 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from tic80 import btnp, include
+    from tic80 import include
 
+    from .core.class_probe import class_probe_get_lines
     from .core.debug import debug_draw, debug_handle_input, debug_set_enabled
-    from .core.input_buttons import Button
     from .core.scene_ids import SceneId
-    from .core.scene_manager import (
-        scene_manager_draw,
-        scene_manager_get_current_id,
-        scene_manager_go,
-        scene_manager_register,
-        scene_manager_update
-    )
-    from .data.tuning import TUNING
-    from .scenes.drive_scene import (
-        drive_scene_draw,
-        drive_scene_enter,
-        drive_scene_exit,
-        drive_scene_update
-    )
-    from .scenes.garage_scene import (
-        garage_scene_draw,
-        garage_scene_enter,
-        garage_scene_exit,
-        garage_scene_update
-    )
-    from .scenes.poi_scene import (
-        poi_scene_draw,
-        poi_scene_enter,
-        poi_scene_exit,
-        poi_scene_update
-    )
-    from .scenes.region_map_scene import (
-        region_map_scene_draw,
-        region_map_scene_enter,
-        region_map_scene_exit,
-        region_map_scene_update
-    )
-    from .scenes.result_scene import (
-        result_scene_draw,
-        result_scene_enter,
-        result_scene_exit,
-        result_scene_update
-    )
+    from .core.scene_manager import SceneManager
+    from .data.tuning import TUNING, TuningDict
+    from .scenes.drive_scene import make_drive_scene
+    from .scenes.garage_scene import make_garage_scene
+    from .scenes.poi_scene import make_poi_scene
+    from .scenes.region_map_scene import make_region_map_scene
+    from .scenes.result_scene import make_result_scene
 
+include("contracts")
 include("data.tuning")
+include("core.class_probe")
 include("core.debug")
 include("core.input_buttons")
 include("core.scene_ids")
+include("core.scene_base")
 include("core.scene_manager")
 include("scenes.drive_scene")
 include("scenes.garage_scene")
@@ -64,84 +36,30 @@ include("scenes.poi_scene")
 include("scenes.region_map_scene")
 include("scenes.result_scene")
 
+
+SCENE_MANAGER = SceneManager()
+
+
 def BOOT() -> None:
     debug_set_enabled(TUNING["DEBUG"]["overlay_default"])
-    scene_manager_register(
-        SceneId.GARAGE,
-        {
-            "enter": garage_scene_enter,
-            "update": garage_scene_update,
-            "draw": garage_scene_draw,
-            "exit": garage_scene_exit,
-        },
-    )
-    scene_manager_register(
-        SceneId.REGION_MAP,
-        {
-            "enter": region_map_scene_enter,
-            "update": region_map_scene_update,
-            "draw": region_map_scene_draw,
-            "exit": region_map_scene_exit,
-        },
-    )
-    scene_manager_register(
-        SceneId.DRIVE,
-        {
-            "enter": drive_scene_enter,
-            "update": drive_scene_update,
-            "draw": drive_scene_draw,
-            "exit": drive_scene_exit,
-        },
-    )
-    scene_manager_register(
-        SceneId.POI,
-        {
-            "enter": poi_scene_enter,
-            "update": poi_scene_update,
-            "draw": poi_scene_draw,
-            "exit": poi_scene_exit,
-        },
-    )
-    scene_manager_register(
-        SceneId.RESULT,
-        {
-            "enter": result_scene_enter,
-            "update": result_scene_update,
-            "draw": result_scene_draw,
-            "exit": result_scene_exit,
-        },
-    )
-    scene_manager_go(SceneId.GARAGE)
+    SCENE_MANAGER.register(SceneId.GARAGE, make_garage_scene)
+    SCENE_MANAGER.register(SceneId.REGION_MAP, make_region_map_scene)
+    SCENE_MANAGER.register(SceneId.DRIVE, make_drive_scene)
+    SCENE_MANAGER.register(SceneId.POI, make_poi_scene)
+    SCENE_MANAGER.register(SceneId.RESULT, make_result_scene)
+    SCENE_MANAGER.go(SceneId.GARAGE)
 
 
 def TIC() -> None:
     dt = TUNING["CORE"]["dt"]
 
     debug_handle_input()
-    current_scene = scene_manager_get_current_id()
-    if current_scene == SceneId.GARAGE:
-        if btnp(Button.A):
-            scene_manager_go(SceneId.REGION_MAP)
-    elif current_scene == SceneId.REGION_MAP:
-        if btnp(Button.A):
-            scene_manager_go(SceneId.DRIVE, {"mode": "travel"})
-    elif current_scene == SceneId.DRIVE:
-        if btnp(Button.A):
-            scene_manager_go(SceneId.POI)
-    elif current_scene == SceneId.POI:
-        if btnp(Button.A):
-            scene_manager_go(SceneId.RESULT, {"text": "LOOT OK"})
-        elif btnp(Button.B):
-            scene_manager_go(SceneId.RESULT, {"text": "LEFT EARLY"})
-    elif current_scene == SceneId.RESULT:
-        if btnp(Button.A):
-            scene_manager_go(SceneId.GARAGE)
-    scene_manager_update(dt)
-    scene_manager_draw()
+    SCENE_MANAGER.update(dt)
+    SCENE_MANAGER.draw()
 
-    debug_draw(
-        [
-            "scene=" + (current_scene if current_scene else "None"),
-            "dt=" + str(dt),
-        ],
-    )
+    lines = [
+        "scene=" + str(SCENE_MANAGER.current_id),
+        "dt=" + str(dt),
+    ]
+    lines.extend(class_probe_get_lines())
+    debug_draw(lines)

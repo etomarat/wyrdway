@@ -1,6 +1,11 @@
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from typing import Final
+
 class SceneId:
-    GARAGE = "GARAGE"
-    REGION_MAP = "REGION_MAP"
-    DRIVE = "DRIVE"
-    POI = "POI"
-    RESULT = "RESULT"
+    GARAGE: Final = "GARAGE"
+    REGION_MAP: Final = "REGION_MAP"
+    DRIVE: Final = "DRIVE"
+    POI: Final = "POI"
+    RESULT: Final = "RESULT"
