@@ -1,16 +1,22 @@
-from typing import TYPE_CHECKING, Optional, Dict, Any
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from tic80 import *
+    from ..types import DriveEnterParams
 
-_drive_t: float = 0.0
-_drive_mode: str = "travel"
+DEFAULT_DRIVE_T: float = 0.0
+DEFAULT_DRIVE_MODE: str = "travel"
+
+_drive_t: float = DEFAULT_DRIVE_T
+_drive_mode: str = DEFAULT_DRIVE_MODE
 
 
-def drive_scene_enter(params: Optional[Dict[str, Any]] = None) -> None:
+def drive_scene_enter(params: Optional[DriveEnterParams] = None) -> None:
     global _drive_t, _drive_mode
-    _drive_t = 0.0
-    _drive_mode = "travel"
+    _drive_t = DEFAULT_DRIVE_T
+    _drive_mode = DEFAULT_DRIVE_MODE
     if params is not None and "mode" in params:
         _drive_mode = str(params["mode"])
 

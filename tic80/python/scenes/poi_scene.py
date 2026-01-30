@@ -1,14 +1,19 @@
-from typing import TYPE_CHECKING, Optional, Dict, Any
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from tic80 import *
+    from ..types import PoiEnterParams
 
-_poi_timer: float = 10.0
+DEFAULT_POI_TIMER: float = 10.0
+
+_poi_timer: float = DEFAULT_POI_TIMER
 
 
-def poi_scene_enter(params: Optional[Dict[str, Any]] = None) -> None:
+def poi_scene_enter(params: Optional[PoiEnterParams] = None) -> None:
     global _poi_timer
-    _poi_timer = 10.0
+    _poi_timer = DEFAULT_POI_TIMER
 
 
 def poi_scene_update(dt: float) -> None:

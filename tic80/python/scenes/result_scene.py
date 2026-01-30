@@ -1,14 +1,19 @@
-from typing import TYPE_CHECKING, Optional, Dict, Any
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from tic80 import *
+    from ..types import ResultEnterParams
 
-_result_text: str = "RESULT: OK"
+DEFAULT_RESULT_TEXT: str = "RESULT: OK"
+
+_result_text: str = DEFAULT_RESULT_TEXT
 
 
-def result_scene_enter(params: Optional[Dict[str, Any]] = None) -> None:
+def result_scene_enter(params: Optional[ResultEnterParams] = None) -> None:
     global _result_text
-    _result_text = "RESULT: OK"
+    _result_text = DEFAULT_RESULT_TEXT
     if params is not None and "text" in params:
         _result_text = str(params["text"])
 

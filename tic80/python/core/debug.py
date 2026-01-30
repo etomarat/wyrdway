@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from tic80 import *
+    from .input_buttons import Button
 
 DEBUG_ENABLED: bool = True
 
@@ -17,7 +18,7 @@ def debug_set_enabled(value: bool) -> None:
 
 
 def debug_handle_input() -> None:
-    if btnp(7):
+    if btnp(Button.Y):
         debug_toggle()
 
 

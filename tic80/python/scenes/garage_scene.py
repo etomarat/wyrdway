@@ -1,12 +1,15 @@
-from typing import TYPE_CHECKING, Optional, Dict, Any
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from tic80 import *
+    from ..types import GarageEnterParams
 
 _garage_note: str = "Press A to start run"
 
 
-def garage_scene_enter(params: Optional[Dict[str, Any]] = None) -> None:
+def garage_scene_enter(params: Optional[GarageEnterParams] = None) -> None:
     pass
 
 
