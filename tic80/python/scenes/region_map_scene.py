@@ -1,22 +1,25 @@
-from __future__ import annotations
-
 from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
-    from tic80 import *
+    from tic80 import btnp, cls, print
     from ..core.input_buttons import Button
     from ..types import RegionMapEnterParams
 
-DEFAULT_SELECTED_NODE: int = 1
-DEFAULT_NODE_COUNT: int = 5
 
-_selected_node: int = DEFAULT_SELECTED_NODE
-_node_count: int = DEFAULT_NODE_COUNT
+_selected_node: int
+_node_count: int
+
+
+def region_map_scene_reset_state() -> None:
+    global _selected_node, _node_count
+    _selected_node = 1
+    _node_count = 5
+
+region_map_scene_reset_state()
 
 
 def region_map_scene_enter(params: Optional[RegionMapEnterParams] = None) -> None:
-    global _selected_node
-    _selected_node = DEFAULT_SELECTED_NODE
+    region_map_scene_reset_state()
 
 
 def region_map_scene_update(dt: float) -> None:

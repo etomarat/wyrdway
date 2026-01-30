@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, Optional, Dict, Any
 
 if TYPE_CHECKING:
-    from tic80 import *
+    from tic80 import cls, print
 
 _stub_t: float = 0.0
 

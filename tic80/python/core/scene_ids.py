@@ -1,7 +1,4 @@
-from enum import Enum
-
-
-class SceneId(str, Enum):
+class SceneId:
     GARAGE = "GARAGE"
     REGION_MAP = "REGION_MAP"
     DRIVE = "DRIVE"

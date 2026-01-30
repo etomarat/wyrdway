@@ -1,9 +1,6 @@
-from __future__ import annotations
-
 from typing import TYPE_CHECKING, Dict, Optional, Any
 
 if TYPE_CHECKING:
-    from tic80 import *
     from ..types import SceneDict
 
 _scenes: Dict[str, SceneDict] = {}

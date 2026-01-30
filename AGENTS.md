@@ -21,7 +21,7 @@
 - Keep TIC-80 entry points named `TIC()` (Python) or `TIC` (Lua).
 - No formatter or linter is configured yet; keep diffs tidy and consistent with surrounding code.
 - Aim for typed code in editor: define shared types in `tic80/python/types.py` and import them under `if TYPE_CHECKING:`.
-- Do not use string annotations. Type-only imports (e.g., `SceneDict`) go under `if TYPE_CHECKING:` for editor/pyright support, and never require `include("types")` at runtime.
+- Do not use string annotations or `from __future__ import annotations`. Type-only imports (e.g., `SceneDict`) go under `if TYPE_CHECKING:` for editor/pyright support, and never require `include("types")` at runtime.
 
 ## TIC-80 Python Import/Bundling Rules
 - TIC-80 Python does not support normal imports; we bundle everything into `main.py`.
@@ -29,7 +29,7 @@
 - In code, do imports in two layers (see `tic80/python/main.py`):
   - Real runtime dependencies are pulled with `include("module")` for the bundler/TIC-80. Use dot paths (e.g. `include("data.tuning")`), not slashes.
   - Editor-only imports go under `if TYPE_CHECKING:` so Pyright/IDE can resolve types without breaking runtime.
-- Every Python file should start with the TIC-80 typing shim:
+ - Python files that touch the TIC-80 API should start with a TIC-80 typing shim; using `from tic80 import *` under `if TYPE_CHECKING` is allowed, and Pyright will load TIC-80 stubs from `tic80.pyi`.
 ```python
 from typing import TYPE_CHECKING
 
@@ -41,7 +41,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from tic80 import *
-    from .test import *
+    from .test import msg
 
 include("test")
 ```

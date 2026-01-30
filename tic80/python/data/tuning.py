@@ -1,7 +1,6 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from tic80 import *
     from ..types import TuningDict
 
 TUNING: "TuningDict" = {

@@ -1,19 +1,19 @@
-from __future__ import annotations
-
 from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
-    from tic80 import *
+    from tic80 import cls, print
     from ..types import ResultEnterParams
 
-DEFAULT_RESULT_TEXT: str = "RESULT: OK"
+_result_text: str
 
-_result_text: str = DEFAULT_RESULT_TEXT
+
+def result_scene_reset_state() -> None:
+    global _result_text
+    _result_text = "RESULT: OK"
 
 
 def result_scene_enter(params: Optional[ResultEnterParams] = None) -> None:
-    global _result_text
-    _result_text = DEFAULT_RESULT_TEXT
+    result_scene_reset_state()
     if params is not None and "text" in params:
         _result_text = str(params["text"])
 
@@ -31,3 +31,6 @@ def result_scene_draw() -> None:
 
 def result_scene_exit() -> None:
     pass
+
+
+result_scene_reset_state()

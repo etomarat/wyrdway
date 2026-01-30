@@ -1,4 +1,18 @@
 {
-    "python.analysis.stubPath": "stubs",
-    "chatgpt.openOnStartup": false
+    "chatgpt.openOnStartup": false,
+    "cursorpyright.disableOrganizeImports": true,
+    "[python]": {
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "ms-python.autopep8",
+        "editor.codeActionsOnSave": {
+            "source.organizeImports": "always"
+        }
+    },
+    "isort.args": [
+        "--multi-line",
+        "3",
+        "--line-length",
+        "80",
+        "--use-parentheses"
+    ]
 }
