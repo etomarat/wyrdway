@@ -424,3 +424,31 @@ def tstamp() -> int:
 def vbank(bank: int | None = None) -> int:
     """VRAM contains 2x16K memory chips, use vbank(0) or vbank(1) to switch between them."""
     ...
+
+def include(path: str) -> None:
+  """
+  TIC-80 bundler directive.
+
+  This function is **not** executed by TIC-80 Python at runtime.
+  It is a preprocessor marker that your bundler replaces with the
+  contents of another source file **before** the code is loaded into TIC-80.
+
+  Examples:
+    include("test")        # inlines ./test.py
+    include("util.math")   # inlines ./util/math.py
+
+  Notes:
+    - `include()` usually injects names into the current module scope,
+      similar to copy-pasting code.
+    - Type checkers (Pyright/Mypy) cannot infer which names appear after
+      `include()`. If you need IntelliSense for injected names, add a
+      TYPE_CHECKING-only import next to the include statement.
+
+  Recommended pattern:
+    include("test")
+
+    from typing import TYPE_CHECKING
+    if TYPE_CHECKING:
+      from test import msg
+  """
+  ...
