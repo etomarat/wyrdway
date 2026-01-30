@@ -1,4 +1,4 @@
 {
     "python.analysis.stubPath": "stubs",
-    "chatgpt.openOnStartup": true
+    "chatgpt.openOnStartup": false
 }

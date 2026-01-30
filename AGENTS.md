@@ -21,7 +21,7 @@
 - Keep TIC-80 entry points named `TIC()` (Python) or `TIC` (Lua).
 - No formatter or linter is configured yet; keep diffs tidy and consistent with surrounding code.
 - Aim for typed code in editor: define shared types in `tic80/python/types.py` and import them under `if TYPE_CHECKING:`.
-- Prefer string annotations (e.g. `value: "MyType"`) for runtime safety, since TIC-80 doesn't execute TYPE_CHECKING imports.
+- Do not use string annotations. Type-only imports (e.g., `SceneDict`) go under `if TYPE_CHECKING:` for editor/pyright support, and never require `include("types")` at runtime.
 
 ## TIC-80 Python Import/Bundling Rules
 - TIC-80 Python does not support normal imports; we bundle everything into `main.py`.
@@ -52,7 +52,9 @@ include("test")
 
 ## Commit & Pull Request Guidelines
 - Recent commits use short, lower-case summaries (e.g., “add tic80 bundler support and stubs”). Keep messages concise and action-oriented.
+- After each successful iteration, provide a suggested commit message.
 - PRs should include: a short description of gameplay or tooling changes, how you tested (command + outcome), and screenshots or GIFs for visual changes.
 
 ## Architecture Notes
 - Scene flow and ownership rules live in `docs/2_architecture.md`. Follow the “Replace SceneManager” rule: only one scene updates/draws at a time.
+- TIC-80 API docs live in `docs/tic80_api_reference.md` (short reference) and `docs/TIC-80.wiki` (full wiki clone). Use them to clarify API details when needed.

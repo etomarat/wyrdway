@@ -25,4 +25,4 @@ def debug_draw(lines: list[str], x: int = 1, y: int = 1, color: int = 12) -> Non
     if not DEBUG_ENABLED:
         return
     for i, line in enumerate(lines):
-        print(line, x, y + i * 6, color)
+        print(line, x, y + i * 6, color, fixed=True, alt=True)
