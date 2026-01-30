@@ -33,7 +33,7 @@
   - Editor-only imports go under `if TYPE_CHECKING:` so Pyright/IDE can resolve types without breaking runtime.
 - Shared **types that are only used for static typing** (e.g. `TypedDict`, `Protocol`, aliases) live in `tic80/python/contracts.py` and are imported under `if TYPE_CHECKING:`. They do **not** require `include("contracts")` at runtime.
 - Small **runtime data/contract classes** that must exist as values (for example, scene parameter objects like `DriveEnterParams` or `ResultEnterParams`) may also live in `tic80/python/contracts.py`, but in that case `tic80/python/main.py` must call `include("contracts")` so these classes are available in the bundled cart.
-- TIC-80 Python ships with a restricted `typing` module. Do not rely on `typing.NamedTuple` at runtime; when you need simple data carriers, prefer regular classes with annotated fields (optionally with `__slots__`) instead.
+- TIC-80 Python ships with a restricted `typing` module. Do not rely on `typing.NamedTuple` at runtime; when you need simple data carriers, prefer regular classes with annotated fields instead.
 - Python files that touch the TIC-80 API should start with a TIC-80 typing shim; using `from tic80 import *` under `if TYPE_CHECKING` is allowed, and Pyright will load TIC-80 stubs from `tic80.pyi`.
 ```python
 from typing import TYPE_CHECKING
@@ -50,6 +50,35 @@ if TYPE_CHECKING:
 
 include("test")
 ```
+
+## TIC-80 Python Runtime (PocketPy 1.2.x)
+- TIC-80’s `# script: python` runtime is **PocketPy (pocketpy) 1.2.x**, not CPython. Treat it as a Python-like dialect with real incompatibilities.
+- If you’re unsure whether something works, assume it doesn’t until validated inside TIC-80.
+
+### Hard bans (unsupported / incompatible features)
+- **Do not use `__slots__`** (not implemented in pocketpy).
+- **Do not use multiple inheritance** (only single inheritance).
+- **Do not use custom descriptors** (`__get__` / `__set__`), except `property`.
+- **Do not use `__del__`** finalizers.
+- **Do not use** `try/except/else` or `try/except/finally` clauses.
+- **Do not use `%` string formatting** (`"x=%d" % n`) — use f-strings or `.format(...)` with positional args.
+- **Do not rely on CPython-only string literal concatenation** (`'a' 'b'`).
+- **Do not use `str.format()` with keyword arguments** (`"{x}".format(x=1)`) — positional-only.
+- **Do not use starred assignment** except at the end (`a, b, *rest = ...` is ok; `a, *mid, b = ...` is not).
+- **Do not use raw strings** ending with a backslash (`r"\"`).
+- **Do not use `++x` / `--x`** (pocketpy supports these but CPython doesn’t; banning avoids portability traps).
+
+### Known behavioral differences (avoid relying on CPython semantics)
+- `bool` is **not** a subclass of `int`; don’t mix booleans into arithmetic as numbers.
+- `int` is 64-bit; huge integers and bit hacks may behave differently.
+- `match/case` behaves like an `if/elif` chain; avoid clever pattern matching.
+- `locals()` / `globals()` semantics differ; avoid metaprogramming and dynamic scope tricks.
+- `//` and `%` are not defined for float or negative numbers; keep them to non-negative ints.
+
+### References
+- https://github.com/nesbox/TIC-80/pull/2315
+- https://reference.pocketpy.dev/python.html
+- https://pocketpy.dev/
 
 ## Testing Guidelines
 - There is no automated test suite yet. Validate changes by running the cart in TIC-80 and exercising the affected scene or mechanic.
