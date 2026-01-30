@@ -1,12 +1,4 @@
-from typing import (
-    TYPE_CHECKING,
-    Callable,
-    Dict,
-    Literal,
-    Optional,
-    Protocol,
-    overload
-)
+from typing import TYPE_CHECKING, Callable, Literal, Protocol, overload
 
 if TYPE_CHECKING:
     from tic80 import *  # noqa: F403
@@ -47,9 +39,9 @@ class SceneManager(SceneNavigator):
 
     def __init__(self) -> None:
         self.state = GameState()
-        self._scenes: Dict[str, SceneFactory] = {}
-        self._current_scene_id: Optional[str] = None
-        self._current_scene: Optional[Scene] = None
+        self._scenes: dict[str, SceneFactory] = {}
+        self._current_scene_id: str | None = None
+        self._current_scene: Scene | None = None
 
     def register(self, scene_id: str, factory: SceneFactory) -> None:
         self._scenes[scene_id] = factory
@@ -99,5 +91,5 @@ class SceneManager(SceneNavigator):
         self._current_scene.draw()
 
     @property
-    def current_id(self) -> Optional[str]:
+    def current_id(self) -> str | None:
         return self._current_scene_id

@@ -27,7 +27,8 @@ class DriveScene:
 
         run = self._state.run
         if run is not None:
-            run.car_fuel = max(0.0, run.car_fuel - dt * TUNING.DRIVE.fuel_per_sec)
+            run.car_fuel = max(0.0,
+                               run.car_fuel - dt * TUNING.DRIVE.fuel_per_sec)
 
         if btnp(Button.A):
             if self._mode == "travel":

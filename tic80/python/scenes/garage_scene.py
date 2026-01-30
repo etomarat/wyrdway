@@ -27,7 +27,8 @@ class GarageScene:
         print("GARAGE", 98, 40, 12)
         print("money=" + str(self._state.profile.money), 82, 60, 12)
         print("hp=" + str(self._state.profile.garage_hp), 94, 70, 12)
-        print("fuel=" + str(round(self._state.profile.garage_fuel, 1)), 82, 80, 12)
+        print("fuel=" + str(round(self._state.profile.garage_fuel, 1)),
+              82, 80, 12)
         print(self.note, 56, 100, 12)
 
     def exit(self) -> None:

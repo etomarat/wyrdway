@@ -1,6 +1,6 @@
 # title:   Wyrdway
 # author:  Marat Azizov, t.me/etomarat, @etomarat
-# desc:    A content-driven road-trip roguelite game: drive between strange POIs, do quick loot raids, extract, and upgrade your car in the garage to survive escalating anomalies. 
+# desc:    A content-driven road-trip roguelite game: drive between strange POIs, do quick loot raids, extract, and upgrade your car in the garage to survive escalating anomalies.  # noqa: E501
 # site:    https://github.com/etomarat
 # license: MIT License (change this to your license of choice)
 # version: 0.1

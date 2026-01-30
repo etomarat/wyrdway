@@ -20,7 +20,9 @@ class GameState:
     def start_run(self) -> RunState:
         seed = self._seed_counter
         self._seed_counter += 1
-        self.run = RunState(seed, self.profile.garage_hp, self.profile.garage_fuel)
+        self.run = RunState(seed,
+                            self.profile.garage_hp,
+                            self.profile.garage_fuel)
         return self.run
 
     def end_run(self) -> None:
