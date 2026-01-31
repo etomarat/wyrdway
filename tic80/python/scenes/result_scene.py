@@ -33,7 +33,7 @@ class ResultScene:
             "seed=" + str(run.seed),
             "node=" + str(run.node_id),
             "fuel=" + str(round(run.car_fuel, 1)),
-            "inv=" + str(run.inventory_count()),
+            "inv=" + str(run.inventory_count())
         ]
         if run.delta is not None:
             delta = run.delta

@@ -33,7 +33,7 @@ class GarageScene:
             repaired = self._profile.repair(
                 TUNING.PROFILE.repair_cost,
                 TUNING.PROFILE.repair_hp,
-                TUNING.PROFILE.start_garage_hp,
+                TUNING.PROFILE.start_garage_hp
             )
             if repaired:
                 self._state.save_profile()

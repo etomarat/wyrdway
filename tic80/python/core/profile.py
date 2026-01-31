@@ -57,5 +57,5 @@ class Profile:
         self.apply_save(
             self._start_scrap,
             self._start_garage_hp,
-            self._start_garage_fuel,
+            self._start_garage_fuel
         )

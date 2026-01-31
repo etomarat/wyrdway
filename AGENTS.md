@@ -5,6 +5,7 @@
 - `tic80/lua/` contains a Lua cartridge prototype (`main.lua`) for reference only unless explicitly requested.
 - `pyxel/` is a placeholder sandbox and should not be used unless explicitly requested.
 - `docs/` captures design and architecture references (expect this area to grow over time).
+- Start here: `docs/INDEX.md`.
 - `run_tic80_python.bat` is the primary local run/build helper on Windows.
   - `tic80/python/main.py` is the game entry point.
   - `tic80/python/game.py` is the TIC-80 cart resource file (sprites/sfx/etc). Avoid editing directly unless explicitly requested.
@@ -90,5 +91,5 @@ include("test")
 - PRs should include: a short description of gameplay or tooling changes, how you tested (command + outcome), and screenshots or GIFs for visual changes.
 
 ## Architecture Notes
-- Scene flow and ownership rules live in `docs/2_architecture.md`. Follow the “Replace SceneManager” rule: only one scene updates/draws at a time.
-- TIC-80 API docs live in `docs/tic80_api_reference.md` (short reference) and `docs/TIC-80.wiki` (full wiki clone). Use them to clarify API details when needed.
+- Scene flow and ownership rules live in `docs/00_spec/2_architecture.md`. Follow the “Replace SceneManager” rule: only one scene updates/draws at a time.
+- TIC-80 API docs live in `docs/20_tech/tic80_api_reference.md` (short reference) and `docs/20_tech/TIC-80.wiki` (full wiki clone). Use them to clarify API details when needed.

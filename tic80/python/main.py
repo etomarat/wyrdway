@@ -12,7 +12,6 @@ if TYPE_CHECKING:
     from tic80 import include
 
     from .core.debug import DebugOverlay
-    from .core.save_system import SaveSystem
     from .core.scene_ids import SceneId
     from .core.scene_manager import SceneManager
     from .data.tuning import TUNING
@@ -32,6 +31,9 @@ include("core.run_state")
 include("core.game_state")
 include("core.scene_ids")
 include("core.scene_manager")
+include("systems.drive.rng")
+include("systems.drive.road_model")
+include("systems.drive.drive_logic")
 include("scenes.drive_scene")
 include("scenes.garage_scene")
 include("scenes.poi_scene")
@@ -64,7 +66,7 @@ def TIC() -> None:
     lines = [
         "scene=" + str(SCENE_MANAGER.current_id),
         "dt=" + str(dt),
-        "profile=" + ("loaded" if SCENE_MANAGER.state.profile_loaded else "new"),
+        "profile=" + ("loaded" if SCENE_MANAGER.state.profile_loaded else "new")
     ]
     if SCENE_MANAGER.state.profile_tuning_mismatch:
         lines.append(

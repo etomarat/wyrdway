@@ -18,7 +18,7 @@ class GameState:
         self._profile = Profile(
             TUNING.PROFILE.start_scrap,
             TUNING.PROFILE.start_garage_hp,
-            TUNING.PROFILE.start_garage_fuel,
+            TUNING.PROFILE.start_garage_fuel
         )
         self._save = SaveSystem()
         self._run: RunState | None = None
@@ -114,7 +114,7 @@ class GameState:
         self._save.save_profile(
             self._profile.scrap,
             self._profile.garage_hp,
-            self._profile.garage_fuel,
+            self._profile.garage_fuel
         )
 
     def require_run(self) -> RunState:

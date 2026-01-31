@@ -5,14 +5,14 @@ if TYPE_CHECKING:
 
 
 class CoreTuning:
-    __slots__ = ("dt",)
+    __slots__ = ["dt"]
 
     def __init__(self) -> None:
         self.dt = 0.0
 
 
 class DebugTuning:
-    __slots__ = ("overlay_default",)
+    __slots__ = ["overlay_default"]
 
     def __init__(self) -> None:
         self.overlay_default = False
@@ -27,7 +27,7 @@ class ProfileTuning:
         "repair_hp",
         "evac_fuel_pct",
         "evac_fuel_min",
-        "evac_scrap_loss",
+        "evac_scrap_loss"
     )
 
     def __init__(self) -> None:
@@ -42,13 +42,46 @@ class ProfileTuning:
 
 
 class DriveTuning:
-    __slots__ = ("fuel_per_sec", "damage_per_sec", "move_speed", "segment_length")
+    __slots__ = (
+        "segment_total_length",
+        "safe_start_length",
+        "road_width",
+        "ds",
+        "min_piece_length",
+        "max_piece_length",
+        "max_curvature",
+        "ramp_fraction",
+        "max_speed",
+        "accel",
+        "brake",
+        "steer_rate",
+        "grip",
+        "handbrake_grip_mult",
+        "offroad_grip_mult",
+        "offroad_slowdown",
+        "fuel_per_sec_idle",
+        "fuel_per_sec_throttle"
+    )
 
     def __init__(self) -> None:
-        self.fuel_per_sec = 0.0
-        self.damage_per_sec = 0.0
-        self.move_speed = 0.0
-        self.segment_length = 0.0
+        self.segment_total_length = 0.0
+        self.safe_start_length = 0.0
+        self.road_width = 0.0
+        self.ds = 0.0
+        self.min_piece_length = 0.0
+        self.max_piece_length = 0.0
+        self.max_curvature = 0.0
+        self.ramp_fraction = 0.0
+        self.max_speed = 0.0
+        self.accel = 0.0
+        self.brake = 0.0
+        self.steer_rate = 0.0
+        self.grip = 0.0
+        self.handbrake_grip_mult = 0.0
+        self.offroad_grip_mult = 0.0
+        self.offroad_slowdown = 0.0
+        self.fuel_per_sec_idle = 0.0
+        self.fuel_per_sec_throttle = 0.0
 
 
 class PoiTuning:
@@ -72,21 +105,27 @@ class Tuning:
 
 
 DriveMode = Literal["travel", "extract"]
+DriveVariant = Literal["topdown", "cockpit"]
 
 
 class DriveEnterParams:
-    __slots__ = ("_mode",)
+    __slots__ = ("_mode", "_variant")
 
-    def __init__(self, mode: DriveMode) -> None:
+    def __init__(self, mode: DriveMode, variant: DriveVariant = "topdown") -> None:
         self._mode: DriveMode = mode
+        self._variant: DriveVariant = variant
 
     @property
     def mode(self) -> DriveMode:
         return self._mode
 
+    @property
+    def variant(self) -> DriveVariant:
+        return self._variant
+
 
 class ResultEnterParams:
-    __slots__ = ("_text",)
+    __slots__ = ["_text"]
 
     def __init__(self, text: str) -> None:
         self._text = text

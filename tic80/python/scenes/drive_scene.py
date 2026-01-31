@@ -5,9 +5,11 @@ if TYPE_CHECKING:
 
     from ..contracts import DriveEnterParams, ResultEnterParams, SceneNavigator
     from ..core.input_buttons import Button
-    from ..core.run_state import RunState
     from ..core.scene_ids import SceneId
+    from ..core.run_state import RunState
     from ..data.tuning import TUNING
+    from ..systems.drive.drive_logic import DriveLogic
+    from ..systems.drive.road_model import RoadModel
 
 
 class DriveScene:
@@ -16,84 +18,85 @@ class DriveScene:
     def __init__(self, nav: SceneNavigator) -> None:
         self._nav = nav
         self._state = nav.state
-        self._t = 0.0
         self._mode = "travel"
-        self._x = 0.0
-        self._y = 68.0
-        self._finished = False
+        self._variant = "topdown"
+        self._road: RoadModel | None = None
+        self._logic: DriveLogic | None = None
         self._evacuated = False
 
     def enter(self, params: object | None = None) -> None:
         if not isinstance(params, DriveEnterParams):
             raise TypeError("DriveScene.enter expects DriveEnterParams")
         self._mode = params.mode
-        self._x = 10.0
-        self._finished = False
+        self._variant = params.variant
         self._evacuated = False
+        self._road = None
+        self._logic = None
+
+        run = self._state.require_run()
+        seed = run.seed
+        self._road = RoadModel.from_tuning(seed, TUNING)
+        self._logic = DriveLogic(run, self._road, TUNING)
 
     def update(self, dt: float) -> None:
-        self._t += dt
-
         run = self._state.run
-        move = 0.0
+        if run is None:
+            return
+        if self._logic is None:
+            return
+
+        steer = 0
         if btn(Button.LEFT):
-            move -= TUNING.DRIVE.move_speed * dt
+            steer -= 1
         if btn(Button.RIGHT):
-            move += TUNING.DRIVE.move_speed * dt
-        if move != 0.0:
-            self._x += move
+            steer += 1
 
-        if run is not None:
-            if move != 0.0:
-                run.consume_fuel(dt * TUNING.DRIVE.fuel_per_sec)
+        throttle = btn(Button.UP)
+        brake = btn(Button.DOWN)
+        handbrake = btn(Button.B)
 
-            run.apply_damage(dt * TUNING.DRIVE.damage_per_sec)
+        self._logic.update(dt, steer, throttle, brake, handbrake)
 
-            if not self._evacuated:
-                if run.car_fuel <= 0:
-                    self._evacuate(run, "OUT OF FUEL")
-                    return
-                if run.car_hp <= 0:
-                    self._evacuate(run, "CAR DESTROYED")
-                    return
+        if not self._evacuated:
+            if run.car_fuel <= 0:
+                self._evacuate(run, "OUT OF FUEL")
+                return
+            if run.car_hp <= 0:
+                self._evacuate(run, "CAR DESTROYED")
+                return
 
-        finish_x = TUNING.DRIVE.segment_length
-        if self._x < 0:
-            self._x = 0.0
-        if self._x > finish_x:
-            self._x = finish_x
-        if self._x >= finish_x:
-            self._finished = True
-        else:
-            self._finished = False
-
-        if self._finished and btnp(Button.A):
+        if self._logic.finished() and btnp(Button.A):
             if self._mode == "travel":
                 self._nav.go(SceneId.POI)
-            else:
-                if run is not None and run.delta is not None:
-                    run.delta.set_escape_outcome("ok")
-                self._nav.go(SceneId.RESULT, ResultEnterParams("EXTRACT OK"))
+                return
+
+            delta = run.ensure_delta(run.node_id)
+            delta.set_escape_outcome("ok")
+            self._nav.go(SceneId.RESULT, ResultEnterParams("EXTRACT OK"))
 
     def draw(self) -> None:
         cls(0)
         print("DRIVE", 104, 30, 12)
-        print("mode=" + self._mode, 86, 50, 12)
-        print("t=" + str(round(self._t, 2)), 92, 60, 12)
+        print("mode=" + self._mode, 86, 40, 12)
+        print("view=" + self._variant, 82, 50, 12)
         run = self._state.run
         if run is not None:
-            print("fuel=" + str(round(run.car_fuel, 1)), 88, 70, 12)
-            print("hp=" + str(run.car_hp), 98, 80, 12)
-        print("finish=" + str(int(TUNING.DRIVE.segment_length)),
-              74, 90, 12)
-        print("x=" + str(int(self._x)), 104, 100, 12)
-        if self._finished:
-            if self._mode == "travel":
-                print("A = ARRIVE", 80, 110, 12)
+            print("fuel=" + str(round(run.car_fuel, 1)), 88, 60, 12)
+            print("hp=" + str(round(run.car_hp, 1)), 94, 70, 12)
+
+        logic = self._logic
+        road = self._road
+        if logic is not None and road is not None:
+            print("s=" + str(int(logic.s)) + "/" + str(int(road.segment_total_length)),
+                  70, 82, 12)
+            print("d=" + str(round(logic.d, 2)), 90, 92, 12)
+            print("spd=" + str(round(logic.speed, 1)), 84, 102, 12)
+            if logic.offroad:
+                print("OFFROAD", 96, 112, 2)
+            if logic.finished():
+                print("A = CONTINUE", 70, 122, 12)
             else:
-                print("A = ESCAPE", 80, 110, 12)
-        else:
-            print("HOLD -> or <- ", 92, 110, 12)
+                print("UP/DN/LR + B", 68, 122, 12)
 
     def exit(self) -> None:
         pass
