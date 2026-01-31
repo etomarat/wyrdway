@@ -20,6 +20,7 @@
 - Python files use 4-space indentation; Lua prototype uses tabs in `tic80/lua/main.lua` if touched.
 - Keep TIC-80 entry points named `TIC()` (Python) or `TIC` (Lua).
 - No formatter or linter is configured yet; keep diffs tidy and consistent with surrounding code.
+- **Do not use trailing commas** in code — they break the PocketPy runtime.
 - Prefer **classes over ad-hoc globals** for game state and behavior. Use small, focused classes (e.g. scenes, data carriers) instead of spreading logic across module-level functions and global variables.
 - Avoid introducing new mutable module-level state where possible. Prefer passing state explicitly or encapsulating it in objects owned by a clear root (e.g. `SceneManager`, `RunState`).
 - Aim for typed code in editor: define shared contracts and shared types in `tic80/python/contracts.py` and import them under `if TYPE_CHECKING:`.

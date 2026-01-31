@@ -22,14 +22,17 @@ class GarageScene:
 
     def update(self, dt: float) -> None:
         if btnp(Button.A):
+            self._state.save_profile()
             self._state.start_run()
             self._nav.go(SceneId.REGION_MAP)
         elif btnp(Button.B):
-            self._profile.repair(
+            repaired = self._profile.repair(
                 TUNING.PROFILE.repair_cost,
                 TUNING.PROFILE.repair_hp,
                 TUNING.PROFILE.start_garage_hp,
             )
+            if repaired:
+                self._state.save_profile()
 
     def draw(self) -> None:
         cls(0)

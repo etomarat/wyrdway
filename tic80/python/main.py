@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from tic80 import include
 
     from .core.debug import DebugOverlay
+    from .core.save_system import SaveSystem
     from .core.scene_ids import SceneId
     from .core.scene_manager import SceneManager
     from .data.tuning import TUNING
@@ -25,6 +26,7 @@ include("contracts")
 include("data.tuning")
 include("core.debug")
 include("core.input_buttons")
+include("core.save_system")
 include("core.profile")
 include("core.run_state")
 include("core.game_state")
@@ -43,6 +45,7 @@ DEBUG = DebugOverlay()
 
 def BOOT() -> None:
     DEBUG.set_enabled(TUNING.DEBUG.overlay_default)
+    SCENE_MANAGER.state.load_profile()
     SCENE_MANAGER.register(SceneId.GARAGE, make_garage_scene)
     SCENE_MANAGER.register(SceneId.REGION_MAP, make_region_map_scene)
     SCENE_MANAGER.register(SceneId.DRIVE, make_drive_scene)
@@ -61,5 +64,13 @@ def TIC() -> None:
     lines = [
         "scene=" + str(SCENE_MANAGER.current_id),
         "dt=" + str(dt),
+        "profile=" + ("loaded" if SCENE_MANAGER.state.profile_loaded else "new"),
     ]
+    if SCENE_MANAGER.state.profile_tuning_mismatch:
+        lines.append(
+            "tuning mismatch: save="
+            + str(SCENE_MANAGER.state.profile_tuning_version)
+            + " cur="
+            + str(TUNING.tuning_version)
+        )
     DEBUG.draw(lines)

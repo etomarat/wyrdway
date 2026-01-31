@@ -32,10 +32,10 @@ class ProfileTuning:
 
     def __init__(self) -> None:
         self.start_scrap = 0
-        self.start_garage_hp = 0
+        self.start_garage_hp = 0.0
         self.start_garage_fuel = 0.0
         self.repair_cost = 0
-        self.repair_hp = 0
+        self.repair_hp = 0.0
         self.evac_fuel_pct = 0.0
         self.evac_fuel_min = 0.0
         self.evac_scrap_loss = 0

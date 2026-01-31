@@ -33,13 +33,18 @@ class Profile:
         return True
 
     def set_garage_stats(self, hp: float, fuel: float) -> None:
-        self._garage_hp = max(0, int(hp))
+        self._garage_hp = max(0.0, float(hp))
         self._garage_fuel = max(0.0, float(fuel))
 
-    def repair(self, cost: int, hp_gain: int, hp_max: int) -> bool:
+    def repair(self, cost: int, hp_gain: float, hp_max: float) -> bool:
         if self._garage_hp >= hp_max:
             return False
         if not self.spend_scrap(cost):
             return False
         self._garage_hp = min(hp_max, self._garage_hp + hp_gain)
         return True
+
+    def apply_save(self, scrap: int, garage_hp: float, garage_fuel: float) -> None:
+        self._scrap = max(0, int(scrap))
+        self._garage_hp = max(0.0, float(garage_hp))
+        self._garage_fuel = max(0.0, float(garage_fuel))
