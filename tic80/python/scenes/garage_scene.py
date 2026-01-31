@@ -9,6 +9,8 @@ if TYPE_CHECKING:
 
 
 class GarageScene:
+    SCENE_ID = SceneId.GARAGE
+
     def __init__(self, nav: "SceneNavigator") -> None:
         self._nav = nav
         self._state = nav.state

@@ -5,29 +5,32 @@ if TYPE_CHECKING:
 
     from .input_buttons import Button
 
-DEBUG_ENABLED: bool = True
 
+class DebugOverlay:
+    """Дебаг-оверлей для TIC-80.
+    """
 
-def debug_toggle() -> None:
-    global DEBUG_ENABLED
-    DEBUG_ENABLED = not DEBUG_ENABLED
+    def __init__(self) -> None:
+        self.enabled = True
 
+    def toggle(self) -> None:
+        self.enabled = not self.enabled
 
-def debug_set_enabled(value: bool) -> None:
-    global DEBUG_ENABLED
-    DEBUG_ENABLED = value
+    def set_enabled(self, value: bool) -> None:
+        self.enabled = value
 
+    def handle_input(self) -> None:
+        if btnp(Button.Y):
+            self.toggle()
 
-def debug_handle_input() -> None:
-    if btnp(Button.Y):
-        debug_toggle()
-
-
-def debug_draw(lines: list[str],
-               x: int = 1,
-               y: int = 1,
-               color: int = 12) -> None:
-    if not DEBUG_ENABLED:
-        return
-    for i, line in enumerate(lines):
-        print(line, x, y + i * 6, color, fixed=True, alt=True)
+    def draw(
+        self,
+        lines: list[str],
+        x: int = 1,
+        y: int = 1,
+        color: int = 12,
+    ) -> None:
+        if not self.enabled:
+            return
+        for i, line in enumerate(lines):
+            print(line, x, y + i * 6, color, fixed=True, alt=True)

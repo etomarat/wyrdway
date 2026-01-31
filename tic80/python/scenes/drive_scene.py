@@ -11,6 +11,8 @@ if TYPE_CHECKING:
 
 
 class DriveScene:
+    SCENE_ID = SceneId.DRIVE
+
     def __init__(self, nav: "SceneNavigator") -> None:
         self._nav = nav
         self._state = nav.state

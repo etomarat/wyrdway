@@ -11,6 +11,8 @@ if TYPE_CHECKING:
 
 
 class PoiScene:
+    SCENE_ID = SceneId.POI
+
     def __init__(self, nav: "SceneNavigator") -> None:
         self._nav = nav
         self._state = nav.state

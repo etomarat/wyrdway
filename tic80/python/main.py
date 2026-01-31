@@ -11,8 +11,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from tic80 import include
 
-    from .core.class_probe import class_probe_get_lines
-    from .core.debug import debug_draw, debug_handle_input, debug_set_enabled
+    from .core.debug import DebugOverlay
     from .core.scene_ids import SceneId
     from .core.scene_manager import SceneManager
     from .data.tuning import TUNING
@@ -24,7 +23,6 @@ if TYPE_CHECKING:
 
 include("contracts")
 include("data.tuning")
-include("core.class_probe")
 include("core.debug")
 include("core.input_buttons")
 include("core.game_state")
@@ -38,10 +36,11 @@ include("scenes.result_scene")
 
 
 SCENE_MANAGER = SceneManager()
+DEBUG = DebugOverlay()
 
 
 def BOOT() -> None:
-    debug_set_enabled(TUNING.DEBUG.overlay_default)
+    DEBUG.set_enabled(TUNING.DEBUG.overlay_default)
     SCENE_MANAGER.register(SceneId.GARAGE, make_garage_scene)
     SCENE_MANAGER.register(SceneId.REGION_MAP, make_region_map_scene)
     SCENE_MANAGER.register(SceneId.DRIVE, make_drive_scene)
@@ -53,7 +52,7 @@ def BOOT() -> None:
 def TIC() -> None:
     dt = TUNING.CORE.dt
 
-    debug_handle_input()
+    DEBUG.handle_input()
     SCENE_MANAGER.update(dt)
     SCENE_MANAGER.draw()
 
@@ -61,5 +60,4 @@ def TIC() -> None:
         "scene=" + str(SCENE_MANAGER.current_id),
         "dt=" + str(dt),
     ]
-    lines.extend(class_probe_get_lines())
-    debug_draw(lines)
+    DEBUG.draw(lines)
