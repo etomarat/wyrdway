@@ -29,15 +29,15 @@ class DriveScene:
 
         run = self._state.run
         if run is not None:
-            run.car_fuel = max(0.0,
-                               run.car_fuel - dt * TUNING.DRIVE.fuel_per_sec)
+            run.consume_fuel(dt * TUNING.DRIVE.fuel_per_sec)
+            run.apply_damage(dt * TUNING.DRIVE.damage_per_sec)
 
         if btnp(Button.A):
             if self._mode == "travel":
                 self._nav.go(SceneId.POI)
             else:
                 if run is not None and run.delta is not None:
-                    run.delta.escape_outcome = "ok"
+                    run.delta.set_escape_outcome("ok")
                 self._nav.go(SceneId.RESULT, ResultEnterParams("EXTRACT OK"))
 
     def draw(self) -> None:
@@ -48,6 +48,7 @@ class DriveScene:
         run = self._state.run
         if run is not None:
             print("fuel=" + str(round(run.car_fuel, 1)), 88, 70, 12)
+            print("hp=" + str(int(run.car_hp)), 98, 80, 12)
         if self._mode == "travel":
             print("A = ARRIVE", 80, 100, 12)
         else:

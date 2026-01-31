@@ -6,8 +6,9 @@ select = [
   "E", "F",
   "B",
   "ISC",
-  "UP"
+  "UP",
 ]
+
 ignore = ["UP035"]
 
 [tool.ruff.lint.flake8-implicit-str-concat]

@@ -19,26 +19,36 @@ class DebugTuning:
 
 
 class ProfileTuning:
-    __slots__ = ("start_money", "start_garage_hp", "start_garage_fuel")
+    __slots__ = (
+        "start_scrap",
+        "start_garage_hp",
+        "start_garage_fuel",
+        "repair_cost",
+        "repair_hp",
+    )
 
     def __init__(self) -> None:
-        self.start_money = 0
+        self.start_scrap = 0
         self.start_garage_hp = 0
         self.start_garage_fuel = 0.0
+        self.repair_cost = 0
+        self.repair_hp = 0
 
 
 class DriveTuning:
-    __slots__ = ("fuel_per_sec",)
+    __slots__ = ("fuel_per_sec", "damage_per_sec")
 
     def __init__(self) -> None:
         self.fuel_per_sec = 0.0
+        self.damage_per_sec = 0.0
 
 
 class PoiTuning:
-    __slots__ = ("timer_seconds",)
+    __slots__ = ("timer_seconds", "scrap_per_loot")
 
     def __init__(self) -> None:
         self.timer_seconds = 0.0
+        self.scrap_per_loot = 0
 
 
 class Tuning:
@@ -57,61 +67,25 @@ DriveMode = Literal["travel", "extract"]
 
 
 class DriveEnterParams:
-    __slots__ = ("mode",)
+    __slots__ = ("_mode",)
 
     def __init__(self, mode: DriveMode) -> None:
-        self.mode = mode
+        self._mode: DriveMode = mode
+
+    @property
+    def mode(self) -> DriveMode:
+        return self._mode
 
 
 class ResultEnterParams:
-    __slots__ = ("text",)
+    __slots__ = ("_text",)
 
     def __init__(self, text: str) -> None:
-        self.text = text
+        self._text = text
 
-
-PoiAction = Literal["loot", "leave", "timeout"]
-EscapeOutcome = Literal["ok", "fail"]
-
-
-class RunItem:
-    __slots__ = ("id", "qty")
-
-    def __init__(self, item_id: str, qty: int) -> None:
-        self.id = item_id
-        self.qty = qty
-
-
-class SegmentDelta:
-    __slots__ = ("node_id", "poi_action", "items_gained", "escape_outcome")
-
-    def __init__(self, node_id: int | None) -> None:
-        self.node_id = node_id
-        self.poi_action: PoiAction | None = None
-        self.items_gained: list[RunItem] = []
-        self.escape_outcome: EscapeOutcome | None = None
-
-
-class Profile:
-    __slots__ = ("money", "garage_hp", "garage_fuel", "upgrades")
-
-    def __init__(self, money: int, garage_hp: int, garage_fuel: float) -> None:
-        self.money = money
-        self.garage_hp = garage_hp
-        self.garage_fuel = garage_fuel
-        self.upgrades: list[str] = []
-
-
-class RunState:
-    __slots__ = ("seed", "node_id", "car_hp", "car_fuel", "inventory", "delta")
-
-    def __init__(self, seed: int, car_hp: int, car_fuel: float) -> None:
-        self.seed = seed
-        self.node_id: int | None = None
-        self.car_hp = car_hp
-        self.car_fuel = car_fuel
-        self.inventory: list[RunItem] = []
-        self.delta: SegmentDelta | None = None
+    @property
+    def text(self) -> str:
+        return self._text
 
 
 class Scene(Protocol):
@@ -132,7 +106,8 @@ SceneKeyResult = Literal["RESULT"]
 
 
 class SceneNavigator(Protocol):
-    state: GameState
+    @property
+    def state(self) -> GameState: ...
 
     @overload
     def go(self, scene_id: SceneKeyDrive,

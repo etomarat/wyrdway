@@ -21,7 +21,7 @@ class SceneManager(SceneNavigator):
     """Replace-mode менеджер сцен: в каждый момент активна одна сцена."""
 
     def __init__(self) -> None:
-        self.state = GameState()
+        self._state = GameState()
         self._scenes: dict[str, SceneFactory] = {}
         self._current_scene_id: str | None = None
         self._current_scene: Scene | None = None
@@ -72,6 +72,10 @@ class SceneManager(SceneNavigator):
         if self._current_scene is None:
             return
         self._current_scene.draw()
+
+    @property
+    def state(self) -> GameState:
+        return self._state
 
     @property
     def current_id(self) -> str | None:

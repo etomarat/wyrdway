@@ -33,12 +33,13 @@ class ResultScene:
             "seed=" + str(run.seed),
             "node=" + str(run.node_id),
             "fuel=" + str(round(run.car_fuel, 1)),
-            "inv=" + str(len(run.inventory)),
+            "inv=" + str(run.inventory_count()),
         ]
         if run.delta is not None:
-            lines.append("poi=" + str(run.delta.poi_action))
-            lines.append("gained=" + str(len(run.delta.items_gained)))
-            lines.append("escape=" + str(run.delta.escape_outcome))
+            delta = run.delta
+            lines.append("poi=" + str(delta.poi_action))
+            lines.append("gained=" + str(delta.items_gained_count()))
+            lines.append("escape=" + str(delta.escape_outcome))
         if fallback is not None:
             lines.append("msg=" + str(fallback))
 
@@ -46,7 +47,7 @@ class ResultScene:
 
     def update(self, dt: float) -> None:
         if btnp(Button.A):
-            self._state.end_run()
+            self._state.apply_run_results()
             self._nav.go(SceneId.GARAGE)
 
     def draw(self) -> None:

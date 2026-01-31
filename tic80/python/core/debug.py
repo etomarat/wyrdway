@@ -11,13 +11,17 @@ class DebugOverlay:
     """
 
     def __init__(self) -> None:
-        self.enabled = True
+        self._enabled = True
+
+    @property
+    def enabled(self) -> bool:
+        return self._enabled
 
     def toggle(self) -> None:
-        self.enabled = not self.enabled
+        self._enabled = not self._enabled
 
     def set_enabled(self, value: bool) -> None:
-        self.enabled = value
+        self._enabled = value
 
     def handle_input(self) -> None:
         if btnp(Button.Y):
@@ -28,9 +32,9 @@ class DebugOverlay:
         lines: list[str],
         x: int = 1,
         y: int = 1,
-        color: int = 12,
+        color: int = 12
     ) -> None:
-        if not self.enabled:
+        if not self._enabled:
             return
         for i, line in enumerate(lines):
             print(line, x, y + i * 6, color, fixed=True, alt=True)

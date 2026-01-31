@@ -3,7 +3,8 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from tic80 import btnp, cls, print
 
-    from ..contracts import DriveEnterParams, SegmentDelta
+    from ..contracts import DriveEnterParams
+    from ..core.run_state import SegmentDelta
     from ..contracts import SceneNavigator
     from ..core.input_buttons import Button
     from ..core.scene_ids import SceneId
@@ -30,8 +31,8 @@ class RegionMapScene:
             self.selected_node = min(self.node_count, self.selected_node + 1)
         if btnp(Button.A):
             run = self._state.require_run()
-            run.node_id = self.selected_node
-            run.delta = SegmentDelta(run.node_id)
+            run.set_node_id(self.selected_node)
+            run.ensure_delta(run.node_id)
             self._nav.go(SceneId.DRIVE, DriveEnterParams("travel"))
 
     def draw(self) -> None:
