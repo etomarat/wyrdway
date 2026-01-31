@@ -36,11 +36,13 @@ class ProfileTuning:
 
 
 class DriveTuning:
-    __slots__ = ("fuel_per_sec", "damage_per_sec")
+    __slots__ = ("fuel_per_sec", "damage_per_sec", "move_speed", "segment_length")
 
     def __init__(self) -> None:
         self.fuel_per_sec = 0.0
         self.damage_per_sec = 0.0
+        self.move_speed = 0.0
+        self.segment_length = 0.0
 
 
 class PoiTuning:

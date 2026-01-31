@@ -20,5 +20,7 @@ TUNING.PROFILE.repair_hp = 20
 
 TUNING.DRIVE.fuel_per_sec = 1.0
 TUNING.DRIVE.damage_per_sec = 0.5
+TUNING.DRIVE.move_speed = 60.0
+TUNING.DRIVE.segment_length = 200.0
 TUNING.POI.timer_seconds = 10.0
 TUNING.POI.scrap_per_loot = 1

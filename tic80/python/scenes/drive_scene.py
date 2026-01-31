@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from tic80 import btnp, cls, print
+    from tic80 import btn, btnp, cls, print
 
     from ..contracts import DriveEnterParams, ResultEnterParams
     from ..contracts import SceneNavigator
@@ -18,11 +18,16 @@ class DriveScene:
         self._state = nav.state
         self._t = 0.0
         self._mode = "travel"
+        self._x = 0.0
+        self._y = 68.0
+        self._finished = False
 
     def enter(self, params: object | None = None) -> None:
         if not isinstance(params, DriveEnterParams):
             raise TypeError("DriveScene.enter expects DriveEnterParams")
         self._mode = params.mode
+        self._x = 10.0
+        self._finished = False
 
     def update(self, dt: float) -> None:
         self._t += dt
@@ -32,7 +37,20 @@ class DriveScene:
             run.consume_fuel(dt * TUNING.DRIVE.fuel_per_sec)
             run.apply_damage(dt * TUNING.DRIVE.damage_per_sec)
 
-        if btnp(Button.A):
+        if btn(Button.LEFT):
+            self._x -= TUNING.DRIVE.move_speed * dt
+        if btn(Button.RIGHT):
+            self._x += TUNING.DRIVE.move_speed * dt
+
+        finish_x = TUNING.DRIVE.segment_length
+        if self._x < 0:
+            self._x = 0.0
+        if self._x > finish_x:
+            self._x = finish_x
+        if self._x >= finish_x:
+            self._finished = True
+
+        if self._finished and btnp(Button.A):
             if self._mode == "travel":
                 self._nav.go(SceneId.POI)
             else:
@@ -49,10 +67,16 @@ class DriveScene:
         if run is not None:
             print("fuel=" + str(round(run.car_fuel, 1)), 88, 70, 12)
             print("hp=" + str(int(run.car_hp)), 98, 80, 12)
-        if self._mode == "travel":
-            print("A = ARRIVE", 80, 100, 12)
+        print("finish=" + str(int(TUNING.DRIVE.segment_length)),
+              74, 90, 12)
+        print("x=" + str(int(self._x)), 104, 100, 12)
+        if self._finished:
+            if self._mode == "travel":
+                print("A = ARRIVE", 80, 110, 12)
+            else:
+                print("A = ESCAPE", 80, 110, 12)
         else:
-            print("A = ESCAPE", 80, 100, 12)
+            print("HOLD →", 92, 110, 12)
 
     def exit(self) -> None:
         pass
