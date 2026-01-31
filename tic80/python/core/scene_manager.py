@@ -1,37 +1,20 @@
-from typing import TYPE_CHECKING, Callable, Literal, Protocol, overload
+from typing import TYPE_CHECKING, overload
 
 if TYPE_CHECKING:
     from tic80 import *  # noqa: F403
 
-    from ..contracts import DriveEnterParams, ResultEnterParams
+    from ..contracts import (
+        DriveEnterParams,
+        ResultEnterParams,
+        Scene,
+        SceneFactory,
+        SceneKeyDrive,
+        SceneKeyNoParams,
+        SceneKeyResult,
+        SceneNavigator
+    )
     from .game_state import GameState
-    from .scene_base import Scene
     from .scene_ids import SceneId
-
-
-SceneKeyNoParams = Literal["GARAGE", "REGION_MAP", "POI"]
-SceneKeyDrive = Literal["DRIVE"]
-SceneKeyResult = Literal["RESULT"]
-
-
-class SceneNavigator(Protocol):
-    state: GameState
-
-    @overload
-    def go(self, scene_id: SceneKeyDrive,
-           params: DriveEnterParams) -> None: ...
-
-    @overload
-    def go(self, scene_id: SceneKeyResult,
-           params: ResultEnterParams) -> None: ...
-
-    @overload
-    def go(self, scene_id: SceneKeyNoParams, params: None = None) -> None: ...
-
-    def go(self, scene_id: str, params: object | None = None) -> None: ...
-
-
-SceneFactory = Callable[[SceneNavigator], Scene]
 
 
 class SceneManager(SceneNavigator):

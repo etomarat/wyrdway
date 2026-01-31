@@ -72,6 +72,7 @@ include("test")
 - `int` is 64-bit signed with overflow/wraparound (no big-int).
 - `match/case` seems supported, but keep patterns simple until explicitly tested.
 - Avoid metaprogramming and dynamic scope tricks (`locals()` / `globals()`); assume subtle differences.
+- Do not rely on `__setattr__` (assignments appear to bypass it and write directly into `__dict__`).
 
 ### References
 - https://github.com/nesbox/TIC-80/pull/2315

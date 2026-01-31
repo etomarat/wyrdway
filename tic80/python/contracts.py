@@ -1,4 +1,7 @@
-from typing import Literal
+from typing import TYPE_CHECKING, Callable, Literal, Protocol, overload
+
+if TYPE_CHECKING:
+    from .core.game_state import GameState
 
 
 class CoreTuning:
@@ -109,3 +112,40 @@ class RunState:
         self.car_fuel = car_fuel
         self.inventory: list[RunItem] = []
         self.delta: SegmentDelta | None = None
+
+
+class Scene(Protocol):
+    """Контракт сцены в режиме Replace: одна активная сцена за кадр."""
+
+    def enter(self, params: object | None = None) -> None: ...
+
+    def update(self, dt: float) -> None: ...
+
+    def draw(self) -> None: ...
+
+    def exit(self) -> None: ...
+
+
+SceneKeyNoParams = Literal["GARAGE", "REGION_MAP", "POI"]
+SceneKeyDrive = Literal["DRIVE"]
+SceneKeyResult = Literal["RESULT"]
+
+
+class SceneNavigator(Protocol):
+    state: GameState
+
+    @overload
+    def go(self, scene_id: SceneKeyDrive,
+           params: DriveEnterParams) -> None: ...
+
+    @overload
+    def go(self, scene_id: SceneKeyResult,
+           params: ResultEnterParams) -> None: ...
+
+    @overload
+    def go(self, scene_id: SceneKeyNoParams, params: None = None) -> None: ...
+
+    def go(self, scene_id: str, params: object | None = None) -> None: ...
+
+
+SceneFactory = Callable[[SceneNavigator], Scene]

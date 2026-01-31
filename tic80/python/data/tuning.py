@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from ..contracts import Tuning
 
-TUNING: "Tuning" = Tuning()
+TUNING: Tuning = Tuning()
 TUNING.tuning_version = 2
 
 # Fixed timestep in seconds (TIC-80 runs at 60 FPS by default).

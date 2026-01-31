@@ -4,9 +4,9 @@ if TYPE_CHECKING:
     from tic80 import btnp, cls, print
 
     from ..contracts import ResultEnterParams
+    from ..contracts import SceneNavigator
     from ..core.input_buttons import Button
     from ..core.scene_ids import SceneId
-    from ..core.scene_manager import SceneNavigator
 
 
 class ResultScene:

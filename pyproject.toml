@@ -1,13 +1,14 @@
 [tool.ruff]
-line-length = 80
+line-length = 88
 
 [tool.ruff.lint]
-# Базовая гигиена: ошибки/опечатки/unused + несколько правил под ваши запреты
 select = [
   "E", "F",
-  "B",      # bugbear: частые баги
-  "ISC",    # implicit string concat ('a' 'b')
-  "UP"      # pyupgrade: подсказывает более современный синтаксис
+  "B",
+  "ISC",
+  "UP"
 ]
 ignore = ["UP035"]
-# Важно: НЕ включаем I (isort), чтобы Ruff не лез в импорты.
+
+[tool.ruff.lint.flake8-implicit-str-concat]
+allow-multiline = false
