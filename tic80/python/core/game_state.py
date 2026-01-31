@@ -40,10 +40,21 @@ class GameState:
         run = self._run
         if run is None:
             return
-        for item in run.inventory_items():
-            if item.id == "scrap":
-                self._profile.add_scrap(item.qty)
-        self._profile.set_garage_stats(run.car_hp, run.car_fuel)
+        delta = run.delta
+        failed = delta is not None and delta.escape_outcome == "fail"
+        final_fuel = run.car_fuel
+
+        if failed:
+            fuel_loss = max(TUNING.PROFILE.evac_fuel_min,
+                            final_fuel * TUNING.PROFILE.evac_fuel_pct)
+            final_fuel = max(0.0, final_fuel - fuel_loss)
+            self._profile.add_scrap(-TUNING.PROFILE.evac_scrap_loss)
+        else:
+            for item in run.inventory_items():
+                if item.id == "scrap":
+                    self._profile.add_scrap(item.qty)
+
+        self._profile.set_garage_stats(run.car_hp, final_fuel)
         self._run = None
 
     def require_run(self) -> RunState:

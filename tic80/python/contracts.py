@@ -25,6 +25,9 @@ class ProfileTuning:
         "start_garage_fuel",
         "repair_cost",
         "repair_hp",
+        "evac_fuel_pct",
+        "evac_fuel_min",
+        "evac_scrap_loss",
     )
 
     def __init__(self) -> None:
@@ -33,6 +36,9 @@ class ProfileTuning:
         self.start_garage_fuel = 0.0
         self.repair_cost = 0
         self.repair_hp = 0
+        self.evac_fuel_pct = 0.0
+        self.evac_fuel_min = 0.0
+        self.evac_scrap_loss = 0
 
 
 class DriveTuning:

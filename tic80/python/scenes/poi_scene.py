@@ -3,9 +3,9 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from tic80 import btnp, cls, print
 
-    from ..contracts import DriveEnterParams, SceneNavigator
+    from ..contracts import DriveEnterParams, ResultEnterParams, SceneNavigator
     from ..core.input_buttons import Button
-    from ..core.run_state import PoiAction
+    from ..core.run_state import EscapeOutcome, PoiAction
     from ..core.scene_ids import SceneId
     from ..data.tuning import TUNING
 
@@ -21,13 +21,27 @@ class PoiScene:
     def enter(self, params: object | None = None) -> None:
         self.timer = TUNING.POI.timer_seconds
 
-    def _leave(self, action: PoiAction) -> None:
+    def _leave(
+        self,
+        action: PoiAction,
+        escape_outcome: EscapeOutcome | None = None,
+        go_result: bool = False,
+        message: str | None = None
+    ) -> None:
         run = self._state.require_run()
         delta = run.ensure_delta(run.node_id)
         delta.set_poi_action(action)
+        if escape_outcome is not None:
+            delta.set_escape_outcome(escape_outcome)
         if action == "loot":
             item = run.add_item("scrap", TUNING.POI.scrap_per_loot)
             delta.add_item_gained(item)
+
+        if go_result:
+            if message is None:
+                message = "POI FAILED"
+            self._nav.go(SceneId.RESULT, ResultEnterParams(message))
+            return
 
         self._nav.go(SceneId.DRIVE, DriveEnterParams("extract"))
 
@@ -38,7 +52,7 @@ class PoiScene:
         elif btnp(Button.B):
             self._leave("leave")
         elif self.timer <= 0.0:
-            self._leave("timeout")
+            self._leave("timeout", "fail", True, "POI TIMEOUT")
 
     def draw(self) -> None:
         cls(0)
