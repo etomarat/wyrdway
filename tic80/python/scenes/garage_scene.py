@@ -16,11 +16,15 @@ class GarageScene:
         self._nav = nav
         self._state = nav.state
         self._profile = nav.state.profile
+        self._can_restart = False
 
     def enter(self, params: object | None = None) -> None:
         pass
 
     def update(self, dt: float) -> None:
+        profile = self._profile
+        self._can_restart = profile.garage_hp <= 0 or profile.garage_fuel <= 0
+
         if btnp(Button.A):
             self._state.save_profile()
             self._state.start_run()
@@ -33,17 +37,23 @@ class GarageScene:
             )
             if repaired:
                 self._state.save_profile()
+        elif btnp(Button.X):
+            if self._can_restart:
+                self._profile.reset()
+                self._state.save_profile()
 
     def draw(self) -> None:
         cls(0)
         print("GARAGE", 98, 40, 12)
         print("scrap=" + str(self._state.profile.scrap), 82, 60, 12)
-        print("hp=" + str(self._state.profile.garage_hp), 94, 70, 12)
+        print("hp=" + str(round(self._state.profile.garage_hp, 1)), 94, 70, 12)
         print("fuel=" + str(round(self._state.profile.garage_fuel, 1)),
               82, 80, 12)
         print("A = START", 86, 100, 12)
         print("B = REPAIR (-" + str(TUNING.PROFILE.repair_cost) + ")",
-              46, 110, 12)
+              86, 110, 12)
+        if self._can_restart:
+            print("X = NEW GAME (RESET)", 86, 120, 12)
 
     def exit(self) -> None:
         pass

@@ -1,11 +1,15 @@
 class Profile:
-    __slots__ = ("_scrap", "_garage_hp", "_garage_fuel", "_upgrades")
+    __slots__ = ("_scrap", "_garage_hp", "_garage_fuel", "_upgrades",
+                 "_start_scrap", "_start_garage_hp", "_start_garage_fuel")
 
     def __init__(self, scrap: int, garage_hp: float, garage_fuel: float) -> None:
         self._scrap = scrap
         self._garage_hp = garage_hp
         self._garage_fuel = garage_fuel
         self._upgrades: list[str] = []
+        self._start_scrap = scrap
+        self._start_garage_hp = garage_hp
+        self._start_garage_fuel = garage_fuel
 
     @property
     def scrap(self) -> int:
@@ -48,3 +52,10 @@ class Profile:
         self._scrap = max(0, int(scrap))
         self._garage_hp = max(0.0, float(garage_hp))
         self._garage_fuel = max(0.0, float(garage_fuel))
+
+    def reset(self) -> None:
+        self.apply_save(
+            self._start_scrap,
+            self._start_garage_hp,
+            self._start_garage_fuel,
+        )
