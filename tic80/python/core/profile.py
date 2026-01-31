@@ -1,7 +1,7 @@
 class Profile:
     __slots__ = ("_scrap", "_garage_hp", "_garage_fuel", "_upgrades")
 
-    def __init__(self, scrap: int, garage_hp: int, garage_fuel: float) -> None:
+    def __init__(self, scrap: int, garage_hp: float, garage_fuel: float) -> None:
         self._scrap = scrap
         self._garage_hp = garage_hp
         self._garage_fuel = garage_fuel
@@ -12,7 +12,7 @@ class Profile:
         return self._scrap
 
     @property
-    def garage_hp(self) -> int:
+    def garage_hp(self) -> float:
         return self._garage_hp
 
     @property

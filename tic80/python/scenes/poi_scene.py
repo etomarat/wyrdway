@@ -3,10 +3,9 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from tic80 import btnp, cls, print
 
-    from ..contracts import DriveEnterParams
-    from ..core.run_state import PoiAction, SegmentDelta
-    from ..contracts import SceneNavigator
+    from ..contracts import DriveEnterParams, SceneNavigator
     from ..core.input_buttons import Button
+    from ..core.run_state import PoiAction
     from ..core.scene_ids import SceneId
     from ..data.tuning import TUNING
 

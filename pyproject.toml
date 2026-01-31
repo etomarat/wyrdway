@@ -1,5 +1,6 @@
 [tool.ruff]
 line-length = 88
+extend-exclude = ["tic80/python/game.py"]
 
 [tool.ruff.lint]
 select = [

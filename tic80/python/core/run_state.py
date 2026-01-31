@@ -59,7 +59,7 @@ class RunState:
     __slots__ = ("_seed", "_node_id", "_car_hp",
                  "_car_fuel", "_inventory", "_delta")
 
-    def __init__(self, seed: int, car_hp: int, car_fuel: float) -> None:
+    def __init__(self, seed: int, car_hp: float, car_fuel: float) -> None:
         self._seed = seed
         self._node_id: int | None = None
         self._car_hp = car_hp
