@@ -60,7 +60,15 @@ class DriveTuning:
         "offroad_grip_mult",
         "offroad_slowdown",
         "fuel_per_sec_idle",
-        "fuel_per_sec_throttle"
+        "fuel_per_sec_throttle",
+        "curve_drift_mult",
+        "obstacles_per_100m",
+        "zones_per_100m",
+        "spawn_min_distance_between",
+        "spawn_min_distance_from_edges",
+        "obstacle_radius",
+        "zone_radius",
+        "zone_length"
     )
 
     def __init__(self) -> None:
@@ -82,6 +90,14 @@ class DriveTuning:
         self.offroad_slowdown = 0.0
         self.fuel_per_sec_idle = 0.0
         self.fuel_per_sec_throttle = 0.0
+        self.curve_drift_mult = 0.0
+        self.obstacles_per_100m = 0.0
+        self.zones_per_100m = 0.0
+        self.spawn_min_distance_between = 0.0
+        self.spawn_min_distance_from_edges = 0.0
+        self.obstacle_radius = 0.0
+        self.zone_radius = 0.0
+        self.zone_length = 0.0
 
 
 class PoiTuning:

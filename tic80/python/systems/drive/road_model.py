@@ -38,7 +38,12 @@ class RoadModel:
         self._ramp_fraction = ramp_fraction
 
         self._curv: list[float] = []
+        self._center_x: list[float] = []
+        self._center_y: list[float] = []
+        self._dir_x: list[float] = []
+        self._dir_y: list[float] = []
         self._build()
+        self._build_centerline()
 
     @classmethod
     def from_tuning(cls, seed: int, tuning: "Tuning") -> "RoadModel":
@@ -112,7 +117,54 @@ class RoadModel:
             cur = target
             i = end
 
+    def _build_centerline(self) -> None:
+        """Предрасчёт centerline для top-down (список точек по шагам ds).
+
+        Реализация не использует `math.sin/cos`: вместо этого мы храним
+        forward-вектор (dir_x/dir_y) и каждый шаг поворачиваем его на маленький
+        угол `delta = curvature * ds` через приближение малых углов.
+        """
+        n = len(self._curv)
+        if n == 0:
+            return
+
+        ds = self.ds
+
+        self._center_x = [0.0] * n
+        self._center_y = [0.0] * n
+        self._dir_x = [0.0] * n
+        self._dir_y = [0.0] * n
+
+        x = 0.0
+        y = 0.0
+        dx = 1.0
+        dy = 0.0
+
+        i = 0
+        while i < n:
+            self._center_x[i] = x
+            self._center_y[i] = y
+            self._dir_x[i] = dx
+            self._dir_y[i] = dy
+
+            delta = self._curv[i] * ds
+            c = 1.0 - 0.5 * delta * delta
+            s = delta
+            ndx = dx * c - dy * s
+            ndy = dx * s + dy * c
+            dx = ndx
+            dy = ndy
+
+            x += dx * ds
+            y += dy * ds
+            i += 1
+
     def curvature_at(self, s: float) -> float:
+        """Возвращает кривизну дороги в точке прогресса `s`.
+
+        `s` измеряется в тех же единицах, что и `segment_total_length`.
+        Значение дискретизируется шагом `ds`.
+        """
         if s <= 0:
             return self._curv[0]
         idx = int(s / self.ds)
@@ -123,5 +175,52 @@ class RoadModel:
         return self._curv[idx]
 
     def width_at(self, s: float) -> float:
+        """Ширина дороги в точке `s`.
+
+        На m1.5 ширина константная, но метод оставлен, чтобы позже можно было
+        делать сужения/расширения без переписывания логики.
+        """
         return self.road_width
 
+    def sample_centerline(self, s: float) -> tuple[float, float]:
+        """Возвращает (x, y) центра дороги в точке `s`."""
+        idx = int(s / self.ds)
+        if idx < 0:
+            idx = 0
+        if idx >= len(self._center_x):
+            idx = len(self._center_x) - 1
+        return self._center_x[idx], self._center_y[idx]
+
+    def direction_at(self, s: float) -> tuple[float, float]:
+        """Возвращает unit-направление forward (dir_x, dir_y) вдоль дороги в `s`."""
+        idx = int(s / self.ds)
+        if idx < 0:
+            idx = 0
+        if idx >= len(self._dir_x):
+            idx = len(self._dir_x) - 1
+        return self._dir_x[idx], self._dir_y[idx]
+
+    def center_points_len(self) -> int:
+        """Количество предрасчитанных точек centerline."""
+        return len(self._center_x)
+
+    def center_point_at_index(
+        self,
+        idx: int
+    ) -> tuple[float, float, float, float]:
+        """Возвращает точку centerline по индексу.
+
+        Формат: (center_x, center_y, dir_x, dir_y).
+        Индекс соответствует дискретизации `ds`:
+        - `s = idx * ds`
+        """
+        if idx < 0:
+            idx = 0
+        if idx >= len(self._center_x):
+            idx = len(self._center_x) - 1
+        return (
+            self._center_x[idx],
+            self._center_y[idx],
+            self._dir_x[idx],
+            self._dir_y[idx]
+        )

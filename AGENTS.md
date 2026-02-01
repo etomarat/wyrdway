@@ -93,3 +93,4 @@ include("test")
 ## Architecture Notes
 - Scene flow and ownership rules live in `docs/00_spec/2_architecture.md`. Follow the “Replace SceneManager” rule: only one scene updates/draws at a time.
 - TIC-80 API docs live in `docs/20_tech/tic80_api_reference.md` (short reference) and `docs/20_tech/TIC-80.wiki` (full wiki clone). Use them to clarify API details when needed.
+- Sprite layout (IDs/sizes) lives in `docs/30_style/1_sprite_sheet_layout.md`.

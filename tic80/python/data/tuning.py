@@ -31,7 +31,7 @@ TUNING.PROFILE.evac_scrap_loss = 5
 # - `speed` — "метры в секунду" в road-space
 
 # Длина сегмента (условные метры road-space). Увеличение делает DRIVE длиннее.
-TUNING.DRIVE.segment_total_length = 200.0
+TUNING.DRIVE.segment_total_length = 600.0
 
 # Safe start: первые метры почти прямые (без серьёзных поворотов и будущих спавнов).
 TUNING.DRIVE.safe_start_length = 40.0
@@ -84,6 +84,11 @@ TUNING.DRIVE.offroad_grip_mult = 0.6
 # Замедление скорости на оффроуде (скорость *= 1 - offroad_slowdown*dt).
 TUNING.DRIVE.offroad_slowdown = 1.5
 
+# “Вынос” на поворотах: насколько сильно кривизна дороги будет сдвигать `d`,
+# если не рулить. Чем больше, тем меньше “автопилота” и тем чаще нужно
+# подруливать в поворотах.
+TUNING.DRIVE.curve_drift_mult = -10.0
+
 # Ресурсы
 
 # Расход топлива в простое (units/sec).
@@ -91,5 +96,34 @@ TUNING.DRIVE.fuel_per_sec_idle = 0.2
 
 # Доп. расход топлива при газе (units/sec).
 TUNING.DRIVE.fuel_per_sec_throttle = 1.0
+
+# Объекты на дороге (m1.5)
+#
+# Плотности задаются "на 100 метров": 1.0 означает "в среднем 1 объект на 100м".
+# Количество на сегмент берём примерно как: (total_length / 100) * density.
+#
+# Важно: объекты сейчас спавнятся детерминированно по seed и учитывают safe start.
+
+# Средняя плотность препятствий.
+TUNING.DRIVE.obstacles_per_100m = 2.0
+
+# Средняя плотность опасных зон.
+TUNING.DRIVE.zones_per_100m = 1.0
+
+# Минимальная дистанция между объектами (по s).
+TUNING.DRIVE.spawn_min_distance_between = 25.0
+
+# Отступ от краёв дороги, чтобы не спавнить объекты вплотную к обочине.
+TUNING.DRIVE.spawn_min_distance_from_edges = 6.0
+
+# Радиус препятствия (в road-space единицах).
+TUNING.DRIVE.obstacle_radius = 3.0
+
+# Радиус опасной зоны (по d). Чем больше, тем шире зона на дороге.
+TUNING.DRIVE.zone_radius = 6.0
+
+# Длина опасной зоны по s.
+TUNING.DRIVE.zone_length = 40.0
+
 TUNING.POI.timer_seconds = 10.0
 TUNING.POI.scrap_per_loot = 5

@@ -31,9 +31,11 @@ include("core.run_state")
 include("core.game_state")
 include("core.scene_ids")
 include("core.scene_manager")
+include("core.sprites")
 include("systems.drive.rng")
 include("systems.drive.road_model")
 include("systems.drive.drive_logic")
+include("systems.drive.drive_objects")
 include("scenes.drive_scene")
 include("scenes.garage_scene")
 include("scenes.poi_scene")
@@ -59,6 +61,7 @@ def BOOT() -> None:
 def TIC() -> None:
     dt = TUNING.CORE.dt
 
+    SCENE_MANAGER.state.clear_debug_lines()
     DEBUG.handle_input()
     SCENE_MANAGER.update(dt)
     SCENE_MANAGER.draw()
@@ -75,4 +78,5 @@ def TIC() -> None:
             + " cur="
             + str(TUNING.tuning_version)
         )
+    lines.extend(SCENE_MANAGER.state.debug_lines())
     DEBUG.draw(lines)

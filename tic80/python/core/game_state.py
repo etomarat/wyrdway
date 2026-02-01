@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 class GameState:
     __slots__ = ('_profile', '_run', '_seed_counter', '_save',
                  '_profile_loaded', '_profile_tuning_mismatch',
-                 '_profile_tuning_version')
+                 '_profile_tuning_version', '_debug_lines')
 
     def __init__(self) -> None:
         self._profile = Profile(
@@ -26,6 +26,7 @@ class GameState:
         self._profile_loaded = False
         self._profile_tuning_mismatch = False
         self._profile_tuning_version: int | None = None
+        self._debug_lines: list[str] = []
 
     @property
     def profile(self) -> Profile:
@@ -46,6 +47,22 @@ class GameState:
     @property
     def profile_tuning_version(self) -> int | None:
         return self._profile_tuning_version
+
+    def clear_debug_lines(self) -> None:
+        """Очищает debug-линии кадра.
+
+        Вызов происходит один раз за кадр (в `main.TIC()`), чтобы сцены могли
+        безопасно добавлять свои строки и не “залипать” между кадрами.
+        """
+        self._debug_lines = []
+
+    def set_debug_lines(self, lines: list[str]) -> None:
+        """Задаёт список строк, которые сцена хочет видеть в DebugOverlay."""
+        self._debug_lines = list(lines)
+
+    def debug_lines(self) -> list[str]:
+        """Возвращает копию debug-линий текущего кадра."""
+        return list(self._debug_lines)
 
     def start_run(self) -> RunState:
         self._seed_counter += 1

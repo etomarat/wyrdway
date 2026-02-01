@@ -1,6 +1,6 @@
 [tool.ruff]
 line-length = 88
-extend-exclude = ["tic80/python/game.py"]
+extend-exclude = ["tic80/python/game.py", "tic80/python/build.py"]
 
 [tool.ruff.lint]
 select = [
