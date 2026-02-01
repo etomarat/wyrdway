@@ -5,9 +5,9 @@ if TYPE_CHECKING:
 
     from ..contracts import DriveEnterParams, ResultEnterParams, SceneNavigator
     from ..core.input_buttons import Button
-    from ..core.sprites import NIVA_TOPDOWN
     from ..core.run_state import RunState
     from ..core.scene_ids import SceneId
+    from ..core.sprites import NIVA_TOPDOWN
     from ..data.tuning import TUNING
     from ..systems.drive.drive_logic import DriveLogic
     from ..systems.drive.drive_objects import (
@@ -103,9 +103,9 @@ class DriveScene:
         logic = self._logic
         road = self._road
         if logic is not None and road is not None:
-            print("s=" + str(int(logic.s)) + "/" + str(int(road.segment_total_length)),
+            print("s=" + str(int(logic.road_s)) + "/" + str(int(road.segment_total_length)),
                   70, 82, 12)
-            print("d=" + str(round(logic.d, 2)), 90, 92, 12)
+            print("d=" + str(round(logic.road_d, 2)), 90, 92, 12)
             print("spd=" + str(round(logic.speed, 1)), 84, 102, 12)
             if logic.offroad:
                 print("OFFROAD", 96, 112, 2)
@@ -127,13 +127,13 @@ class DriveScene:
         center_x = 120
         center_y = 68
 
-        p_s = logic.s
-        p_x, p_y = road.sample_centerline(p_s)
-        fwd_x, fwd_y = road.direction_at(p_s)
+        p_s = logic.road_s
+        car_x = logic.x
+        car_y = logic.y
+        fwd_x = logic.fwd_x
+        fwd_y = logic.fwd_y
         right_x = -fwd_y
         right_y = fwd_x
-        car_x = p_x + right_x * logic.d
-        car_y = p_y + right_y * logic.d
 
         n = road.center_points_len()
         idx = int(p_s / road.ds)
@@ -156,10 +156,10 @@ class DriveScene:
             nrm_x = -dir_y
             nrm_y = dir_x
 
-            lx = cx + nrm_x * half
-            ly = cy + nrm_y * half
-            rx = cx - nrm_x * half
-            ry = cy - nrm_y * half
+            lx = cx - nrm_x * half
+            ly = cy - nrm_y * half
+            rx = cx + nrm_x * half
+            ry = cy + nrm_y * half
 
             lsx, lsy = self._world_to_screen(
                 lx, ly, car_x, car_y, fwd_x, fwd_y, right_x, right_y, center_x, center_y
@@ -262,8 +262,8 @@ class DriveScene:
         lines = [
             "drive seed=" + str(run.seed) + " obs=" + str(objects.obstacles_count())
             + " zones=" + str(objects.hazard_zones_count()),
-            "drive s=" + str(int(logic.s)) + "/" + str(int(road.segment_total_length)),
-            "drive d=" + str(round(logic.d, 2)),
+            "drive s=" + str(int(logic.road_s)) + "/" + str(int(road.segment_total_length)),
+            "drive d=" + str(round(logic.road_d, 2)),
             "drive spd=" + str(round(logic.speed, 1)),
             "drive fuel=" + str(round(run.car_fuel, 1)),
             "drive hp=" + str(round(run.car_hp, 1))

@@ -52,16 +52,18 @@ class DriveTuning:
         "max_curvature",
         "ramp_fraction",
         "max_speed",
+        "max_reverse_speed",
         "accel",
         "brake",
+        "coast_decel",
         "steer_rate",
         "grip",
+        "side_friction",
         "handbrake_grip_mult",
         "offroad_grip_mult",
         "offroad_slowdown",
         "fuel_per_sec_idle",
         "fuel_per_sec_throttle",
-        "curve_drift_mult",
         "obstacles_per_100m",
         "zones_per_100m",
         "spawn_min_distance_between",
@@ -81,16 +83,18 @@ class DriveTuning:
         self.max_curvature = 0.0
         self.ramp_fraction = 0.0
         self.max_speed = 0.0
+        self.max_reverse_speed = 0.0
         self.accel = 0.0
         self.brake = 0.0
+        self.coast_decel = 0.0
         self.steer_rate = 0.0
         self.grip = 0.0
+        self.side_friction = 0.0
         self.handbrake_grip_mult = 0.0
         self.offroad_grip_mult = 0.0
         self.offroad_slowdown = 0.0
         self.fuel_per_sec_idle = 0.0
         self.fuel_per_sec_throttle = 0.0
-        self.curve_drift_mult = 0.0
         self.obstacles_per_100m = 0.0
         self.zones_per_100m = 0.0
         self.spawn_min_distance_between = 0.0
