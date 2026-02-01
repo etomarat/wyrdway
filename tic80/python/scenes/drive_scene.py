@@ -137,8 +137,11 @@ class DriveScene:
 
         n = road.center_points_len()
         idx = int(p_s / road.ds)
-        start = idx - 20
-        end = idx + 60
+        d = TUNING.DRIVE
+        start_s = p_s - d.render_back_s
+        end_s = p_s + d.render_forward_s
+        start = int(start_s / road.ds)
+        end = int(end_s / road.ds)
         if start < 0:
             start = 0
         if end > n - 1:
@@ -259,14 +262,18 @@ class DriveScene:
         objects: DriveObjects
     ) -> list[str]:
         """Строки для DebugOverlay, чтобы HUD не накладывался на оверлей."""
+        def f2(v: float) -> str:
+            return "{:.2f}".format(v)
+
         lines = [
             "drive seed=" + str(run.seed) + " obs=" + str(objects.obstacles_count())
             + " zones=" + str(objects.hazard_zones_count()),
             "drive s=" + str(int(logic.road_s)) + "/" + str(int(road.segment_total_length)),
-            "drive d=" + str(round(logic.road_d, 2)),
-            "drive spd=" + str(round(logic.speed, 1)),
-            "drive fuel=" + str(round(run.car_fuel, 1)),
-            "drive hp=" + str(round(run.car_hp, 1))
+            "drive d=" + f2(logic.road_d),
+            "drive v=" + f2(logic.v_forward) + " side=" + f2(logic.v_side),
+            "drive spd=" + f2(logic.speed),
+            "drive fuel=" + f2(run.car_fuel),
+            "drive hp=" + f2(run.car_hp)
         ]
         if logic.offroad:
             lines.append("drive OFFROAD")

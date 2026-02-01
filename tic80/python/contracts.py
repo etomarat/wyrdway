@@ -59,11 +59,14 @@ class DriveTuning:
         "steer_rate",
         "grip",
         "side_friction",
+        "side_slip_speed_mult",
         "handbrake_grip_mult",
         "offroad_grip_mult",
         "offroad_slowdown",
         "fuel_per_sec_idle",
         "fuel_per_sec_throttle",
+        "render_back_s",
+        "render_forward_s",
         "obstacles_per_100m",
         "zones_per_100m",
         "spawn_min_distance_between",
@@ -90,11 +93,14 @@ class DriveTuning:
         self.steer_rate = 0.0
         self.grip = 0.0
         self.side_friction = 0.0
+        self.side_slip_speed_mult = 0.0
         self.handbrake_grip_mult = 0.0
         self.offroad_grip_mult = 0.0
         self.offroad_slowdown = 0.0
         self.fuel_per_sec_idle = 0.0
         self.fuel_per_sec_throttle = 0.0
+        self.render_back_s = 0.0
+        self.render_forward_s = 0.0
         self.obstacles_per_100m = 0.0
         self.zones_per_100m = 0.0
         self.spawn_min_distance_between = 0.0

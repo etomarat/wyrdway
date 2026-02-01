@@ -81,6 +81,20 @@ class DriveLogic:
         return v2 ** 0.5
 
     @property
+    def v_forward(self) -> float:
+        """Скорость вдоль направления машины (может быть отрицательной при реверсе)."""
+        fwd_x = self._fwd_x
+        fwd_y = self._fwd_y
+        return self._vx * fwd_x + self._vy * fwd_y
+
+    @property
+    def v_side(self) -> float:
+        """Боковая скорость (как сильно “несёт боком” относительно направления)."""
+        right_x = -self._fwd_y
+        right_y = self._fwd_x
+        return self._vx * right_x + self._vy * right_y
+
+    @property
     def road_s(self) -> float:
         """Прогресс вдоль дороги (проекция world position на centerline)."""
         return self._road_s
@@ -129,8 +143,10 @@ class DriveLogic:
         if speed_factor > 1.0:
             speed_factor = 1.0
 
-        steer_scale = 0.30 + 0.70 * speed_factor
-        yaw = (-steer_input) * d.steer_rate * steer_scale * dt
+        steer_scale = speed_factor
+        if speed < 0.5:
+            steer_scale = 0.0
+        yaw = steer_input * d.steer_rate * steer_scale * dt
         if handbrake:
             yaw *= 1.40
         if offroad_before:
@@ -148,7 +164,7 @@ class DriveLogic:
 
         if throttle:
             v_fwd += d.accel * dt
-        else:
+        elif not brake:
             v_fwd = self._approach(v_fwd, 0.0, d.coast_decel * dt)
 
         if brake:
@@ -171,6 +187,10 @@ class DriveLogic:
             effective_grip = 0.0
 
         side_damp = 1.0 - d.side_friction * effective_grip * dt
+        slip = 1.0 + d.side_slip_speed_mult * speed_factor
+        if slip < 1.0:
+            slip = 1.0
+        side_damp = 1.0 - (d.side_friction * effective_grip * dt) / slip
         if side_damp < 0.0:
             side_damp = 0.0
         if side_damp > 1.0:
