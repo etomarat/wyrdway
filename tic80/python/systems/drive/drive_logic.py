@@ -162,16 +162,18 @@ class DriveLogic:
         v_fwd = self._vx * fwd_x + self._vy * fwd_y
         v_side = self._vx * right_x + self._vy * right_y
 
-        if throttle:
-            v_fwd += d.accel * dt
-        elif not brake:
-            v_fwd = self._approach(v_fwd, 0.0, d.coast_decel * dt)
-
-        if brake:
-            if abs(v_fwd) > 0.5:
+        if throttle and not brake:
+            if v_fwd < 0.0:
+                v_fwd = self._approach(v_fwd, 0.0, d.brake * dt)
+            else:
+                v_fwd += d.accel * dt
+        elif brake and not throttle:
+            if v_fwd > 0.0:
                 v_fwd = self._approach(v_fwd, 0.0, d.brake * dt)
             else:
                 v_fwd -= d.accel * dt
+        else:
+            v_fwd = self._approach(v_fwd, 0.0, d.coast_decel * dt)
 
         if v_fwd > d.max_speed:
             v_fwd = d.max_speed

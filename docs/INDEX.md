@@ -82,3 +82,4 @@ docs/
 ### Miscellaneous
 - [fennel-tic80-game](https://github.com/stefandevai/fennel-tic80-game): Boilerplate code for game using Fennel lisp.
 - [not-cool](https://github.com/whichxjy/not-cool): Pathfinding algorithms.
+- [Code examples and snippets](https://github.com/nesbox/TIC-80/wiki/code-examples-and-snippets)
