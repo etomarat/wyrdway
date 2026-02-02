@@ -333,13 +333,16 @@ class DriveScene:
         def f2(v: float) -> str:
             return "{:.2f}".format(v)
 
+        vmax_road = logic.estimated_vmax_road()
+        vmax_off = logic.estimated_vmax_offroad()
+
         lines = [
             "drive seed=" + str(run.seed) + " obs=" + str(objects.obstacles_count())
             + " zones=" + str(objects.hazard_zones_count()),
             "drive s=" + str(int(logic.road_s)) + "/" + str(int(road.segment_total_length)),
             "drive d=" + f2(logic.road_d),
             "drive v=" + f2(logic.v_forward) + " side=" + f2(logic.v_side),
-            "drive spd=" + f2(logic.speed),
+            "drive spd=" + f2(logic.speed) + " vmax=" + f2(vmax_road) + "/" + f2(vmax_off),
             "drive surf=" + ("OFF" if logic.offroad else "ROAD")
             + " sf=" + f2(logic.dbg_speed_factor)
             + " ss=" + f2(logic.dbg_steer_scale),

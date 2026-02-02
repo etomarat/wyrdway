@@ -101,6 +101,62 @@ class DriveLogic:
         right_y = self._fwd_x
         return self._vx * right_x + self._vy * right_y
 
+    def estimated_vmax_road(self) -> float:
+        """Оценивает "крейсерскую максималку" (плато) на дороге.
+
+        Это не жёсткий лимит: реальная скорость ниже на поворотах и при заносе, потому что
+        часть энергии уходит в боковую скорость. Но оценка полезна, чтобы понимать,
+        почему при текущих `accel/drag_*` машина стабилизируется примерно на X.
+        """
+        return self._estimated_vmax(False)
+
+    def estimated_vmax_offroad(self) -> float:
+        """Оценивает "крейсерскую максималку" (плато) на оффроуде."""
+        return self._estimated_vmax(True)
+
+    def _estimated_vmax(self, offroad: bool) -> float:
+        """Внутренняя оценка плато скорости при постоянном газе.
+
+        Упрощённая модель как в коде:
+          dv/dt = +accel - (drag_lin + drag_quad*|v|) * v
+
+        Равновесие:
+          accel ≈ (drag_lin + drag_quad*v) * v
+          => drag_quad*v^2 + drag_lin*v - accel ≈ 0
+        """
+        d = self._tuning.DRIVE
+        accel = d.accel
+        if accel <= 0.0:
+            return 0.0
+
+        drag_lin = d.drag_lin
+        drag_quad = d.drag_quad
+        if offroad:
+            drag_lin += d.offroad_drag_lin
+            drag_quad += d.offroad_drag_quad
+
+        speed_cap = d.speed_cap
+
+        v = 0.0
+        if drag_lin <= 0.0 and drag_quad <= 0.0:
+            v = speed_cap if speed_cap > 0.0 else 9999.0
+        elif drag_quad <= 0.0:
+            if drag_lin <= 0.0:
+                v = speed_cap if speed_cap > 0.0 else 9999.0
+            else:
+                v = accel / drag_lin
+        else:
+            disc = drag_lin * drag_lin + 4.0 * drag_quad * accel
+            if disc < 0.0:
+                disc = 0.0
+            v = (-drag_lin + (disc ** 0.5)) / (2.0 * drag_quad)
+
+        if speed_cap > 0.0 and v > speed_cap:
+            v = speed_cap
+        if v < 0.0:
+            v = 0.0
+        return v
+
     @property
     def road_s(self) -> float:
         """Прогресс вдоль дороги (проекция world position на centerline)."""
@@ -264,10 +320,10 @@ class DriveLogic:
                 hb_decel *= d.handbrake_decel_throttle_mult
             v_fwd = self._approach(v_fwd, 0.0, hb_decel * dt)
 
-        if v_fwd > d.max_speed:
-            v_fwd = d.max_speed
         if v_fwd < -d.max_reverse_speed:
             v_fwd = -d.max_reverse_speed
+        if d.speed_cap > 0.0 and v_fwd > d.speed_cap:
+            v_fwd = d.speed_cap
 
         effective_grip = d.grip
         if handbrake:
@@ -302,21 +358,23 @@ class DriveLogic:
 
         self._update_road_projection()
 
+        # Общие сопротивления + добавка от оффроуда.
+        #
+        # Модель (векторно):
+        #   dv/dt = -C_lin * v - C_quad * v * |v|
+        #
+        # Оффроуд добавляет к C_lin/C_quad свои коэффициенты (вязкость/песок),
+        # чтобы на высокой скорости темп резко падал, но на низкой можно было
+        # выбраться обратно.
+        drag_lin = d.drag_lin
+        drag_quad = d.drag_quad
         if self._offroad:
-            # Оффроуд замедляет плавно, без "стены": линейное + квадратичное сопротивление.
-            #
-            # Модель (векторно):
-            #   dv/dt = -C_lin * v - C_quad * v * |v|
-            #
-            # В дискретном виде (мягкое приближение):
-            #   v *= clamp(1 - (C_lin + C_quad*|v|) * dt, 0..1)
-            #
-            # Это делает оффроуд:
-            # - относительно мягким на малой скорости (можно выбраться),
-            # - очень "вязким" на высокой (невыгодно лететь по обочине).
+            drag_lin += d.offroad_drag_lin
+            drag_quad += d.offroad_drag_quad
+        if drag_lin > 0.0 or drag_quad > 0.0:
             v2 = self._vx * self._vx + self._vy * self._vy
             spd = v2 ** 0.5
-            drag = d.offroad_drag_lin + d.offroad_drag_quad * spd
+            drag = drag_lin + drag_quad * spd
             if drag > 0.0:
                 mult = 1.0 - drag * dt
                 if mult < 0.0:

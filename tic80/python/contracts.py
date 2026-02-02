@@ -54,6 +54,7 @@ class DriveTuning:
         "straight_max_curvature",
         "ramp_fraction",
         "max_speed",
+        "speed_cap",
         "max_reverse_speed",
         "accel",
         "brake",
@@ -79,6 +80,8 @@ class DriveTuning:
         "offroad_drag_lin",
         "offroad_drag_quad",
         "offroad_fuel_mult",
+        "drag_lin",
+        "drag_quad",
         "fuel_per_sec_idle",
         "fuel_per_sec_throttle",
         "view_center_y",
@@ -114,6 +117,7 @@ class DriveTuning:
         self.straight_max_curvature = 0.0
         self.ramp_fraction = 0.0
         self.max_speed = 0.0
+        self.speed_cap = 0.0
         self.max_reverse_speed = 0.0
         self.accel = 0.0
         self.brake = 0.0
@@ -139,6 +143,8 @@ class DriveTuning:
         self.offroad_drag_lin = 0.0
         self.offroad_drag_quad = 0.0
         self.offroad_fuel_mult = 0.0
+        self.drag_lin = 0.0
+        self.drag_quad = 0.0
         self.fuel_per_sec_idle = 0.0
         self.fuel_per_sec_throttle = 0.0
         self.view_center_y = 0.0
