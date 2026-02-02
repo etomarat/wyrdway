@@ -25,6 +25,8 @@ class RoadModel:
         min_piece_length: float,
         max_piece_length: float,
         max_curvature: float,
+        straight_piece_chance: float,
+        straight_max_curvature: float,
         ramp_fraction: float
     ) -> None:
         self.seed = seed
@@ -35,6 +37,8 @@ class RoadModel:
         self._min_piece_length = min_piece_length
         self._max_piece_length = max_piece_length
         self._max_curvature = max_curvature
+        self._straight_piece_chance = straight_piece_chance
+        self._straight_max_curvature = straight_max_curvature
         self._ramp_fraction = ramp_fraction
 
         self._curv: list[float] = []
@@ -57,6 +61,8 @@ class RoadModel:
             d.min_piece_length,
             d.max_piece_length,
             d.max_curvature,
+            d.straight_piece_chance,
+            d.straight_max_curvature,
             d.ramp_fraction
         )
 
@@ -93,7 +99,7 @@ class RoadModel:
             if end > n:
                 end = n
 
-            target = rng.uniform(-self._max_curvature, self._max_curvature)
+            target = self._pick_target_curvature(rng)
 
             ramp_n = int(piece_n * self._ramp_fraction)
             if ramp_n < 1:
@@ -116,6 +122,35 @@ class RoadModel:
 
             cur = target
             i = end
+
+    def _pick_target_curvature(self, rng: "Rng") -> float:
+        """Выбирает target curvature для следующего куска дороги.
+
+        По умолчанию target выбирается из [-max_curvature..+max_curvature], но это
+        даёт “вечные повороты”. Чтобы иногда появлялись прямые участки, мы делаем
+        bias:
+        - с вероятностью `straight_piece_chance` берём маленький диапазон вокруг 0,
+        - иначе берём полный диапазон.
+        """
+        full = self._max_curvature
+        if full < 0.0:
+            full = -full
+
+        p = self._straight_piece_chance
+        if p < 0.0:
+            p = 0.0
+        if p > 1.0:
+            p = 1.0
+
+        if p > 0.0 and rng.rand01() < p:
+            m = self._straight_max_curvature
+            if m < 0.0:
+                m = -m
+            if m > full:
+                m = full
+            return rng.uniform(-m, m)
+
+        return rng.uniform(-full, full)
 
     def _build_centerline(self) -> None:
         """Предрасчёт centerline для top-down (список точек по шагам ds).

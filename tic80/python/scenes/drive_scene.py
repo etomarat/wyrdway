@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from tic80 import btn, btnp, circb, cls, line, print
+    from tic80 import btn, btnp, circb, cls, line, print, trace
 
     from ..contracts import DriveEnterParams, ResultEnterParams, SceneNavigator
     from ..core.input_buttons import Button
@@ -30,6 +30,10 @@ class DriveScene:
         self._logic: DriveLogic | None = None
         self._objects: DriveObjects | None = None
         self._evacuated = False
+        self._telemetry: list[str] | None = None
+        self._telemetry_t = 0.0
+        self._telemetry_frame = 0
+        self._telemetry_offroad = False
 
     def enter(self, params: object | None = None) -> None:
         if not isinstance(params, DriveEnterParams):
@@ -40,6 +44,9 @@ class DriveScene:
         self._road = None
         self._logic = None
         self._objects = None
+        self._telemetry_t = 0.0
+        self._telemetry_frame = 0
+        self._telemetry_offroad = False
 
         run = self._state.require_run()
         seed = run.seed
@@ -47,6 +54,53 @@ class DriveScene:
         self._logic = DriveLogic(run, self._road, TUNING)
         self._objects = DriveObjects.from_road_and_tuning(
             seed, self._road, TUNING)
+
+        if TUNING.DRIVE.telemetry_enabled:
+            self._telemetry = []
+            self._telemetry_add(
+                "drive telem begin seed="
+                + str(run.seed)
+                + " mode="
+                + self._mode
+                + " view="
+                + self._variant
+            )
+            self._telemetry_add(
+                "drive telem tuning max_speed="
+                + str(TUNING.DRIVE.max_speed)
+                + " accel="
+                + str(TUNING.DRIVE.accel)
+                + " brake="
+                + str(TUNING.DRIVE.brake)
+                + " coast="
+                + str(TUNING.DRIVE.coast_decel)
+            )
+            self._telemetry_add(
+                "drive telem tuning steer_rate="
+                + str(TUNING.DRIVE.steer_rate)
+                + " ss_min="
+                + str(TUNING.DRIVE.steer_scale_min)
+                + " ss_max="
+                + str(TUNING.DRIVE.steer_scale_max)
+                + " slip_mult="
+                + str(TUNING.DRIVE.side_slip_speed_mult)
+            )
+            self._telemetry_add(
+                "drive telem tuning hb_decel="
+                + str(TUNING.DRIVE.handbrake_decel)
+                + " hb_steer_mult="
+                + str(TUNING.DRIVE.handbrake_steer_mult)
+                + " hb_grip_mult="
+                + str(TUNING.DRIVE.handbrake_grip_mult)
+            )
+            self._telemetry_add(
+                "drive telem tuning dash_impulse="
+                + str(TUNING.DRIVE.dash_impulse)
+                + " dash_cd="
+                + str(TUNING.DRIVE.dash_cooldown)
+            )
+        else:
+            self._telemetry = None
 
     def update(self, dt: float) -> None:
         run = self._state.run
@@ -64,8 +118,13 @@ class DriveScene:
         throttle = btn(Button.UP)
         brake = btn(Button.DOWN)
         handbrake = btn(Button.B)
+        a_pressed = btnp(Button.A)
 
-        self._logic.update(dt, steer, throttle, brake, handbrake)
+        dash_pressed = a_pressed and not self._logic.finished()
+        self._logic.update(dt, steer, throttle, brake, handbrake, dash_pressed)
+        self._telemetry_after_update(
+            dt, steer, throttle, brake, handbrake, dash_pressed, run, self._logic
+        )
 
         if not self._evacuated:
             if run.car_fuel <= 0:
@@ -75,7 +134,8 @@ class DriveScene:
                 self._evacuate(run, "CAR DESTROYED")
                 return
 
-        if self._logic.finished() and btnp(Button.A):
+        if self._logic.finished() and a_pressed:
+            self._telemetry_dump("finish")
             if self._mode == "travel":
                 self._nav.go(SceneId.POI)
                 return
@@ -125,7 +185,11 @@ class DriveScene:
             return
 
         center_x = 120
-        center_y = 68
+        center_y = int(TUNING.DRIVE.view_center_y)
+        if center_y < 40:
+            center_y = 40
+        if center_y > 120:
+            center_y = 120
 
         p_s = logic.road_s
         car_x = logic.x
@@ -197,12 +261,16 @@ class DriveScene:
         self._draw_obstacles(obstacles, road, p_s, car_x, car_y, fwd_x, fwd_y,
                               right_x, right_y, center_x, center_y)
 
-        NIVA_TOPDOWN.draw(logic.steer_input, center_x - 16, center_y - 16)
+        ax = int(TUNING.DRIVE.car_sprite_anchor_x)
+        ay = int(TUNING.DRIVE.car_sprite_anchor_y)
+        NIVA_TOPDOWN.draw(logic.steer_input, center_x - ax, center_y - ay)
+        if TUNING.DRIVE.debug_vectors_enabled:
+            self._draw_debug_vectors(logic, center_x, center_y)
 
         if logic.finished():
-            print("A = CONTINUE", 2, 124, 12)
+            print("A = CONTINUE", 2, 128, 12)
         else:
-            print("UP/DN/LR + B", 2, 124, 12)
+            print("UP/DN/LR + B", 2, 128, 12)
         self._state.set_debug_lines(self._drive_debug_lines(road, logic, run, objects))
 
     def _in_any_zone(self, s: float, zones: list["DriveHazardZone"]) -> bool:
@@ -272,6 +340,11 @@ class DriveScene:
             "drive d=" + f2(logic.road_d),
             "drive v=" + f2(logic.v_forward) + " side=" + f2(logic.v_side),
             "drive spd=" + f2(logic.speed),
+            "drive surf=" + ("OFF" if logic.offroad else "ROAD")
+            + " sf=" + f2(logic.dbg_speed_factor)
+            + " ss=" + f2(logic.dbg_steer_scale),
+            "drive grip=" + f2(logic.dbg_effective_grip) + " damp=" + f2(logic.dbg_side_damp)
+            + " fuel/s=" + f2(logic.dbg_fuel_per_sec),
             "drive fuel=" + f2(run.car_fuel),
             "drive hp=" + f2(run.car_hp)
         ]
@@ -301,6 +374,52 @@ class DriveScene:
         sy = sy0 - local_fwd
         return sx, sy
 
+    def _draw_debug_vectors(self, logic: DriveLogic, cx: int, cy: int) -> None:
+        """Рисует диагностические векторы из центра машины.
+
+        Цвета:
+        - heading (куда “смотрит” машина): белый (12)
+        - velocity (куда реально едет): голубой (11)
+        - side accel (куда трение гасит занос): розовый (14)
+
+        Примечание: в top-down мы рисуем мир в системе координат машины, поэтому
+        heading всегда направлен “вверх экрана”. Полезно смотреть на velocity и
+        side accel — они показывают занос и его гашение.
+        """
+        d = TUNING.DRIVE
+        h = d.debug_vectors_heading_len
+        if h < 0.0:
+            h = 0.0
+        if h > 60.0:
+            h = 60.0
+
+        vel_scale = d.debug_vectors_vel_scale
+        accel_scale = d.debug_vectors_accel_scale
+
+        # heading: вверх экрана
+        line(cx, cy, cx, int(cy - h), 12)
+
+        # velocity: (v_side, v_fwd) в системе машины
+        vx = logic.v_side * vel_scale
+        vy = -logic.v_forward * vel_scale
+        if vx > 60.0:
+            vx = 60.0
+        if vx < -60.0:
+            vx = -60.0
+        if vy > 60.0:
+            vy = 60.0
+        if vy < -60.0:
+            vy = -60.0
+        line(cx, cy, int(cx + vx), int(cy + vy), 11)
+
+        # side accel: только по оси "вправо"
+        ax = logic.dbg_side_accel * accel_scale
+        if ax > 60.0:
+            ax = 60.0
+        if ax < -60.0:
+            ax = -60.0
+        line(cx, cy, int(cx + ax), cy, 14)
+
     def exit(self) -> None:
         pass
 
@@ -308,7 +427,107 @@ class DriveScene:
         delta = run.ensure_delta(run.node_id)
         delta.set_escape_outcome("fail")
         self._evacuated = True
+        self._telemetry_dump("evac " + reason)
         self._nav.go(SceneId.RESULT, ResultEnterParams(reason))
+
+    def _telemetry_add(self, line: str) -> None:
+        """Добавляет строку в телеметрию DRIVE, соблюдая лимит по длине."""
+        lines = self._telemetry
+        if lines is None:
+            return
+        if len(lines) >= int(TUNING.DRIVE.telemetry_max_lines):
+            return
+        lines.append(line)
+
+    def _telemetry_after_update(
+        self,
+        dt: float,
+        steer: int,
+        throttle: bool,
+        brake: bool,
+        handbrake: bool,
+        dash_pressed: bool,
+        run: RunState,
+        logic: DriveLogic
+    ) -> None:
+        """Сэмплирует телеметрию не каждый кадр и отмечает важные события.
+
+        Формат строк сделан “копипаст-френдли” для обсуждения тюнинга.
+        """
+        if self._telemetry is None:
+            return
+
+        self._telemetry_t += dt
+        self._telemetry_frame += 1
+
+        if logic.offroad != self._telemetry_offroad:
+            self._telemetry_offroad = logic.offroad
+            self._telemetry_add(
+                "t="
+                + "{:.2f}".format(self._telemetry_t)
+                + " EVENT surf="
+                + ("OFF" if logic.offroad else "ROAD")
+                + " s="
+                + str(int(logic.road_s))
+                + " d="
+                + "{:.2f}".format(logic.road_d)
+            )
+
+        every = int(TUNING.DRIVE.telemetry_every_frames)
+        if every <= 0:
+            return
+        if (self._telemetry_frame % every) != 0:
+            return
+
+        self._telemetry_add(
+            "t="
+            + "{:.2f}".format(self._telemetry_t)
+            + " s="
+            + str(int(logic.road_s))
+            + " d="
+            + "{:.2f}".format(logic.road_d)
+            + " v="
+            + "{:.2f}".format(logic.v_forward)
+            + " side="
+            + "{:.2f}".format(logic.v_side)
+            + " spd="
+            + "{:.2f}".format(logic.speed)
+            + " steer="
+            + str(steer)
+            + " thr="
+            + ("1" if throttle else "0")
+            + " brk="
+            + ("1" if brake else "0")
+            + " hb="
+            + ("1" if handbrake else "0")
+            + " dash="
+            + ("1" if dash_pressed else "0")
+            + " ss="
+            + "{:.2f}".format(logic.dbg_steer_scale)
+            + " grip="
+            + "{:.2f}".format(logic.dbg_effective_grip)
+            + " damp="
+            + "{:.2f}".format(logic.dbg_side_damp)
+            + " surf="
+            + ("OFF" if logic.offroad else "ROAD")
+            + " fuel="
+            + "{:.2f}".format(run.car_fuel)
+            + " hp="
+            + "{:.2f}".format(run.car_hp)
+        )
+
+    def _telemetry_dump(self, reason: str) -> None:
+        """Печатает накопленную телеметрию в консоль через `trace`."""
+        lines = self._telemetry
+        if lines is None:
+            return
+        self._telemetry = None
+        trace("drive telem dump reason=" + reason + " lines=" + str(len(lines)))
+        i = 0
+        while i < len(lines):
+            trace(lines[i])
+            i += 1
+        trace("drive telem end")
 
 
 def make_drive_scene(nav: SceneNavigator) -> DriveScene:

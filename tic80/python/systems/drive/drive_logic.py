@@ -43,6 +43,13 @@ class DriveLogic:
         self._road_d = 0.0
         self._offroad = False
         self._steer_input = 0
+        self._dbg_speed_factor = 0.0
+        self._dbg_steer_scale = 0.0
+        self._dbg_effective_grip = 0.0
+        self._dbg_side_damp = 0.0
+        self._dbg_side_accel = 0.0
+        self._dbg_fuel_per_sec = 0.0
+        self._dash_cd = 0.0
 
         self._init_on_road_start()
 
@@ -112,13 +119,50 @@ class DriveLogic:
     def steer_input(self) -> int:
         return self._steer_input
 
+    @property
+    def dbg_speed_factor(self) -> float:
+        """Нормализованная скорость (0..1) для тюнинга управления."""
+        return self._dbg_speed_factor
+
+    @property
+    def dbg_steer_scale(self) -> float:
+        """Итоговый множитель руления в этом кадре."""
+        return self._dbg_steer_scale
+
+    @property
+    def dbg_effective_grip(self) -> float:
+        """effective_grip в этом кадре (с учётом ручника/оффроуда)."""
+        return self._dbg_effective_grip
+
+    @property
+    def dbg_side_damp(self) -> float:
+        """Итоговый коэффициент гашения боковой скорости (0..1) за кадр."""
+        return self._dbg_side_damp
+
+    @property
+    def dbg_side_accel(self) -> float:
+        """Боковое ускорение (units/sec^2), которое даёт “трение” заноса в этом кадре.
+
+        Это производная по времени от боковой скорости:
+        `a_side = (v_side_after - v_side_before) / dt`.
+
+        Обычно знак противоположен `v_side` (трение гасит занос).
+        """
+        return self._dbg_side_accel
+
+    @property
+    def dbg_fuel_per_sec(self) -> float:
+        """Текущий расход топлива в секунду (оценка для дебага)."""
+        return self._dbg_fuel_per_sec
+
     def update(
         self,
         dt: float,
         steer_input: int,
         throttle: bool,
         brake: bool,
-        handbrake: bool
+        handbrake: bool,
+        dash_pressed: bool
     ) -> None:
         """Обновляет физику машины на один шаг `dt`.
 
@@ -127,6 +171,7 @@ class DriveLogic:
         - brake (DOWN): тормоз, а при почти нулевой скорости — задний ход
         - steer_input (LEFT/RIGHT): поворот направления машины
         - handbrake (B): снижает сцепление => больше заноса, чуть резче поворот
+        - dash (A): рывок вперёд (по умолчанию выключен, включается апгрейдом)
 
         Важно: если вообще не рулить, машина едет “как направлена”, а дорога
         уходит в сторону на поворотах. То есть “автопилота” нет.
@@ -137,20 +182,47 @@ class DriveLogic:
         offroad_before = self._offroad
 
         speed = self.speed
+        if self._dash_cd > 0.0:
+            self._dash_cd -= dt
+            if self._dash_cd < 0.0:
+                self._dash_cd = 0.0
         speed_factor = 0.0
         if d.max_speed > 0:
             speed_factor = speed / d.max_speed
         if speed_factor > 1.0:
             speed_factor = 1.0
+        self._dbg_speed_factor = speed_factor
 
-        steer_scale = speed_factor
-        if speed < 0.5:
+        steer_scale = d.steer_scale_max + (d.steer_scale_min - d.steer_scale_max) * speed_factor
+        if steer_scale < 0.0:
             steer_scale = 0.0
+        if speed < d.steer_min_speed:
+            steer_scale = 0.0
+        if self.v_forward < 0.0:
+            steer_scale *= d.steer_reverse_mult
+        self._dbg_steer_scale = steer_scale
         yaw = steer_input * d.steer_rate * steer_scale * dt
-        if handbrake:
-            yaw *= 1.40
+        if handbrake and throttle and steer_input != 0:
+            # Усиление руления от ручника должно зависеть от скорости:
+            # на низкой скорости ручник не “читерит”, а на высокой помогает довернуть.
+            hb_min = d.handbrake_steer_min_speed_factor
+            if hb_min < 0.0:
+                hb_min = 0.0
+            if hb_min > 1.0:
+                hb_min = 1.0
+            hb_t = 0.0
+            if speed_factor > hb_min:
+                denom = 1.0 - hb_min
+                if denom > 0.0:
+                    hb_t = (speed_factor - hb_min) / denom
+                else:
+                    hb_t = 1.0
+            if hb_t > 1.0:
+                hb_t = 1.0
+            hb_gain = d.handbrake_steer_mult - 1.0
+            yaw *= 1.0 + hb_gain * hb_t
         if offroad_before:
-            yaw *= 0.80
+            yaw *= d.offroad_steer_mult
         if yaw != 0.0:
             self._rotate_heading(yaw)
 
@@ -161,6 +233,12 @@ class DriveLogic:
 
         v_fwd = self._vx * fwd_x + self._vy * fwd_y
         v_side = self._vx * right_x + self._vy * right_y
+
+        if dash_pressed and d.dash_impulse > 0.0 and self._dash_cd <= 0.0:
+            # Dash = резкое добавление продольной скорости (как “нитро/аномалия”).
+            # В базовой игре выключено через tuning (dash_impulse=0).
+            v_fwd += d.dash_impulse
+            self._dash_cd = d.dash_cooldown
 
         if throttle and not brake:
             if v_fwd < 0.0:
@@ -175,6 +253,17 @@ class DriveLogic:
         else:
             v_fwd = self._approach(v_fwd, 0.0, d.coast_decel * dt)
 
+        if handbrake and d.handbrake_decel > 0.0:
+            # Ручник должен “съедать” скорость, особенно на высокой.
+            # Иначе он ощущается как бесполезная кнопка “сделать хуже сцепление”.
+            hb_sf = speed_factor
+            if hb_sf < d.handbrake_decel_min_speed_factor:
+                hb_sf = d.handbrake_decel_min_speed_factor
+            hb_decel = d.handbrake_decel * hb_sf
+            if throttle:
+                hb_decel *= d.handbrake_decel_throttle_mult
+            v_fwd = self._approach(v_fwd, 0.0, hb_decel * dt)
+
         if v_fwd > d.max_speed:
             v_fwd = d.max_speed
         if v_fwd < -d.max_reverse_speed:
@@ -187,8 +276,9 @@ class DriveLogic:
             effective_grip *= d.offroad_grip_mult
         if effective_grip < 0.0:
             effective_grip = 0.0
+        self._dbg_effective_grip = effective_grip
 
-        side_damp = 1.0 - d.side_friction * effective_grip * dt
+        v_side_before = v_side
         slip = 1.0 + d.side_slip_speed_mult * speed_factor
         if slip < 1.0:
             slip = 1.0
@@ -198,6 +288,11 @@ class DriveLogic:
         if side_damp > 1.0:
             side_damp = 1.0
         v_side *= side_damp
+        self._dbg_side_damp = side_damp
+        if dt > 0.0:
+            self._dbg_side_accel = (v_side - v_side_before) / dt
+        else:
+            self._dbg_side_accel = 0.0
 
         self._vx = fwd_x * v_fwd + right_x * v_side
         self._vy = fwd_y * v_fwd + right_y * v_side
@@ -217,6 +312,10 @@ class DriveLogic:
         fuel_spend = d.fuel_per_sec_idle * dt
         if throttle:
             fuel_spend += d.fuel_per_sec_throttle * dt
+        if dt > 0.0:
+            self._dbg_fuel_per_sec = fuel_spend / dt
+        else:
+            self._dbg_fuel_per_sec = 0.0
         if fuel_spend > 0.0:
             self._run.consume_fuel(fuel_spend)
 

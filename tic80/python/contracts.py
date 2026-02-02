@@ -50,6 +50,8 @@ class DriveTuning:
         "min_piece_length",
         "max_piece_length",
         "max_curvature",
+        "straight_piece_chance",
+        "straight_max_curvature",
         "ramp_fraction",
         "max_speed",
         "max_reverse_speed",
@@ -57,6 +59,18 @@ class DriveTuning:
         "brake",
         "coast_decel",
         "steer_rate",
+        "steer_scale_max",
+        "steer_scale_min",
+        "steer_min_speed",
+        "steer_reverse_mult",
+        "handbrake_decel",
+        "handbrake_decel_min_speed_factor",
+        "handbrake_decel_throttle_mult",
+        "handbrake_steer_mult",
+        "handbrake_steer_min_speed_factor",
+        "dash_impulse",
+        "dash_cooldown",
+        "offroad_steer_mult",
         "grip",
         "side_friction",
         "side_slip_speed_mult",
@@ -65,8 +79,18 @@ class DriveTuning:
         "offroad_slowdown",
         "fuel_per_sec_idle",
         "fuel_per_sec_throttle",
+        "view_center_y",
+        "car_sprite_anchor_x",
+        "car_sprite_anchor_y",
+        "debug_vectors_enabled",
+        "debug_vectors_heading_len",
+        "debug_vectors_vel_scale",
+        "debug_vectors_accel_scale",
         "render_back_s",
         "render_forward_s",
+        "telemetry_enabled",
+        "telemetry_every_frames",
+        "telemetry_max_lines",
         "obstacles_per_100m",
         "zones_per_100m",
         "spawn_min_distance_between",
@@ -84,6 +108,8 @@ class DriveTuning:
         self.min_piece_length = 0.0
         self.max_piece_length = 0.0
         self.max_curvature = 0.0
+        self.straight_piece_chance = 0.0
+        self.straight_max_curvature = 0.0
         self.ramp_fraction = 0.0
         self.max_speed = 0.0
         self.max_reverse_speed = 0.0
@@ -91,6 +117,18 @@ class DriveTuning:
         self.brake = 0.0
         self.coast_decel = 0.0
         self.steer_rate = 0.0
+        self.steer_scale_max = 0.0
+        self.steer_scale_min = 0.0
+        self.steer_min_speed = 0.0
+        self.steer_reverse_mult = 0.0
+        self.handbrake_decel = 0.0
+        self.handbrake_decel_min_speed_factor = 0.0
+        self.handbrake_decel_throttle_mult = 0.0
+        self.handbrake_steer_mult = 0.0
+        self.handbrake_steer_min_speed_factor = 0.0
+        self.dash_impulse = 0.0
+        self.dash_cooldown = 0.0
+        self.offroad_steer_mult = 0.0
         self.grip = 0.0
         self.side_friction = 0.0
         self.side_slip_speed_mult = 0.0
@@ -99,8 +137,18 @@ class DriveTuning:
         self.offroad_slowdown = 0.0
         self.fuel_per_sec_idle = 0.0
         self.fuel_per_sec_throttle = 0.0
+        self.view_center_y = 0.0
+        self.car_sprite_anchor_x = 0.0
+        self.car_sprite_anchor_y = 0.0
+        self.debug_vectors_enabled = False
+        self.debug_vectors_heading_len = 0.0
+        self.debug_vectors_vel_scale = 0.0
+        self.debug_vectors_accel_scale = 0.0
         self.render_back_s = 0.0
         self.render_forward_s = 0.0
+        self.telemetry_enabled = False
+        self.telemetry_every_frames = 0
+        self.telemetry_max_lines = 0
         self.obstacles_per_100m = 0.0
         self.zones_per_100m = 0.0
         self.spawn_min_distance_between = 0.0
