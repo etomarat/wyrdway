@@ -302,16 +302,35 @@ class DriveLogic:
 
         self._update_road_projection()
 
-        if self._offroad and d.offroad_slowdown > 0.0:
-            slow = 1.0 - d.offroad_slowdown * dt
-            if slow < 0.0:
-                slow = 0.0
-            self._vx *= slow
-            self._vy *= slow
+        if self._offroad:
+            # Оффроуд замедляет плавно, без "стены": линейное + квадратичное сопротивление.
+            #
+            # Модель (векторно):
+            #   dv/dt = -C_lin * v - C_quad * v * |v|
+            #
+            # В дискретном виде (мягкое приближение):
+            #   v *= clamp(1 - (C_lin + C_quad*|v|) * dt, 0..1)
+            #
+            # Это делает оффроуд:
+            # - относительно мягким на малой скорости (можно выбраться),
+            # - очень "вязким" на высокой (невыгодно лететь по обочине).
+            v2 = self._vx * self._vx + self._vy * self._vy
+            spd = v2 ** 0.5
+            drag = d.offroad_drag_lin + d.offroad_drag_quad * spd
+            if drag > 0.0:
+                mult = 1.0 - drag * dt
+                if mult < 0.0:
+                    mult = 0.0
+                if mult > 1.0:
+                    mult = 1.0
+                self._vx *= mult
+                self._vy *= mult
 
         fuel_spend = d.fuel_per_sec_idle * dt
         if throttle:
             fuel_spend += d.fuel_per_sec_throttle * dt
+        if self._offroad and d.offroad_fuel_mult > 0.0:
+            fuel_spend *= d.offroad_fuel_mult
         if dt > 0.0:
             self._dbg_fuel_per_sec = fuel_spend / dt
         else:

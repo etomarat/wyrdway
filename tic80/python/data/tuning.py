@@ -5,7 +5,7 @@ if TYPE_CHECKING:
 
 TUNING: Tuning = Tuning()
 # Поднимай версию при изменениях баланса (числа в TUNING).
-TUNING.tuning_version = 7
+TUNING.tuning_version = 8
 
 # Fixed timestep in seconds (TIC-80 runs at 60 FPS by default).
 TUNING.CORE.dt = 1 / 60
@@ -187,11 +187,32 @@ TUNING.DRIVE.handbrake_grip_mult = 0.5
 # Мультипликатор сцепления на оффроуде.
 TUNING.DRIVE.offroad_grip_mult = 0.85
 
-# Замедление скорости на оффроуде (скорость *= 1 - offroad_slowdown*dt).
-# Не связано напрямую с `coast_decel`:
-# - `coast_decel` — как быстро гасим продольную скорость, когда отпускаем газ;
-# - `offroad_slowdown` — дополнительный “drag” на всем векторе скорости, если вне дороги.
-TUNING.DRIVE.offroad_slowdown = 1.5
+# Оффроуд — отдельная "поверхность".
+#
+# Цель: "иногда выгодно (срезать/объехать), но дороже".
+# - на высокой скорости оффроуд быстро съедает темп (вязкий песок/грязь),
+# - на низкой даёт возможность вернуться на дорогу (не стена).
+#
+# Реализация:
+#   dv/dt = -C_lin * v - C_quad * v * |v|
+# Дискретно в коде: v *= clamp(1 - (C_lin + C_quad*|v|) * dt, 0..1)
+
+# offroad_drag_lin:
+# - линейное сопротивление (как “вязкость”/трение качения в грязи),
+# - сильнее ощущается на низкой/средней скорости,
+# - если сделать слишком большим, машина будет “вязнуть” сразу после съезда.
+TUNING.DRIVE.offroad_drag_lin = 0.6
+TUNING.DRIVE.offroad_drag_lin = 0.01
+
+# offroad_drag_quad:
+# - квадратичное сопротивление (как воздух/глубокий песок, растёт с |v|),
+# - почти не мешает на малой скорости, но резко давит на высокой,
+# - если сделать большим, оффроуд станет “жёстким лимитом” скорости.
+TUNING.DRIVE.offroad_drag_quad = 0.020
+TUNING.DRIVE.offroad_drag_quad = 0.015
+
+# На оффроуде расход топлива дороже.
+TUNING.DRIVE.offroad_fuel_mult = 1.8
 
 # Ресурсы
 
@@ -203,11 +224,11 @@ TUNING.DRIVE.fuel_per_sec_throttle = 1.0
 
 # Top-down рендер: окно видимости дороги (в road-space "метрах" по s).
 # Если дорога “обрывается” сзади/спереди — увеличивай эти значения.
-TUNING.DRIVE.render_back_s = 50.0
-TUNING.DRIVE.render_forward_s = 300.0
+TUNING.DRIVE.render_back_s = 300.0
+TUNING.DRIVE.render_forward_s = 350.0
 
 # Позиция машины на экране в top-down: Y ниже центра = видно больше дороги впереди.
-TUNING.DRIVE.view_center_y = 116.0
+TUNING.DRIVE.view_center_y = 130.0
 
 # Где у машины “опорная точка” физики на спрайте (top-down).
 #

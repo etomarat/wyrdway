@@ -76,7 +76,9 @@ class DriveTuning:
         "side_slip_speed_mult",
         "handbrake_grip_mult",
         "offroad_grip_mult",
-        "offroad_slowdown",
+        "offroad_drag_lin",
+        "offroad_drag_quad",
+        "offroad_fuel_mult",
         "fuel_per_sec_idle",
         "fuel_per_sec_throttle",
         "view_center_y",
@@ -134,7 +136,9 @@ class DriveTuning:
         self.side_slip_speed_mult = 0.0
         self.handbrake_grip_mult = 0.0
         self.offroad_grip_mult = 0.0
-        self.offroad_slowdown = 0.0
+        self.offroad_drag_lin = 0.0
+        self.offroad_drag_quad = 0.0
+        self.offroad_fuel_mult = 0.0
         self.fuel_per_sec_idle = 0.0
         self.fuel_per_sec_throttle = 0.0
         self.view_center_y = 0.0

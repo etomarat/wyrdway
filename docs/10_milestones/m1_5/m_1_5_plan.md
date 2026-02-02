@@ -222,7 +222,7 @@ DoD (Definition of Done)
 
 Если abs(d) > width(s)/2:
 
-- speed *= (1 - offroad_slowdown * dt) или clamp max speed,
+- оффроуд как drag (linear+quad) и fuel mult,
 - (опционально) тикающий урон или расход fuel,
 - визуальный фидбек (пыль/дрожание).
 
@@ -473,7 +473,9 @@ ART PLACEHOLDERS (делает другой агент)
 - grip
 - handbrake_grip_mult
 - offroad_grip_mult
-- offroad_slowdown
+- offroad_drag_lin
+- offroad_drag_quad
+- offroad_fuel_mult
 
 Ресурсы/урон:
 
