@@ -335,5 +335,15 @@ TUNING.DRIVE.zone_radius = 6.0
 # Длина опасной зоны по s.
 TUNING.DRIVE.zone_length = 40.0
 
+# HazardZone tick:
+# - пока машина внутри зоны (в road-space по s и d), у неё тикает урон (hp/сек)
+# - и временно ухудшается сцепление (effective_grip *= zone_grip_mult)
+#
+# Важно: зоны не должны перекрывать всю дорогу без возможности объезда. Генератор
+# ставит их с `d_center` и `radius`, так что у игрока есть выбор: объехать рулём или
+# уйти на оффроуд (дороже, но иногда тактически выгодно).
+TUNING.DRIVE.zone_tick_damage = 2.0
+TUNING.DRIVE.zone_grip_mult = 0.85
+
 TUNING.POI.timer_seconds = 10.0
 TUNING.POI.scrap_per_loot = 5

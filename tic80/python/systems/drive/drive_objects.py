@@ -27,6 +27,8 @@ class DriveHazardZone:
     - `s_start..s_end` — диапазон по прогрессу
     - `d_center` — центр зоны по d
     - `radius` — ширина зоны в стороны (по d)
+    - `tick_damage` — урон в секунду, пока игрок внутри
+    - `grip_mult` — множитель сцепления (effective_grip), пока игрок внутри
     """
 
     def __init__(
@@ -34,12 +36,16 @@ class DriveHazardZone:
         s_start: float,
         s_end: float,
         d_center: float,
-        radius: float
+        radius: float,
+        tick_damage: float,
+        grip_mult: float
     ) -> None:
         self.s_start = s_start
         self.s_end = s_end
         self.d_center = d_center
         self.radius = radius
+        self.tick_damage = tick_damage
+        self.grip_mult = grip_mult
 
 
 class DriveObjects:
@@ -149,7 +155,13 @@ class DriveObjects:
                 j += 1
             if ok:
                 hazard_zones.append(DriveHazardZone(
-                    s_start, s_end, d_center, d.zone_radius))
+                    s_start,
+                    s_end,
+                    d_center,
+                    d.zone_radius,
+                    d.zone_tick_damage,
+                    d.zone_grip_mult
+                ))
                 i += 1
 
         return cls(obstacles, hazard_zones)

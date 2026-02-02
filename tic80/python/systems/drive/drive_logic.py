@@ -50,8 +50,22 @@ class DriveLogic:
         self._dbg_side_accel = 0.0
         self._dbg_fuel_per_sec = 0.0
         self._dash_cd = 0.0
+        self._hazard_grip_mult = 1.0
 
         self._init_on_road_start()
+
+    def set_hazard_grip_mult(self, mult: float) -> None:
+        """Задаёт множитель сцепления от опасной зоны (HazardZone) для следующего кадра.
+
+        Мы храним это в логике, чтобы эффект влиял на тот же `effective_grip`, который уже
+        участвует в заносе/боковом трении.
+
+        Важно: сама проверка "в зоне ли игрок" делается снаружи (в сцене), потому что
+        HazardZone живут в системе объектов дороги.
+        """
+        if mult < 0.0:
+            mult = 0.0
+        self._hazard_grip_mult = mult
 
     def _init_on_road_start(self) -> None:
         """Ставит машину в начало дороги и выравнивает по направлению дороги."""
@@ -237,50 +251,21 @@ class DriveLogic:
 
         offroad_before = self._offroad
 
+        self._step_update_dash_cooldown(dt)
+
         speed = self.speed
-        if self._dash_cd > 0.0:
-            self._dash_cd -= dt
-            if self._dash_cd < 0.0:
-                self._dash_cd = 0.0
-        speed_factor = 0.0
-        if d.max_speed > 0:
-            speed_factor = speed / d.max_speed
-        if speed_factor > 1.0:
-            speed_factor = 1.0
+        speed_factor = self._step_speed_factor(speed, d.max_speed)
         self._dbg_speed_factor = speed_factor
 
-        steer_scale = d.steer_scale_max + (d.steer_scale_min - d.steer_scale_max) * speed_factor
-        if steer_scale < 0.0:
-            steer_scale = 0.0
-        if speed < d.steer_min_speed:
-            steer_scale = 0.0
-        if self.v_forward < 0.0:
-            steer_scale *= d.steer_reverse_mult
-        self._dbg_steer_scale = steer_scale
-        yaw = steer_input * d.steer_rate * steer_scale * dt
-        if handbrake and throttle and steer_input != 0:
-            # Усиление руления от ручника должно зависеть от скорости:
-            # на низкой скорости ручник не “читерит”, а на высокой помогает довернуть.
-            hb_min = d.handbrake_steer_min_speed_factor
-            if hb_min < 0.0:
-                hb_min = 0.0
-            if hb_min > 1.0:
-                hb_min = 1.0
-            hb_t = 0.0
-            if speed_factor > hb_min:
-                denom = 1.0 - hb_min
-                if denom > 0.0:
-                    hb_t = (speed_factor - hb_min) / denom
-                else:
-                    hb_t = 1.0
-            if hb_t > 1.0:
-                hb_t = 1.0
-            hb_gain = d.handbrake_steer_mult - 1.0
-            yaw *= 1.0 + hb_gain * hb_t
-        if offroad_before:
-            yaw *= d.offroad_steer_mult
-        if yaw != 0.0:
-            self._rotate_heading(yaw)
+        self._step_apply_steering(
+            dt,
+            steer_input,
+            throttle,
+            handbrake,
+            offroad_before,
+            speed,
+            speed_factor
+        )
 
         fwd_x = self._fwd_x
         fwd_y = self._fwd_y
@@ -290,11 +275,133 @@ class DriveLogic:
         v_fwd = self._vx * fwd_x + self._vy * fwd_y
         v_side = self._vx * right_x + self._vy * right_y
 
+        v_fwd = self._step_apply_dash(v_fwd, dash_pressed)
+        v_fwd = self._step_apply_longitudinal(
+            dt,
+            v_fwd,
+            throttle,
+            brake,
+            handbrake,
+            speed_factor
+        )
+        v_fwd = self._step_clamp_v_fwd(v_fwd)
+
+        effective_grip = self._step_effective_grip(handbrake, offroad_before)
+        v_side = self._step_apply_lateral_damping(
+            dt,
+            v_side,
+            effective_grip,
+            speed_factor
+        )
+
+        self._vx = fwd_x * v_fwd + right_x * v_side
+        self._vy = fwd_y * v_fwd + right_y * v_side
+
+        self._x += self._vx * dt
+        self._y += self._vy * dt
+
+        self._update_road_projection()
+
+        self._step_apply_drag(dt)
+        self._step_apply_fuel(dt, throttle)
+
+    def _step_update_dash_cooldown(self, dt: float) -> None:
+        """Обновляет внутренний таймер кулдауна рывка (dash)."""
+        if self._dash_cd > 0.0:
+            self._dash_cd -= dt
+            if self._dash_cd < 0.0:
+                self._dash_cd = 0.0
+
+    @staticmethod
+    def _step_speed_factor(speed: float, max_speed: float) -> float:
+        """Нормализует скорость в диапазон 0..1 (для тюнинга рулёжки/заноса)."""
+        if max_speed <= 0.0:
+            return 0.0
+        sf = speed / max_speed
+        if sf > 1.0:
+            sf = 1.0
+        if sf < 0.0:
+            sf = 0.0
+        return sf
+
+    def _step_apply_steering(
+        self,
+        dt: float,
+        steer_input: int,
+        throttle: bool,
+        handbrake: bool,
+        offroad_before: bool,
+        speed: float,
+        speed_factor: float
+    ) -> None:
+        """Поворачивает heading по вводу руля и условиям (скорость, ручник, оффроуд)."""
+        d = self._tuning.DRIVE
+
+        steer_scale = d.steer_scale_max + (d.steer_scale_min - d.steer_scale_max) * speed_factor
+        if steer_scale < 0.0:
+            steer_scale = 0.0
+        if speed < d.steer_min_speed:
+            steer_scale = 0.0
+        if self.v_forward < 0.0:
+            steer_scale *= d.steer_reverse_mult
+        self._dbg_steer_scale = steer_scale
+
+        yaw = steer_input * d.steer_rate * steer_scale * dt
+        if handbrake and throttle and steer_input != 0:
+            yaw = self._step_apply_handbrake_steer_boost(yaw, speed_factor)
+        if offroad_before:
+            yaw *= d.offroad_steer_mult
+        if yaw != 0.0:
+            self._rotate_heading(yaw)
+
+    def _step_apply_handbrake_steer_boost(self, yaw: float, speed_factor: float) -> float:
+        """Усиливает руление от ручника (B) только на скорости.
+
+        Идея: на низкой скорости ручник не должен “читерить”, а на высокой — помогает
+        довернуть (эффект а-ля Mario Kart).
+        """
+        d = self._tuning.DRIVE
+
+        hb_min = d.handbrake_steer_min_speed_factor
+        if hb_min < 0.0:
+            hb_min = 0.0
+        if hb_min > 1.0:
+            hb_min = 1.0
+
+        hb_t = 0.0
+        if speed_factor > hb_min:
+            denom = 1.0 - hb_min
+            if denom > 0.0:
+                hb_t = (speed_factor - hb_min) / denom
+            else:
+                hb_t = 1.0
+        if hb_t > 1.0:
+            hb_t = 1.0
+        if hb_t < 0.0:
+            hb_t = 0.0
+
+        hb_gain = d.handbrake_steer_mult - 1.0
+        return yaw * (1.0 + hb_gain * hb_t)
+
+    def _step_apply_dash(self, v_fwd: float, dash_pressed: bool) -> float:
+        """Применяет рывок вперёд (dash), если включён тюнингом и нет кулдауна."""
+        d = self._tuning.DRIVE
         if dash_pressed and d.dash_impulse > 0.0 and self._dash_cd <= 0.0:
-            # Dash = резкое добавление продольной скорости (как “нитро/аномалия”).
-            # В базовой игре выключено через tuning (dash_impulse=0).
             v_fwd += d.dash_impulse
             self._dash_cd = d.dash_cooldown
+        return v_fwd
+
+    def _step_apply_longitudinal(
+        self,
+        dt: float,
+        v_fwd: float,
+        throttle: bool,
+        brake: bool,
+        handbrake: bool,
+        speed_factor: float
+    ) -> float:
+        """Продольная динамика: газ/тормоз/накат + доп. замедление от ручника."""
+        d = self._tuning.DRIVE
 
         if throttle and not brake:
             if v_fwd < 0.0:
@@ -310,31 +417,63 @@ class DriveLogic:
             v_fwd = self._approach(v_fwd, 0.0, d.coast_decel * dt)
 
         if handbrake and d.handbrake_decel > 0.0:
-            # Ручник должен “съедать” скорость, особенно на высокой.
-            # Иначе он ощущается как бесполезная кнопка “сделать хуже сцепление”.
-            hb_sf = speed_factor
-            if hb_sf < d.handbrake_decel_min_speed_factor:
-                hb_sf = d.handbrake_decel_min_speed_factor
-            hb_decel = d.handbrake_decel * hb_sf
-            if throttle:
-                hb_decel *= d.handbrake_decel_throttle_mult
-            v_fwd = self._approach(v_fwd, 0.0, hb_decel * dt)
+            v_fwd = self._step_apply_handbrake_decel(dt, v_fwd, throttle, speed_factor)
 
+        return v_fwd
+
+    def _step_apply_handbrake_decel(
+        self,
+        dt: float,
+        v_fwd: float,
+        throttle: bool,
+        speed_factor: float
+    ) -> float:
+        """Замедление от ручника: сильнее ощущается на скорости, слабее под газом."""
+        d = self._tuning.DRIVE
+        hb_sf = speed_factor
+        if hb_sf < d.handbrake_decel_min_speed_factor:
+            hb_sf = d.handbrake_decel_min_speed_factor
+        hb_decel = d.handbrake_decel * hb_sf
+        if throttle:
+            hb_decel *= d.handbrake_decel_throttle_mult
+        return self._approach(v_fwd, 0.0, hb_decel * dt)
+
+    def _step_clamp_v_fwd(self, v_fwd: float) -> float:
+        """Ограничивает задний ход и (опционально) верхнюю скорость по оси вперёд."""
+        d = self._tuning.DRIVE
         if v_fwd < -d.max_reverse_speed:
             v_fwd = -d.max_reverse_speed
         if d.speed_cap > 0.0 and v_fwd > d.speed_cap:
             v_fwd = d.speed_cap
+        return v_fwd
+
+    def _step_effective_grip(self, handbrake: bool, offroad_before: bool) -> float:
+        """Считает effective_grip для этого кадра и пишет dbg_effective_grip."""
+        d = self._tuning.DRIVE
 
         effective_grip = d.grip
         if handbrake:
             effective_grip *= d.handbrake_grip_mult
         if offroad_before:
             effective_grip *= d.offroad_grip_mult
+        if self._hazard_grip_mult != 1.0:
+            effective_grip *= self._hazard_grip_mult
         if effective_grip < 0.0:
             effective_grip = 0.0
         self._dbg_effective_grip = effective_grip
+        return effective_grip
 
+    def _step_apply_lateral_damping(
+        self,
+        dt: float,
+        v_side: float,
+        effective_grip: float,
+        speed_factor: float
+    ) -> float:
+        """Гасит боковую скорость (занос) в текущем кадре через side_friction."""
+        d = self._tuning.DRIVE
         v_side_before = v_side
+
         slip = 1.0 + d.side_slip_speed_mult * speed_factor
         if slip < 1.0:
             slip = 1.0
@@ -343,6 +482,7 @@ class DriveLogic:
             side_damp = 0.0
         if side_damp > 1.0:
             side_damp = 1.0
+
         v_side *= side_damp
         self._dbg_side_damp = side_damp
         if dt > 0.0:
@@ -350,40 +490,43 @@ class DriveLogic:
         else:
             self._dbg_side_accel = 0.0
 
-        self._vx = fwd_x * v_fwd + right_x * v_side
-        self._vy = fwd_y * v_fwd + right_y * v_side
+        return v_side
 
-        self._x += self._vx * dt
-        self._y += self._vy * dt
+    def _step_apply_drag(self, dt: float) -> None:
+        """Общие сопротивления движения + добавка от оффроуда.
 
-        self._update_road_projection()
+        Модель (векторно):
+          dv/dt = -C_lin * v - C_quad * v * |v|
 
-        # Общие сопротивления + добавка от оффроуда.
-        #
-        # Модель (векторно):
-        #   dv/dt = -C_lin * v - C_quad * v * |v|
-        #
-        # Оффроуд добавляет к C_lin/C_quad свои коэффициенты (вязкость/песок),
-        # чтобы на высокой скорости темп резко падал, но на низкой можно было
-        # выбраться обратно.
+        Оффроуд добавляет к C_lin/C_quad свои коэффициенты (вязкость/песок),
+        чтобы на высокой скорости темп падал, но на низкой можно было выбраться обратно.
+        """
+        d = self._tuning.DRIVE
         drag_lin = d.drag_lin
         drag_quad = d.drag_quad
         if self._offroad:
             drag_lin += d.offroad_drag_lin
             drag_quad += d.offroad_drag_quad
-        if drag_lin > 0.0 or drag_quad > 0.0:
-            v2 = self._vx * self._vx + self._vy * self._vy
-            spd = v2 ** 0.5
-            drag = drag_lin + drag_quad * spd
-            if drag > 0.0:
-                mult = 1.0 - drag * dt
-                if mult < 0.0:
-                    mult = 0.0
-                if mult > 1.0:
-                    mult = 1.0
-                self._vx *= mult
-                self._vy *= mult
+        if drag_lin <= 0.0 and drag_quad <= 0.0:
+            return
 
+        v2 = self._vx * self._vx + self._vy * self._vy
+        spd = v2 ** 0.5
+        drag = drag_lin + drag_quad * spd
+        if drag <= 0.0:
+            return
+
+        mult = 1.0 - drag * dt
+        if mult < 0.0:
+            mult = 0.0
+        if mult > 1.0:
+            mult = 1.0
+        self._vx *= mult
+        self._vy *= mult
+
+    def _step_apply_fuel(self, dt: float, throttle: bool) -> None:
+        """Списывает топливо по текущему вводу и поверхности (оффроуд дороже)."""
+        d = self._tuning.DRIVE
         fuel_spend = d.fuel_per_sec_idle * dt
         if throttle:
             fuel_spend += d.fuel_per_sec_throttle * dt

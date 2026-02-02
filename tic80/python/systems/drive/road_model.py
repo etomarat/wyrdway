@@ -187,6 +187,11 @@ class RoadModel:
             s = delta
             ndx = dx * c - dy * s
             ndy = dx * s + dy * c
+            l2 = ndx * ndx + ndy * ndy
+            if l2 > 0.0:
+                inv = 1.0 / (l2 ** 0.5)
+                ndx *= inv
+                ndy *= inv
             dx = ndx
             dy = ndy
 

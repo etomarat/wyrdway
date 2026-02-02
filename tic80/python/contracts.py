@@ -102,7 +102,9 @@ class DriveTuning:
         "spawn_min_distance_from_edges",
         "obstacle_radius",
         "zone_radius",
-        "zone_length"
+        "zone_length",
+        "zone_tick_damage",
+        "zone_grip_mult"
     )
 
     def __init__(self) -> None:
@@ -166,6 +168,8 @@ class DriveTuning:
         self.obstacle_radius = 0.0
         self.zone_radius = 0.0
         self.zone_length = 0.0
+        self.zone_tick_damage = 0.0
+        self.zone_grip_mult = 0.0
 
 
 class PoiTuning:
