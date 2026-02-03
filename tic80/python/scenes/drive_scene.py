@@ -508,6 +508,8 @@ class DriveTopdownRenderer:
 
     def _draw_car_sprite(self, steer_input: int, center_x: int, center_y: int) -> None:
         """Рисует спрайт машины в точке (center_x, center_y) с учётом anchor."""
+        if not TUNING.DRIVE.car_turn_pose_enabled:
+            steer_input = 0
         ax = int(TUNING.DRIVE.car_sprite_anchor_x)
         ay = int(TUNING.DRIVE.car_sprite_anchor_y)
         NIVA_TOPDOWN.draw(steer_input, center_x - ax, center_y - ay)
@@ -522,6 +524,8 @@ class DriveTopdownRenderer:
         без пересчёта в world-space.
         """
         d = TUNING.DRIVE
+        if not d.car_turn_pose_enabled:
+            steer_input = 0
 
         # Координаты хитбоксов задаются в пикселях спрайта и “приклеиваются” к нему
         # через car_sprite_anchor_*.

@@ -89,6 +89,7 @@ class DriveTuning:
         "view_center_y_max",
         "car_sprite_anchor_x",
         "car_sprite_anchor_y",
+        "car_turn_pose_enabled",
         "debug_vectors_enabled",
         "debug_vectors_heading_len",
         "debug_vectors_vel_scale",
@@ -173,6 +174,7 @@ class DriveTuning:
         self.view_center_y_max = 0.0
         self.car_sprite_anchor_x = 0.0
         self.car_sprite_anchor_y = 0.0
+        self.car_turn_pose_enabled = False
         self.debug_vectors_enabled = False
         self.debug_vectors_heading_len = 0.0
         self.debug_vectors_vel_scale = 0.0

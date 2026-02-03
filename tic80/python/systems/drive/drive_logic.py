@@ -667,7 +667,7 @@ class DriveLogic:
         front_px = d.hitbox_front_px
         front_py = d.hitbox_front_py
 
-        if steer_abs > 0.0:
+        if d.car_turn_pose_enabled and steer_abs > 0.0:
             rear_px += steer_sign * d.hitbox_turn_rear_dx
             rear_py += steer_abs * d.hitbox_turn_rear_dy
             front_px += steer_sign * d.hitbox_turn_front_dx
