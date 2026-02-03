@@ -186,13 +186,13 @@ TUNING.DRIVE.offroad_steer_mult = 0.80
 # В формуле это часть `effective_grip`:
 #   side_damp = 1 - side_friction * effective_grip * dt
 # Где `effective_grip` стартует с `grip` и модифицируется ручником/оффроудом.
-TUNING.DRIVE.grip = 3.2
+TUNING.DRIVE.grip = 4.2
 # TUNING.DRIVE.grip = 1.5
 
 # Боковое трение: чем больше, тем быстрее “гасится” боковая скорость (меньше заноса).
 # Это второй множитель в той же формуле (см. `grip` выше).
-# TUNING.DRIVE.side_friction = 5.0
-TUNING.DRIVE.side_friction = 3.0
+TUNING.DRIVE.side_friction = 5.0
+# TUNING.DRIVE.side_friction = 3.0
 
 # Насколько “сильнее занос” на высокой скорости.
 #
@@ -293,9 +293,9 @@ TUNING.DRIVE.view_center_y_max = 128.0
 # - X: центр спрайта,
 # - Y: ближе к низу спрайта.
 TUNING.DRIVE.car_sprite_anchor_x = 16.0
-# TUNING.DRIVE.car_sprite_anchor_y = 24.0  # центр на задней оси
+TUNING.DRIVE.car_sprite_anchor_y = 24.0  # центр на задней оси
 # TUNING.DRIVE.car_sprite_anchor_y = 8.0  # центр на передней оси
-TUNING.DRIVE.car_sprite_anchor_y = 16.0  # центр в центре
+# TUNING.DRIVE.car_sprite_anchor_y = 16.0  # центр в центре
 
 # Визуализация векторов (для тюнинга управления).
 #
@@ -307,6 +307,9 @@ TUNING.DRIVE.debug_vectors_enabled = True
 TUNING.DRIVE.debug_vectors_heading_len = 20.0
 TUNING.DRIVE.debug_vectors_vel_scale = 0.35
 TUNING.DRIVE.debug_vectors_accel_scale = 0.2
+
+# Визуализация активной зоны (контур) для проверки коллизии зон с хитбоксами.
+TUNING.DRIVE.debug_zones_enabled = True
 
 # Визуализация хитбоксов машины (для настройки коллизий).
 #
@@ -340,7 +343,7 @@ TUNING.DRIVE.hitbox_turn_front_dy = 0.5
 # Идея: мы пишем сэмплы не каждый кадр (чтобы не спамить консоль), а раз в N кадров,
 # плюс отмечаем “события” (например, выезд на оффроуд).
 # Лог печатается в консоль (через `trace`) при выходе из DRIVE (finish/evac).
-TUNING.DRIVE.telemetry_enabled = False
+TUNING.DRIVE.telemetry_enabled = True
 TUNING.DRIVE.telemetry_every_frames = 20
 TUNING.DRIVE.telemetry_max_lines = 140
 
@@ -361,30 +364,63 @@ TUNING.DRIVE.zones_per_100m = 0.5
 TUNING.DRIVE.spawn_min_distance_between = 50.0
 
 # Отступ от краёв дороги, чтобы не спавнить объекты вплотную к обочине.
-TUNING.DRIVE.spawn_min_distance_from_edges = 6.0
+TUNING.DRIVE.spawn_min_distance_from_edges = 3.0
 
 # Радиус препятствия (в road-space единицах).
 TUNING.DRIVE.obstacle_radius = 2.0
 
 # Дальность отрисовки препятствий вокруг текущего `road_s` (в единицах s).
 # Если увеличить — препятствия будут появляться раньше, но кадр станет тяжелее.
-TUNING.DRIVE.obstacle_render_range_s = 140.0
+TUNING.DRIVE.obstacle_render_range_s = 200.0
+
+# Урон за столкновение с препятствием (единоразово, за каждое препятствие).
+TUNING.DRIVE.obstacle_hit_damage = 8.0
 
 # Радиус опасной зоны (по d). Чем больше, тем шире зона на дороге.
-TUNING.DRIVE.zone_radius = 6.0
+TUNING.DRIVE.zone_radius = 5.0
 
-# Длина опасной зоны по s.
-TUNING.DRIVE.zone_length = 40.0
+# Длина зоны по s.
+TUNING.DRIVE.zone_length = 60.0
 
-# HazardZone tick:
-# - пока машина внутри зоны (в road-space по s и d), у неё тикает урон (hp/сек)
-# - и временно ухудшается сцепление (effective_grip *= zone_grip_mult)
+# Зоны на дороге (m1.5):
+# Сейчас используем их как “ускорялки” (boost pads), потому что визуально они читаются
+# как дорожная разметка/панели ускорения.
 #
-# Важно: зоны не должны перекрывать всю дорогу без возможности объезда. Генератор
-# ставит их с `d_center` и `radius`, так что у игрока есть выбор: объехать рулём или
-# уйти на оффроуд (дороже, но иногда тактически выгодно).
-TUNING.DRIVE.zone_tick_damage = 2.0
-TUNING.DRIVE.zone_grip_mult = 0.85
+# Механика ускорялки:
+# - пока машина внутри зоны (по s/d), добавляем ускорение ВДОЛЬ направления дороги
+#   (`zone_boost_forward_accel`);
+# - и (опционально) добавляем ускорение К ЦЕНТРУ дороги (`zone_boost_center_accel`).
+#   Мы держим этот параметр, но по умолчанию он выключен: на резких поворотах
+#   “магнит к центру” часто мешает больше, чем помогает.
+# - вместо “магнита” делаем ускорялку “безопасной полосой”:
+#   * повышаем сцепление (`zone_grip_mult`);
+#   * и дополнительно гасим боковую скорость (занос) через `zone_antislip`.
+#
+# Пример “на пальцах”:
+# - если `zone_boost_forward_accel = 80`, а машина проводит на панели 0.5 секунды,
+#   то прибавка скорости будет примерно +40 units/sec (потому что dv = a * t).
+#
+# Примечание:
+# Мы не используем “hazard tick damage” в DRIVE: зоны — это ускорялки/безопасные полосы.
+# Если когда-нибудь понадобится настоящий дорожный hazard, лучше добавить отдельный тип зоны.
+TUNING.DRIVE.zone_boost_forward_accel = 100.0
+TUNING.DRIVE.zone_boost_center_accel = 0.0
+# Сцепление внутри ускорялки: больше = легче стабилизировать машину на панели.
+TUNING.DRIVE.zone_grip_mult = 2.2
+# Минимальное effective_grip внутри ускорялки (grip-floor).
+#
+# Зачем: ручник снижает сцепление мультипликатором (`handbrake_grip_mult`), и на высокой
+# скорости это может сделать бустер бесполезным. Grip-floor гарантирует, что на панели
+# будет хотя бы некоторый “минимальный зацеп”, даже если ты в дрифте на ручнике.
+#
+# Пример:
+#   base_grip=4.2, zone_grip_mult=2.2 => 9.24
+#   handbrake_grip_mult=0.4 => 3.70
+#   zone_grip_floor=6.0 => итоговый effective_grip = max(3.70, 6.0) = 6.0
+TUNING.DRIVE.zone_grip_floor = 6.0
+# Анти-занос внутри ускорялки (1/sec): дополнительно гасит v_side.
+# Больше = сильнее “стабилизатор”, но слишком большое значение убьёт удовольствие от дрифта.
+TUNING.DRIVE.zone_antislip = 6.0
 
 TUNING.POI.timer_seconds = 10.0
 TUNING.POI.scrap_per_loot = 5

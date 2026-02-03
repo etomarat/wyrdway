@@ -21,14 +21,17 @@ class DriveObstacle:
         self.hit = False
 
 
-class DriveHazardZone:
-    """Опасная зона: диапазон по s + радиус по d (капсула на дороге).
+class DriveZone:
+    """Дорожная зона (m1.5): полоса по s и радиус по d.
 
     - `s_start..s_end` — диапазон по прогрессу
     - `d_center` — центр зоны по d
     - `radius` — ширина зоны в стороны (по d)
-    - `tick_damage` — урон в секунду, пока игрок внутри
     - `grip_mult` — множитель сцепления (effective_grip), пока игрок внутри
+
+    Примечание:
+    Раньше это называлось HazardZone, но в текущем дизайне m1.5 мы используем зоны
+    как “ускорялки/безопасные полосы” (boost pads), а не как урон по таймеру.
     """
 
     def __init__(
@@ -37,14 +40,12 @@ class DriveHazardZone:
         s_end: float,
         d_center: float,
         radius: float,
-        tick_damage: float,
         grip_mult: float
     ) -> None:
         self.s_start = s_start
         self.s_end = s_end
         self.d_center = d_center
         self.radius = radius
-        self.tick_damage = tick_damage
         self.grip_mult = grip_mult
 
 
@@ -52,7 +53,7 @@ class DriveObjects:
     """Набор объектов сегмента DRIVE, сгенерированный по seed.
 
     Важно: это прототип под m1.5. Пока он отвечает только за:
-    - хранение списка объектов (Obstacle / HazardZone),
+    - хранение списка объектов (Obstacle / Zone),
     - детерминированный seeded-спавн при старте сегмента.
 
     Коллизии/эффекты делаем отдельно, чтобы можно было ревьюить по шагам.
@@ -61,26 +62,26 @@ class DriveObjects:
     def __init__(
         self,
         obstacles: list[DriveObstacle],
-        hazard_zones: list[DriveHazardZone]
+        zones: list[DriveZone]
     ) -> None:
         self._obstacles = obstacles
-        self._hazard_zones = hazard_zones
+        self._zones = zones
 
     def obstacles_count(self) -> int:
         """Количество препятствий на сегмент."""
         return len(self._obstacles)
 
-    def hazard_zones_count(self) -> int:
-        """Количество опасных зон на сегмент."""
-        return len(self._hazard_zones)
+    def zones_count(self) -> int:
+        """Количество зон на сегмент."""
+        return len(self._zones)
 
     def obstacles_items(self) -> list[DriveObstacle]:
         """Копия списка препятствий."""
         return list(self._obstacles)
 
-    def hazard_zones_items(self) -> list[DriveHazardZone]:
-        """Копия списка опасных зон."""
-        return list(self._hazard_zones)
+    def zones_items(self) -> list[DriveZone]:
+        """Копия списка зон."""
+        return list(self._zones)
 
     @classmethod
     def from_road_and_tuning(cls, seed: int, road: RoadModel, tuning: Tuning):
@@ -104,7 +105,7 @@ class DriveObjects:
             max_d = 0.0
 
         obstacles: list[DriveObstacle] = []
-        hazard_zones: list[DriveHazardZone] = []
+        zones: list[DriveZone] = []
 
         obstacles_n = int((total / 100.0) * d.obstacles_per_100m + 0.5)
         zones_n = int((total / 100.0) * d.zones_per_100m + 0.5)
@@ -148,20 +149,19 @@ class DriveObjects:
 
             ok = True
             j = 0
-            while j < len(hazard_zones):
-                if abs(hazard_zones[j].s_start - s_start) < d.spawn_min_distance_between:
+            while j < len(zones):
+                if abs(zones[j].s_start - s_start) < d.spawn_min_distance_between:
                     ok = False
                     break
                 j += 1
             if ok:
-                hazard_zones.append(DriveHazardZone(
+                zones.append(DriveZone(
                     s_start,
                     s_end,
                     d_center,
                     d.zone_radius,
-                    d.zone_tick_damage,
                     d.zone_grip_mult
                 ))
                 i += 1
 
-        return cls(obstacles, hazard_zones)
+        return cls(obstacles, zones)

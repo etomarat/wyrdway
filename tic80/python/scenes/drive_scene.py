@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from ..core.sprites import NIVA_TOPDOWN
     from ..data.tuning import TUNING
     from ..systems.drive.drive_logic import DriveLogic
-    from ..systems.drive.drive_objects import DriveHazardZone, DriveObjects, DriveObstacle
+    from ..systems.drive.drive_objects import DriveObjects, DriveObstacle, DriveZone
     from ..systems.drive.road_model import RoadModel
 
 
@@ -176,7 +176,13 @@ class DriveTopdownRenderer:
     Задача класса: только рисовать. Никаких изменений состояния RunState/DriveLogic.
     """
 
-    def draw(self, road: RoadModel, logic: DriveLogic, objects: DriveObjects) -> None:
+    def draw(
+        self,
+        road: RoadModel,
+        logic: DriveLogic,
+        objects: DriveObjects,
+        active_zone: DriveZone | None
+    ) -> None:
         """Рисует дорогу, опасные зоны, препятствия и машину в top-down.
 
         Этот метод намеренно короткий: “скелет” кадра.
@@ -194,7 +200,7 @@ class DriveTopdownRenderer:
         right_y = fwd_x
 
         start_idx, end_idx = self._visible_index_range(road, p_s)
-        zones = objects.hazard_zones_items()
+        zones = objects.zones_items()
         self._draw_road_edges_and_hazards(
             road,
             zones,
@@ -209,6 +215,29 @@ class DriveTopdownRenderer:
             center_x,
             center_y
         )
+        if TUNING.DRIVE.debug_zones_enabled:
+            i = 0
+            while i < len(zones):
+                z = zones[i]
+                color = 6
+                if active_zone is not None and z is active_zone:
+                    color = 12
+                self._draw_zone_outline(
+                    road,
+                    z,
+                    start_idx,
+                    end_idx,
+                    car_x,
+                    car_y,
+                    fwd_x,
+                    fwd_y,
+                    right_x,
+                    right_y,
+                    center_x,
+                    center_y,
+                    color
+                )
+                i += 1
 
         obstacles = objects.obstacles_items()
         self._draw_obstacles(
@@ -230,6 +259,104 @@ class DriveTopdownRenderer:
             self._draw_debug_vectors(logic, center_x, center_y)
         if TUNING.DRIVE.debug_hitboxes_enabled:
             self._draw_hitboxes(logic.steer_input, center_x, center_y)
+
+    def _draw_zone_outline(
+        self,
+        road: RoadModel,
+        z: DriveZone,
+        start_idx: int,
+        end_idx: int,
+        car_x: float,
+        car_y: float,
+        fwd_x: float,
+        fwd_y: float,
+        right_x: float,
+        right_y: float,
+        center_x: int,
+        center_y: int,
+        color: int
+    ) -> None:
+        """Рисует контур активной зоны (для дебага коллизии).
+
+        Полоски зон рисуются “внутри” дороги (см. `_draw_hazard_stripe_at`).
+        Этот контур показывает именно геометрию зоны в road-space:
+        - s в [s_start..s_end]
+        - d в [d_center-radius .. d_center+radius]
+
+        Если контур не совпадает с ощущением коллизии — значит проблема в проекции
+        world -> (s,d) или в настройке хитбоксов.
+        """
+        s_vis0 = start_idx * road.ds
+        s_vis1 = end_idx * road.ds
+        s0 = z.s_start
+        s1 = z.s_end
+        if s0 < s_vis0:
+            s0 = s_vis0
+        if s1 > s_vis1:
+            s1 = s_vis1
+        if s1 <= s0:
+            return
+
+        d0 = z.d_center - z.radius
+        d1 = z.d_center + z.radius
+
+        step = road.ds * 2.0
+        if step < road.ds:
+            step = road.ds
+
+        prev0x = None
+        prev0y = None
+        prev1x = None
+        prev1y = None
+
+        s = s0
+        while s <= s1:
+            cx, cy = road.sample_centerline(s)
+            dx, dy = road.direction_at(s)
+            nrm_x = -dy
+            nrm_y = dx
+
+            wx0 = cx + nrm_x * d0
+            wy0 = cy + nrm_y * d0
+            wx1 = cx + nrm_x * d1
+            wy1 = cy + nrm_y * d1
+
+            sx0, sy0 = self._world_to_screen(
+                wx0, wy0, car_x, car_y, fwd_x, fwd_y, right_x, right_y, center_x, center_y
+            )
+            sx1, sy1 = self._world_to_screen(
+                wx1, wy1, car_x, car_y, fwd_x, fwd_y, right_x, right_y, center_x, center_y
+            )
+
+            if prev0x is not None and prev0y is not None:
+                line(int(prev0x), int(prev0y), int(sx0), int(sy0), color)
+            if prev1x is not None and prev1y is not None:
+                line(int(prev1x), int(prev1y), int(sx1), int(sy1), color)
+
+            prev0x = sx0
+            prev0y = sy0
+            prev1x = sx1
+            prev1y = sy1
+            s += step
+
+        # “Заглушки” на концах (перемычки), чтобы визуально получался прямоугольник.
+        if prev0x is not None and prev0y is not None and prev1x is not None and prev1y is not None:
+            line(int(prev0x), int(prev0y), int(prev1x), int(prev1y), color)
+        cx0, cy0 = road.sample_centerline(s0)
+        dx0, dy0 = road.direction_at(s0)
+        nrm0x = -dy0
+        nrm0y = dx0
+        wx0a = cx0 + nrm0x * d0
+        wy0a = cy0 + nrm0y * d0
+        wx1a = cx0 + nrm0x * d1
+        wy1a = cy0 + nrm0y * d1
+        sx0a, sy0a = self._world_to_screen(
+            wx0a, wy0a, car_x, car_y, fwd_x, fwd_y, right_x, right_y, center_x, center_y
+        )
+        sx1a, sy1a = self._world_to_screen(
+            wx1a, wy1a, car_x, car_y, fwd_x, fwd_y, right_x, right_y, center_x, center_y
+        )
+        line(int(sx0a), int(sy0a), int(sx1a), int(sy1a), color)
 
     def _clamp_center_y(self, y: int) -> int:
         """Ограничивает вертикальную позицию “центра камеры” в top-down.
@@ -266,7 +393,7 @@ class DriveTopdownRenderer:
     def _draw_road_edges_and_hazards(
         self,
         road: RoadModel,
-        zones: list[DriveHazardZone],
+        zones: list[DriveZone],
         start_idx: int,
         end_idx: int,
         car_x: float,
@@ -336,7 +463,7 @@ class DriveTopdownRenderer:
     def _draw_hazard_stripe_at(
         self,
         road: RoadModel,
-        zones: list[DriveHazardZone],
+        zones: list[DriveZone],
         idx: int,
         cx: float,
         cy: float,
@@ -443,7 +570,7 @@ class DriveTopdownRenderer:
         if front_r > 0.0:
             circb(int(front_x), int(front_y), int(front_r), 12)
 
-    def _zone_span_at_s(self, s: float, zones: list[DriveHazardZone]) -> tuple[float, float] | None:
+    def _zone_span_at_s(self, s: float, zones: list[DriveZone]) -> tuple[float, float] | None:
         """Возвращает (d0, d1) для подсветки HazardZone на прогрессе `s`."""
         i = 0
         while i < len(zones):
@@ -562,6 +689,7 @@ class DriveScene:
         self._road: RoadModel | None = None
         self._logic: DriveLogic | None = None
         self._objects: DriveObjects | None = None
+        self._active_zone: DriveZone | None = None
         self._evacuated = False
         self._telemetry: DriveTelemetry | None = None
         self._renderer = DriveTopdownRenderer()
@@ -575,6 +703,7 @@ class DriveScene:
         self._road = None
         self._logic = None
         self._objects = None
+        self._active_zone = None
 
         run = self._state.require_run()
         seed = run.seed
@@ -598,15 +727,14 @@ class DriveScene:
             return
         if self._logic is None:
             return
+        if self._road is None:
+            return
         if self._objects is None:
             return
 
-        zones = self._objects.hazard_zones_items()
-        z_before = self._zone_at(self._logic.road_s, self._logic.road_d, zones)
-        if z_before is None:
-            self._logic.set_hazard_grip_mult(1.0)
-        else:
-            self._logic.set_hazard_grip_mult(z_before.grip_mult)
+        zones = self._objects.zones_items()
+        z_before = self._zone_at_hitboxes(self._logic, zones)
+        self._apply_zone_effects(z_before)
 
         steer = 0
         if btn(Button.LEFT):
@@ -621,16 +749,13 @@ class DriveScene:
 
         dash_pressed = a_pressed and not self._logic.finished()
         self._logic.update(dt, steer, throttle, brake, handbrake, dash_pressed)
-        z_after = self._zone_at(self._logic.road_s, self._logic.road_d, zones)
+        z_after = self._zone_at_hitboxes(self._logic, zones)
+        self._active_zone = z_after if z_after is not None else z_before
 
-        z_damage = z_before if z_before is not None else z_after
-        if z_damage is not None and z_damage.tick_damage > 0.0:
-            run.apply_damage(z_damage.tick_damage * dt)
+        self._apply_obstacle_hits(run)
 
-        if z_after is None:
-            self._logic.set_hazard_grip_mult(1.0)
-        else:
-            self._logic.set_hazard_grip_mult(z_after.grip_mult)
+        # Обновляем эффекты зон для СЛЕДУЮЩЕГО кадра (без 1-кадрового “залипания”).
+        self._apply_zone_effects(z_after)
         if self._telemetry is not None:
             self._telemetry.after_update(
                 dt, steer, throttle, brake, handbrake, dash_pressed, run, self._logic
@@ -654,6 +779,70 @@ class DriveScene:
             delta = run.ensure_delta(run.node_id)
             delta.set_escape_outcome("ok")
             self._nav.go(SceneId.RESULT, ResultEnterParams("EXTRACT OK"))
+
+    def _apply_obstacle_hits(self, run: RunState) -> None:
+        """Проверяет столкновения с препятствиями и применяет урон.
+
+        Коллизия:
+        - препятствие = круг (radius) в world-space,
+        - машина = 2 круга (задняя/передняя ось), позиции берём из DriveLogic.
+        """
+        road = self._road
+        logic = self._logic
+        objects = self._objects
+        if road is None or logic is None or objects is None:
+            return
+
+        dmg = TUNING.DRIVE.obstacle_hit_damage
+        if dmg <= 0.0:
+            return
+
+        rear_x, rear_y, rear_r, front_x, front_y, front_r = logic.hitbox_world_circles()
+
+        # Небольшая оптимизация: проверяем только препятствия рядом по s.
+        max_ds = TUNING.DRIVE.obstacle_render_range_s
+        if max_ds < 0.0:
+            max_ds = 0.0
+        p_s = logic.road_s
+
+        obstacles = objects.obstacles_items()
+        i = 0
+        while i < len(obstacles):
+            o = obstacles[i]
+            if o.hit:
+                i += 1
+                continue
+            if abs(o.s - p_s) > max_ds:
+                i += 1
+                continue
+
+            cx, cy = road.sample_centerline(o.s)
+            dx, dy = road.direction_at(o.s)
+            nrm_x = -dy
+            nrm_y = dx
+            ox = cx + nrm_x * o.d
+            oy = cy + nrm_y * o.d
+
+            r0 = o.radius + rear_r
+            r1 = o.radius + front_r
+            hit = False
+
+            if r0 > 0.0:
+                vx = ox - rear_x
+                vy = oy - rear_y
+                if (vx * vx + vy * vy) <= (r0 * r0):
+                    hit = True
+            if not hit and r1 > 0.0:
+                vx = ox - front_x
+                vy = oy - front_y
+                if (vx * vx + vy * vy) <= (r1 * r1):
+                    hit = True
+
+            if hit:
+                o.hit = True
+                run.apply_damage(dmg)
+
+            i += 1
 
     def draw(self) -> None:
         cls(0)
@@ -697,7 +886,7 @@ class DriveScene:
 
         # Рендер держим отдельно от сцены, чтобы позже легко подключить второй вид (cockpit)
         # и не раздувать DriveScene.
-        self._renderer.draw(road, logic, objects)
+        self._renderer.draw(road, logic, objects, self._active_zone)
         if logic.finished():
             print("A = CONTINUE", 2, 128, 12)
         else:
@@ -706,25 +895,85 @@ class DriveScene:
             self._drive_debug_lines(road, logic, run, objects))
         return
 
-    def _zone_at(
-        self,
-        logic_s: float,
-        logic_d: float,
-        zones: list[DriveHazardZone]
-    ) -> DriveHazardZone | None:
-        """Возвращает HazardZone, в которой находится машина (если есть).
+    def _zone_at_hitboxes(self, logic: DriveLogic, zones: list[DriveZone]) -> DriveZone | None:
+        """Возвращает зону, которая пересекается с хитбоксом машины (если есть).
 
-        Здесь используем и s, и d: если мы попали в диапазон по s И достаточно близко
-        к центру зоны по d, тогда считается, что эффект активен.
+        Почему так:
+        - игрок ориентируется по спрайту;
+        - у машины уже есть 2 круговых хитбокса (перед/зад), настроенные под спрайт;
+        - если проверять зону только по “центральной точке физики”, игрок будет видеть
+          “я на полосках, но эффекта нет”.
+
+        Реализация:
+        - берём 2 круга машины в road-space (`DriveLogic.hitbox_road_circles`);
+        - каждая зона — прямоугольник в (s,d):
+            s in [s_start..s_end]
+            d in [d_center-radius .. d_center+radius]
+        - проверяем пересечение круга и прямоугольника (circle-vs-AABB в road-space).
         """
-        i = 0
-        while i < len(zones):
-            z = zones[i]
-            if logic_s >= z.s_start and logic_s <= z.s_end:
-                if abs(logic_d - z.d_center) <= z.radius:
+        def clamp(v: float, lo: float, hi: float) -> float:
+            if v < lo:
+                return lo
+            if v > hi:
+                return hi
+            return v
+
+        rear_s, rear_d, rear_r, front_s, front_d, front_r = logic.hitbox_road_circles()
+        circles = [
+            (rear_s, rear_d, rear_r),
+            (front_s, front_d, front_r)
+        ]
+
+        j = 0
+        while j < len(circles):
+            ps, pd, pr = circles[j]
+            if pr <= 0.0:
+                j += 1
+                continue
+
+            i = 0
+            while i < len(zones):
+                z = zones[i]
+                zs0 = z.s_start
+                zs1 = z.s_end
+                zd0 = z.d_center - z.radius
+                zd1 = z.d_center + z.radius
+
+                cs = clamp(ps, zs0, zs1)
+                cd = clamp(pd, zd0, zd1)
+                ds = ps - cs
+                dd = pd - cd
+                if (ds * ds + dd * dd) <= (pr * pr):
                     return z
-            i += 1
+                i += 1
+
+            j += 1
+
         return None
+
+    def _apply_zone_effects(self, z: DriveZone | None) -> None:
+        """Применяет эффекты зоны к DriveLogic на следующий кадр.
+
+        Вынесено в отдельный метод, чтобы не дублировать “если в зоне / если вне зоны”
+        в нескольких местах (до и после `DriveLogic.update`).
+        """
+        logic = self._logic
+        if logic is None:
+            return
+        if z is None:
+            logic.set_zone_grip_mult(1.0)
+            logic.set_zone_boost(0.0, 0.0)
+            logic.set_zone_antislip(0.0)
+            logic.set_zone_grip_floor(0.0)
+            return
+
+        logic.set_zone_grip_mult(z.grip_mult)
+        logic.set_zone_boost(
+            TUNING.DRIVE.zone_boost_forward_accel,
+            TUNING.DRIVE.zone_boost_center_accel
+        )
+        logic.set_zone_antislip(TUNING.DRIVE.zone_antislip)
+        logic.set_zone_grip_floor(TUNING.DRIVE.zone_grip_floor)
 
     def _drive_debug_lines(
         self,
@@ -743,7 +992,7 @@ class DriveScene:
         lines = [
             "drive seed=" + str(run.seed) + " obs=" +
             str(objects.obstacles_count())
-            + " zones=" + str(objects.hazard_zones_count()),
+            + " zones=" + str(objects.zones_count()),
             "drive s=" + str(int(logic.road_s)) + "/" +
             str(int(road.segment_total_length)),
             "drive d=" + f2(logic.road_d),
@@ -756,6 +1005,9 @@ class DriveScene:
             "drive grip=" + f2(logic.dbg_effective_grip) +
             " damp=" + f2(logic.dbg_side_damp)
             + " fuel/s=" + f2(logic.dbg_fuel_per_sec),
+            "drive boost fwd=" + f2(logic.dbg_zone_boost_forward)
+            + " ctr=" + f2(logic.dbg_zone_boost_center)
+            + " as=" + f2(logic.dbg_zone_antislip),
             "drive fuel=" + f2(run.car_fuel),
             "drive hp=" + f2(run.car_hp)
         ]

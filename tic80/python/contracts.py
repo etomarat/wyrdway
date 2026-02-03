@@ -93,6 +93,7 @@ class DriveTuning:
         "debug_vectors_heading_len",
         "debug_vectors_vel_scale",
         "debug_vectors_accel_scale",
+        "debug_zones_enabled",
         "debug_hitboxes_enabled",
         "hitbox_rear_px",
         "hitbox_rear_py",
@@ -115,10 +116,14 @@ class DriveTuning:
         "spawn_min_distance_from_edges",
         "obstacle_radius",
         "obstacle_render_range_s",
+        "obstacle_hit_damage",
         "zone_radius",
         "zone_length",
-        "zone_tick_damage",
-        "zone_grip_mult"
+        "zone_grip_mult",
+        "zone_grip_floor",
+        "zone_boost_forward_accel",
+        "zone_boost_center_accel",
+        "zone_antislip"
     )
 
     def __init__(self) -> None:
@@ -172,6 +177,7 @@ class DriveTuning:
         self.debug_vectors_heading_len = 0.0
         self.debug_vectors_vel_scale = 0.0
         self.debug_vectors_accel_scale = 0.0
+        self.debug_zones_enabled = False
         self.debug_hitboxes_enabled = False
         self.hitbox_rear_px = 0.0
         self.hitbox_rear_py = 0.0
@@ -194,10 +200,14 @@ class DriveTuning:
         self.spawn_min_distance_from_edges = 0.0
         self.obstacle_radius = 0.0
         self.obstacle_render_range_s = 0.0
+        self.obstacle_hit_damage = 0.0
         self.zone_radius = 0.0
         self.zone_length = 0.0
-        self.zone_tick_damage = 0.0
         self.zone_grip_mult = 0.0
+        self.zone_grip_floor = 0.0
+        self.zone_boost_forward_accel = 0.0
+        self.zone_boost_center_accel = 0.0
+        self.zone_antislip = 0.0
 
 
 class PoiTuning:
