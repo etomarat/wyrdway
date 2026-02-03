@@ -867,6 +867,8 @@ class DriveScene:
         logic = self._logic
         road = self._road
         if logic is not None and road is not None:
+            self._draw_ui_steer_wheel(logic)
+            self._draw_ui_slip_bar(logic)
             print("s=" + str(int(logic.road_s)) + "/" + str(int(road.segment_total_length)),
                   70, 82, 12)
             print("d=" + str(round(logic.road_d, 2)), 90, 92, 12)
@@ -891,6 +893,8 @@ class DriveScene:
         # Рендер держим отдельно от сцены, чтобы позже легко подключить второй вид (cockpit)
         # и не раздувать DriveScene.
         self._renderer.draw(road, logic, objects, self._active_zone)
+        self._draw_ui_steer_wheel(logic)
+        self._draw_ui_slip_bar(logic)
         if logic.finished():
             print("A = CONTINUE", 2, 128, 12)
         else:
@@ -898,6 +902,112 @@ class DriveScene:
         self._state.set_debug_lines(
             self._drive_debug_lines(road, logic, run, objects))
         return
+
+    def _hud_wheel_layout(self) -> tuple[int, int, int]:
+        """Возвращает позицию/размер руля в HUD.
+
+        Вынесено в отдельный метод, чтобы индикаторы (руль/слип) были согласованы и
+        не “разъезжались” при правках.
+        """
+        return (14, 110, 9)
+
+    def _draw_ui_steer_wheel(self, logic: DriveLogic) -> None:
+        """Рисует простой индикатор руля в HUD (не debug overlay).
+
+        Важно: мы показываем именно ввод руля (LEFT/RIGHT), а не фактическую траекторию.
+        Это “язык управления”: игрок понимает, что он сейчас делает, даже если машина
+        на высокой скорости/в заносе реагирует не так, как ожидается.
+
+        Реализация без тригонометрии:
+        - рисуем маленький круг-руль;
+        - спица “раскрывается” по `dbg_steer_scale`:
+          - на низкой скорости (scale≈1.0) спица сильнее влево/вправо (большой угол),
+          - на высокой (scale≈0.0) почти вверх (руль “зажат”).
+        - рядом показываем `steer x..`, чтобы было очевидно, почему на скорости рулится хуже.
+        """
+        x, y, r = self._hud_wheel_layout()
+        color = 12
+        circb(x, y, r, color)
+
+        steer = logic.steer_input
+        scale = logic.dbg_steer_scale
+        if scale < 0.0:
+            scale = 0.0
+        if scale > 1.0:
+            scale = 1.0
+
+        d = TUNING.DRIVE
+        denom = d.steer_scale_max - d.steer_scale_min
+        n = 0.0
+        if denom > 0.0001:
+            n = (scale - d.steer_scale_min) / denom
+        if n < 0.0:
+            n = 0.0
+        if n > 1.0:
+            n = 1.0
+
+        # Даже на высокой скорости руль не должен выглядеть “мертвым”.
+        # Поэтому нормализованный множитель (0..1) переводим в визуальный диапазон:
+        # - при scale=min будет небольшой, но заметный поворот
+        # - при scale=max будет максимальный
+        n_vis = 0.35 + 0.65 * n
+
+        spoke = r - 1
+        if steer < 0:
+            sx = x - int(spoke * n_vis)
+            sy = y - spoke
+            line(x, y, sx, sy, color)
+        elif steer > 0:
+            sx = x + int(spoke * n_vis)
+            sy = y - spoke
+            line(x, y, sx, sy, color)
+        else:
+            line(x, y, x, y - spoke, color)
+
+        print("steer x" + str(round(scale, 2)), x + 12, y - 4, 12)
+
+    def _draw_ui_slip_bar(self, logic: DriveLogic) -> None:
+        """Рисует двусторонний индикатор заноса (slip) рядом с рулём в HUD.
+
+        Мы хотим показать две вещи одновременно:
+        - насколько сильно несёт (модуль)
+        - куда несёт (знак)
+
+        Определение slip (0..1):
+        `slip = abs(v_side) / (abs(v_forward) + eps)`.
+
+        Важно: это не “истина в последней инстанции”, а удобная метрика для игрока.
+        Если v_forward почти ноль, делаем eps, чтобы не было скачков/деления на 0.
+        """
+        wheel_x, wheel_y, wheel_r = self._hud_wheel_layout()
+        x0 = wheel_x
+        y0 = wheel_y - wheel_r - 8
+        w = 46
+        half = int(w / 2)
+        cx = x0 + half
+
+        v_fwd = logic.v_forward
+        v_side = logic.v_side
+
+        denom = abs(v_fwd) + 5.0
+        slip = abs(v_side) / denom
+        if slip > 1.0:
+            slip = 1.0
+
+        # Основа шкалы.
+        line(x0, y0, x0 + w, y0, 12)
+        line(cx, y0 - 2, cx, y0 + 2, 12)
+
+        # Заполнение: влево/вправо по знаку заноса.
+        fill = int(half * slip)
+        if fill < 0:
+            fill = 0
+        if v_side < 0.0:
+            line(cx, y0, cx - fill, y0, 10)
+        elif v_side > 0.0:
+            line(cx, y0, cx + fill, y0, 2)
+
+        print("slip", x0, y0 - 8, 12)
 
     def _zone_at_hitboxes(self, logic: DriveLogic, zones: list[DriveZone]) -> DriveZone | None:
         """Возвращает зону, которая пересекается с хитбоксом машины (если есть).
@@ -1005,9 +1115,11 @@ class DriveScene:
             f2(vmax_road) + "/" + f2(vmax_off),
             "drive surf=" + ("OFF" if logic.offroad else "ROAD")
             + " sf=" + f2(logic.dbg_speed_factor)
-            + " ss=" + f2(logic.dbg_steer_scale),
+            + " ss=" + f2(logic.dbg_steer_scale)
+            + " hb=" + f2(logic.dbg_handbrake_decel),
             "drive grip=" + f2(logic.dbg_effective_grip) +
             " damp=" + f2(logic.dbg_side_damp)
+            + " rec=" + f2(logic.dbg_side_recovery)
             + " fuel/s=" + f2(logic.dbg_fuel_per_sec),
             "drive boost fwd=" + f2(logic.dbg_zone_boost_forward)
             + " ctr=" + f2(logic.dbg_zone_boost_center)

@@ -66,7 +66,8 @@ class DriveTuning:
         "steer_reverse_mult",
         "handbrake_decel",
         "handbrake_decel_min_speed_factor",
-        "handbrake_decel_throttle_mult",
+        "handbrake_decel_throttle_turn_mult",
+        "handbrake_decel_throttle_straight_mult",
         "handbrake_steer_mult",
         "handbrake_steer_min_speed_factor",
         "dash_impulse",
@@ -77,6 +78,9 @@ class DriveTuning:
         "side_slip_speed_mult",
         "handbrake_grip_mult",
         "offroad_grip_mult",
+        "side_recovery_mult",
+        "side_recovery_max_add",
+        "side_recovery_min_speed_factor",
         "offroad_drag_lin",
         "offroad_drag_quad",
         "offroad_fuel_mult",
@@ -151,7 +155,8 @@ class DriveTuning:
         self.steer_reverse_mult = 0.0
         self.handbrake_decel = 0.0
         self.handbrake_decel_min_speed_factor = 0.0
-        self.handbrake_decel_throttle_mult = 0.0
+        self.handbrake_decel_throttle_turn_mult = 0.0
+        self.handbrake_decel_throttle_straight_mult = 0.0
         self.handbrake_steer_mult = 0.0
         self.handbrake_steer_min_speed_factor = 0.0
         self.dash_impulse = 0.0
@@ -162,6 +167,9 @@ class DriveTuning:
         self.side_slip_speed_mult = 0.0
         self.handbrake_grip_mult = 0.0
         self.offroad_grip_mult = 0.0
+        self.side_recovery_mult = 0.0
+        self.side_recovery_max_add = 0.0
+        self.side_recovery_min_speed_factor = 0.0
         self.offroad_drag_lin = 0.0
         self.offroad_drag_quad = 0.0
         self.offroad_fuel_mult = 0.0

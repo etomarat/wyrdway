@@ -48,6 +48,8 @@ class DriveLogic:
         self._dbg_effective_grip = 0.0
         self._dbg_side_damp = 0.0
         self._dbg_side_accel = 0.0
+        self._dbg_handbrake_decel = 0.0
+        self._dbg_side_recovery = 0.0
         self._dbg_fuel_per_sec = 0.0
         self._dash_cd = 0.0
         self._zone_grip_mult = 1.0
@@ -286,6 +288,25 @@ class DriveLogic:
         """Текущий расход топлива в секунду (оценка для дебага)."""
         return self._dbg_fuel_per_sec
 
+    @property
+    def dbg_handbrake_decel(self) -> float:
+        """Эффективное замедление от ручника в этом кадре (units/sec^2), для дебага.
+
+        Это уже “посчитанное” значение с учётом:
+        - скорости (через speed_factor и handbrake_decel_min_speed_factor)
+        - газа и поворота (через handbrake_decel_throttle_*_mult)
+        """
+        return self._dbg_handbrake_decel
+
+    @property
+    def dbg_side_recovery(self) -> float:
+        """Сколько скорости мы “вернули” из заноса в продольную ось в этом кадре (units/sec).
+
+        Аркадный приём: часть схлопнутой боковой скорости переводим в `v_forward`, чтобы
+        в повороте под газом машина не теряла темп “сама по себе”.
+        """
+        return self._dbg_side_recovery
+
     def update(
         self,
         dt: float,
@@ -309,6 +330,8 @@ class DriveLogic:
         """
         d = self._tuning.DRIVE
         self._steer_input = steer_input
+        self._dbg_handbrake_decel = 0.0
+        self._dbg_side_recovery = 0.0
 
         offroad_before = self._offroad
 
@@ -343,6 +366,7 @@ class DriveLogic:
             throttle,
             brake,
             handbrake,
+            steer_input,
             speed_factor
         )
         v_fwd = self._step_clamp_v_fwd(v_fwd)
@@ -356,6 +380,8 @@ class DriveLogic:
             speed_factor
         )
         v_side = self._step_apply_zone_antislip(dt, v_side)
+        v_fwd = self._step_apply_side_recovery(v_fwd, v_side_before, v_side, throttle, speed_factor)
+        v_fwd = self._step_clamp_v_fwd(v_fwd)
         if dt > 0.0:
             # dbg_side_accel должен отражать итоговое гашение заноса,
             # включая дополнительный анти-занос от зоны.
@@ -469,6 +495,7 @@ class DriveLogic:
         throttle: bool,
         brake: bool,
         handbrake: bool,
+        steer_input: int,
         speed_factor: float
     ) -> float:
         """Продольная динамика: газ/тормоз/накат + доп. замедление от ручника."""
@@ -488,7 +515,7 @@ class DriveLogic:
             v_fwd = self._approach(v_fwd, 0.0, d.coast_decel * dt)
 
         if handbrake and d.handbrake_decel > 0.0:
-            v_fwd = self._step_apply_handbrake_decel(dt, v_fwd, throttle, speed_factor)
+            v_fwd = self._step_apply_handbrake_decel(dt, v_fwd, throttle, steer_input, speed_factor)
 
         return v_fwd
 
@@ -497,6 +524,7 @@ class DriveLogic:
         dt: float,
         v_fwd: float,
         throttle: bool,
+        steer_input: int,
         speed_factor: float
     ) -> float:
         """Замедление от ручника: сильнее ощущается на скорости, слабее под газом."""
@@ -506,7 +534,11 @@ class DriveLogic:
             hb_sf = d.handbrake_decel_min_speed_factor
         hb_decel = d.handbrake_decel * hb_sf
         if throttle:
-            hb_decel *= d.handbrake_decel_throttle_mult
+            if steer_input != 0:
+                hb_decel *= d.handbrake_decel_throttle_turn_mult
+            else:
+                hb_decel *= d.handbrake_decel_throttle_straight_mult
+        self._dbg_handbrake_decel = hb_decel
         return self._approach(v_fwd, 0.0, hb_decel * dt)
 
     def _step_clamp_v_fwd(self, v_fwd: float) -> float:
@@ -586,6 +618,49 @@ class DriveLogic:
             factor = 1.0
         v_side *= factor
         return v_side
+
+    def _step_apply_side_recovery(
+        self,
+        v_fwd: float,
+        v_side_before: float,
+        v_side_after: float,
+        throttle: bool,
+        speed_factor: float
+    ) -> float:
+        """Частично переводит “схлопнутую” боковую скорость в продольную.
+
+        Без этого эффекта игрок часто ощущает “в повороте тормозит”, потому что:
+        - при повороте часть скорости становится боковой (`v_side`)
+        - боковое трение гасит `v_side`, уменьшая модуль скорости
+
+        Мы делаем аркадный компромисс:
+        - только под газом,
+        - только после порога скорости,
+        - и только долю потерь,
+        возвращаем в `v_forward`.
+        """
+        d = self._tuning.DRIVE
+        if not throttle:
+            return v_fwd
+        if speed_factor < d.side_recovery_min_speed_factor:
+            return v_fwd
+        if d.side_recovery_mult <= 0.0:
+            return v_fwd
+
+        removed = abs(v_side_before) - abs(v_side_after)
+        if removed <= 0.0:
+            return v_fwd
+
+        add = removed * d.side_recovery_mult
+        if add > d.side_recovery_max_add:
+            add = d.side_recovery_max_add
+        if add < 0.0:
+            add = 0.0
+        self._dbg_side_recovery = add
+
+        if v_fwd >= 0.0:
+            return v_fwd + add
+        return v_fwd - add
 
     def _step_apply_drag(self, dt: float) -> None:
         """Общие сопротивления движения + добавка от оффроуда.

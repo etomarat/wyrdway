@@ -104,7 +104,7 @@ TUNING.DRIVE.max_speed = 100.0
 # - держи max_speed=100 (чтобы управление осталось как настроено),
 # - подними speed_cap (например 120..140),
 # - и подбери drag_quad так, чтобы равновесие было чуть выше 100.
-TUNING.DRIVE.speed_cap = 130.0
+TUNING.DRIVE.speed_cap = 200.0
 
 # Максимальная скорость заднего хода.
 TUNING.DRIVE.max_reverse_speed = 18.0
@@ -154,10 +154,26 @@ TUNING.DRIVE.steer_reverse_mult = 0.7
 #
 # Замедление делаем зависимым от скорости через speed_factor (0..1):
 #   amount = handbrake_decel * max(speed_factor, handbrake_decel_min_speed_factor)
-# Так ручник заметнее на высокой скорости и не “убивает” манёвры на низкой.
+#
+# Где handbrake_decel_min_speed_factor — нижний предел для множителя:
+# - БОЛЬШЕ значение => ручник сильнее тормозит даже на низкой скорости
+#   (и вообще “больше похож на тормоз”).
+# - МЕНЬШЕ значение => на низкой скорости ручник тормозит слабее
+#   (и больше остаётся “инструментом заноса”, а не стоп-кнопкой).
+#
+# Если одновременно зажат газ (throttle), мы выбираем множитель по ситуации:
+# - если ещё и поворачиваем (steer_input != 0), ручник больше “про дрифт” и
+#   замедляет слабее:
+#     amount *= handbrake_decel_throttle_turn_mult
+# - если газуем прямо, ручник должен быть “дорогим” режимом (иначе его можно держать
+#   всегда), поэтому тормозим сильнее:
+#     amount *= handbrake_decel_throttle_straight_mult
+#
+# Важно: оба *_mult — это множители ТОРМОЖЕНИЯ (меньше => меньше замедляет).
 TUNING.DRIVE.handbrake_decel = 70.0
-TUNING.DRIVE.handbrake_decel_min_speed_factor = 0.25
-TUNING.DRIVE.handbrake_decel_throttle_mult = 0.55
+TUNING.DRIVE.handbrake_decel_min_speed_factor = 0.15
+TUNING.DRIVE.handbrake_decel_throttle_turn_mult = 0.01
+TUNING.DRIVE.handbrake_decel_throttle_straight_mult = 0.75
 
 # Как ручник влияет на руление.
 #
@@ -171,6 +187,30 @@ TUNING.DRIVE.handbrake_decel_throttle_mult = 0.55
 # - и линейно наращиваем до 1.0 (full boost) к speed_factor=1.
 TUNING.DRIVE.handbrake_steer_mult = 1.55
 TUNING.DRIVE.handbrake_steer_min_speed_factor = 0.35
+
+# Восстановление скорости из заноса (“дрифт быстрее”).
+#
+# Проблема: в текущей модели при повороте появляется боковая скорость `v_side`, и мы её
+# гасим трением. Это уменьшает модуль скорости, и игрок ощущает, что “в повороте тормозит”,
+# даже если он держит газ.
+#
+# Решение (аркадное): часть “схлопнутой” боковой скорости переводим в продольную (v_forward),
+# но только когда игрок держит газ. Это делает дрифт тактически полезным: на правильной линии
+# ты меньше теряешь темп.
+#
+# Математика:
+#   removed = abs(v_side_before) - abs(v_side_after)   (>=0)
+#   v_forward += clamp(removed * side_recovery_mult, 0..side_recovery_max_add)
+#
+# Параметры:
+# - side_recovery_mult: доля восстановления (0..1). Больше => меньше потерь скорости в заносе.
+# - side_recovery_max_add: потолок добавки за кадр (units/sec), чтобы не было “рывков” при
+#   резком отпускании ручника.
+# - side_recovery_min_speed_factor: порог по скорости (0..1), ниже которого восстановление
+#   выключено (чтобы на малой скорости не было странных эффектов).
+TUNING.DRIVE.side_recovery_mult = 0.35
+TUNING.DRIVE.side_recovery_max_add = 3.0
+TUNING.DRIVE.side_recovery_min_speed_factor = 0.25
 
 # Dash/рывок (кнопка `A`).
 #
@@ -186,7 +226,7 @@ TUNING.DRIVE.offroad_steer_mult = 0.80
 # В формуле это часть `effective_grip`:
 #   side_damp = 1 - side_friction * effective_grip * dt
 # Где `effective_grip` стартует с `grip` и модифицируется ручником/оффроудом.
-TUNING.DRIVE.grip = 4.2
+TUNING.DRIVE.grip = 3.2
 # TUNING.DRIVE.grip = 1.5
 
 # Боковое трение: чем больше, тем быстрее “гасится” боковая скорость (меньше заноса).
@@ -293,9 +333,9 @@ TUNING.DRIVE.view_center_y_max = 128.0
 # - X: центр спрайта,
 # - Y: ближе к низу спрайта.
 TUNING.DRIVE.car_sprite_anchor_x = 16.0
-TUNING.DRIVE.car_sprite_anchor_y = 24.0  # центр на задней оси
+# TUNING.DRIVE.car_sprite_anchor_y = 24.0  # центр на задней оси
 # TUNING.DRIVE.car_sprite_anchor_y = 8.0  # центр на передней оси
-# TUNING.DRIVE.car_sprite_anchor_y = 16.0  # центр в центре
+TUNING.DRIVE.car_sprite_anchor_y = 16.0  # центр в центре
 
 # Переключение “поворотного” положения спрайта (3 кадра) и соответствующего сдвига хитбоксов.
 #
@@ -364,7 +404,7 @@ TUNING.DRIVE.telemetry_max_lines = 140
 TUNING.DRIVE.obstacles_per_100m = 1.0
 
 # Средняя плотность опасных зон.
-TUNING.DRIVE.zones_per_100m = 0.5
+TUNING.DRIVE.zones_per_100m = 0.2
 
 # Минимальная дистанция между объектами (по s).
 TUNING.DRIVE.spawn_min_distance_between = 50.0
@@ -409,7 +449,7 @@ TUNING.DRIVE.zone_length = 60.0
 # Примечание:
 # Мы не используем “hazard tick damage” в DRIVE: зоны — это ускорялки/безопасные полосы.
 # Если когда-нибудь понадобится настоящий дорожный hazard, лучше добавить отдельный тип зоны.
-TUNING.DRIVE.zone_boost_forward_accel = 100.0
+TUNING.DRIVE.zone_boost_forward_accel = 30.0
 TUNING.DRIVE.zone_boost_center_accel = 0.0
 # Сцепление внутри ускорялки: больше = легче стабилизировать машину на панели.
 TUNING.DRIVE.zone_grip_mult = 2.2
@@ -426,7 +466,7 @@ TUNING.DRIVE.zone_grip_mult = 2.2
 TUNING.DRIVE.zone_grip_floor = 6.0
 # Анти-занос внутри ускорялки (1/sec): дополнительно гасит v_side.
 # Больше = сильнее “стабилизатор”, но слишком большое значение убьёт удовольствие от дрифта.
-TUNING.DRIVE.zone_antislip = 6.0
+TUNING.DRIVE.zone_antislip = 0.01
 
 TUNING.POI.timer_seconds = 10.0
 TUNING.POI.scrap_per_loot = 5
