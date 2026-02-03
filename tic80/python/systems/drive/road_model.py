@@ -50,7 +50,7 @@ class RoadModel:
         self._build_centerline()
 
     @classmethod
-    def from_tuning(cls, seed: int, tuning: "Tuning") -> "RoadModel":
+    def from_tuning(cls, seed: int, tuning: Tuning):
         d = tuning.DRIVE
         return cls(
             seed,
@@ -123,7 +123,7 @@ class RoadModel:
             cur = target
             i = end
 
-    def _pick_target_curvature(self, rng: "Rng") -> float:
+    def _pick_target_curvature(self, rng: Rng) -> float:
         """Выбирает target curvature для следующего куска дороги.
 
         По умолчанию target выбирается из [-max_curvature..+max_curvature], но это

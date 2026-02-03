@@ -83,7 +83,7 @@ class DriveObjects:
         return list(self._hazard_zones)
 
     @classmethod
-    def from_road_and_tuning(cls, seed: int, road: "RoadModel", tuning: "Tuning") -> "DriveObjects":
+    def from_road_and_tuning(cls, seed: int, road: RoadModel, tuning: Tuning):
         """Генерирует объекты сегмента по seed + параметрам тюнинга.
 
         Принципы (m1.5):

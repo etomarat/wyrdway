@@ -57,7 +57,7 @@ TUNING.DRIVE.max_piece_length = 220.0
 
 # Максимальная кривизна дороги (ограничение "невозможных" поворотов).
 # Чем больше, тем резче повороты.
-TUNING.DRIVE.max_curvature = 0.02
+TUNING.DRIVE.max_curvature = 0.019
 
 # Доля "прямых" кусков (когда target curvature близка к 0).
 #
@@ -110,7 +110,7 @@ TUNING.DRIVE.speed_cap = 130.0
 TUNING.DRIVE.max_reverse_speed = 18.0
 
 # Разгон при газе (units/sec^2).
-TUNING.DRIVE.accel = 40.0
+TUNING.DRIVE.accel = 50.0
 
 # Торможение (units/sec^2). Должно быть заметно сильнее, чем accel, если хотим
 # "аркадный" контроль.
@@ -204,11 +204,11 @@ TUNING.DRIVE.side_friction = 3.0
 # - 0.0: занос не зависит от скорости
 # - больше: на высокой скорости боковую скорость гасит заметно хуже (сложнее, но “тяжелее”)
 # TUNING.DRIVE.side_slip_speed_mult = 1.8
-TUNING.DRIVE.side_slip_speed_mult = 3
+TUNING.DRIVE.side_slip_speed_mult = 3.5
 
 # Мультипликатор сцепления при ручнике (`B`): меньше = более "дрифтово".
 # TUNING.DRIVE.handbrake_grip_mult = 0.85
-TUNING.DRIVE.handbrake_grip_mult = 0.5
+TUNING.DRIVE.handbrake_grip_mult = 0.4
 
 # Мультипликатор сцепления на оффроуде.
 TUNING.DRIVE.offroad_grip_mult = 0.85
@@ -251,7 +251,7 @@ TUNING.DRIVE.offroad_fuel_mult = 1.8
 # drag_lin:
 # - линейное сопротивление (похоже на rolling resistance / потери трансмиссии)
 # - ощущается на малой/средней скорости (накат/торможение двигателем)
-TUNING.DRIVE.drag_lin = 0.10
+TUNING.DRIVE.drag_lin = 0.15
 #
 # drag_quad:
 # - квадратичное сопротивление (аэродраг), почти не мешает на малой скорости,
@@ -261,7 +261,7 @@ TUNING.DRIVE.drag_quad = 0.003
 # Ресурсы
 
 # Расход топлива в простое (units/sec).
-TUNING.DRIVE.fuel_per_sec_idle = 0.1
+TUNING.DRIVE.fuel_per_sec_idle = 0.05
 
 # Доп. расход топлива при газе (units/sec).
 TUNING.DRIVE.fuel_per_sec_throttle = 1.0
@@ -272,7 +272,17 @@ TUNING.DRIVE.render_back_s = 300.0
 TUNING.DRIVE.render_forward_s = 350.0
 
 # Позиция машины на экране в top-down: Y ниже центра = видно больше дороги впереди.
-TUNING.DRIVE.view_center_y = 130.0
+#
+# Ограничиваем min/max, чтобы:
+# - спрайт машины не обрезался снизу экрана;
+# - камера не “уплывала” слишком высоко (иначе будет плохо видно, куда рулить).
+# Эти значения обычно трогать не нужно, но они полезны при смене размера спрайта/якоря
+# и при экспериментах с компоновкой HUD.
+TUNING.DRIVE.view_center_y = 120.0
+# Минимально допустимый Y для `view_center_y` (зажим в рендере).
+TUNING.DRIVE.view_center_y_min = 40.0
+# Максимально допустимый Y для `view_center_y` (зажим в рендере).
+TUNING.DRIVE.view_center_y_max = 128.0
 
 # Где у машины “опорная точка” физики на спрайте (top-down).
 #
@@ -283,9 +293,9 @@ TUNING.DRIVE.view_center_y = 130.0
 # - X: центр спрайта,
 # - Y: ближе к низу спрайта.
 TUNING.DRIVE.car_sprite_anchor_x = 16.0
-TUNING.DRIVE.car_sprite_anchor_y = 24.0  # центр на задней оси
+# TUNING.DRIVE.car_sprite_anchor_y = 24.0  # центр на задней оси
 # TUNING.DRIVE.car_sprite_anchor_y = 8.0  # центр на передней оси
-# TUNING.DRIVE.car_sprite_anchor_y = 16.0  # центр в центре
+TUNING.DRIVE.car_sprite_anchor_y = 16.0  # центр в центре
 
 # Визуализация векторов (для тюнинга управления).
 #
@@ -293,10 +303,37 @@ TUNING.DRIVE.car_sprite_anchor_y = 24.0  # центр на задней оси
 # - направление (heading),
 # - скорость (velocity),
 # - боковое ускорение (side accel) — насколько сильно “трение” гасит занос.
-TUNING.DRIVE.debug_vectors_enabled = False
+TUNING.DRIVE.debug_vectors_enabled = True
 TUNING.DRIVE.debug_vectors_heading_len = 20.0
 TUNING.DRIVE.debug_vectors_vel_scale = 0.35
-TUNING.DRIVE.debug_vectors_accel_scale = 0.02
+TUNING.DRIVE.debug_vectors_accel_scale = 0.2
+
+# Визуализация хитбоксов машины (для настройки коллизий).
+#
+# Мы используем 2 круга: задняя ось и передняя ось. Это компромисс между
+# одним большим кругом (слишком грубо) и 4 колёсами (слишком сложно).
+#
+# Координаты задаются в пикселях спрайта (32x32), а затем автоматически
+# переводятся в экранные координаты через `car_sprite_anchor_*`.
+# Это важно: хитбокс “ездит” вместе со спрайтом и совпадает с тем, по чему
+# ориентируется игрок.
+#
+# Задний круг обычно можно оставить в (0,0), потому что физическая точка сейчас
+# привязана к задней оси (см. car_sprite_anchor_y).
+TUNING.DRIVE.debug_hitboxes_enabled = True
+TUNING.DRIVE.hitbox_rear_px = 16.0
+TUNING.DRIVE.hitbox_rear_py = 22.0
+TUNING.DRIVE.hitbox_rear_radius = 6.0
+TUNING.DRIVE.hitbox_front_px = 16.0
+TUNING.DRIVE.hitbox_front_py = 10.0
+TUNING.DRIVE.hitbox_front_radius = 6.0
+# Сдвиг хитбоксов при поворотном кадре спрайта (steer_input=-1/0/+1):
+# - dx умножается на знак руля (влево/вправо) => автоматически зеркалится,
+# - dy применяется одинаково и влево, и вправо (abs(steer_input)).
+TUNING.DRIVE.hitbox_turn_rear_dx = -3.5
+TUNING.DRIVE.hitbox_turn_rear_dy = -0.5
+TUNING.DRIVE.hitbox_turn_front_dx = 2.9
+TUNING.DRIVE.hitbox_turn_front_dy = 0.5
 
 # Телеметрия DRIVE (для отладки управления).
 #
@@ -315,19 +352,23 @@ TUNING.DRIVE.telemetry_max_lines = 140
 # Важно: объекты сейчас спавнятся детерминированно по seed и учитывают safe start.
 
 # Средняя плотность препятствий.
-TUNING.DRIVE.obstacles_per_100m = 2.0
+TUNING.DRIVE.obstacles_per_100m = 1.0
 
 # Средняя плотность опасных зон.
-TUNING.DRIVE.zones_per_100m = 1.0
+TUNING.DRIVE.zones_per_100m = 0.5
 
 # Минимальная дистанция между объектами (по s).
-TUNING.DRIVE.spawn_min_distance_between = 25.0
+TUNING.DRIVE.spawn_min_distance_between = 50.0
 
 # Отступ от краёв дороги, чтобы не спавнить объекты вплотную к обочине.
 TUNING.DRIVE.spawn_min_distance_from_edges = 6.0
 
 # Радиус препятствия (в road-space единицах).
 TUNING.DRIVE.obstacle_radius = 2.0
+
+# Дальность отрисовки препятствий вокруг текущего `road_s` (в единицах s).
+# Если увеличить — препятствия будут появляться раньше, но кадр станет тяжелее.
+TUNING.DRIVE.obstacle_render_range_s = 140.0
 
 # Радиус опасной зоны (по d). Чем больше, тем шире зона на дороге.
 TUNING.DRIVE.zone_radius = 6.0

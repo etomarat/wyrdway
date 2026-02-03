@@ -85,12 +85,25 @@ class DriveTuning:
         "fuel_per_sec_idle",
         "fuel_per_sec_throttle",
         "view_center_y",
+        "view_center_y_min",
+        "view_center_y_max",
         "car_sprite_anchor_x",
         "car_sprite_anchor_y",
         "debug_vectors_enabled",
         "debug_vectors_heading_len",
         "debug_vectors_vel_scale",
         "debug_vectors_accel_scale",
+        "debug_hitboxes_enabled",
+        "hitbox_rear_px",
+        "hitbox_rear_py",
+        "hitbox_rear_radius",
+        "hitbox_front_px",
+        "hitbox_front_py",
+        "hitbox_front_radius",
+        "hitbox_turn_rear_dx",
+        "hitbox_turn_rear_dy",
+        "hitbox_turn_front_dx",
+        "hitbox_turn_front_dy",
         "render_back_s",
         "render_forward_s",
         "telemetry_enabled",
@@ -101,6 +114,7 @@ class DriveTuning:
         "spawn_min_distance_between",
         "spawn_min_distance_from_edges",
         "obstacle_radius",
+        "obstacle_render_range_s",
         "zone_radius",
         "zone_length",
         "zone_tick_damage",
@@ -150,12 +164,25 @@ class DriveTuning:
         self.fuel_per_sec_idle = 0.0
         self.fuel_per_sec_throttle = 0.0
         self.view_center_y = 0.0
+        self.view_center_y_min = 0.0
+        self.view_center_y_max = 0.0
         self.car_sprite_anchor_x = 0.0
         self.car_sprite_anchor_y = 0.0
         self.debug_vectors_enabled = False
         self.debug_vectors_heading_len = 0.0
         self.debug_vectors_vel_scale = 0.0
         self.debug_vectors_accel_scale = 0.0
+        self.debug_hitboxes_enabled = False
+        self.hitbox_rear_px = 0.0
+        self.hitbox_rear_py = 0.0
+        self.hitbox_rear_radius = 0.0
+        self.hitbox_front_px = 0.0
+        self.hitbox_front_py = 0.0
+        self.hitbox_front_radius = 0.0
+        self.hitbox_turn_rear_dx = 0.0
+        self.hitbox_turn_rear_dy = 0.0
+        self.hitbox_turn_front_dx = 0.0
+        self.hitbox_turn_front_dy = 0.0
         self.render_back_s = 0.0
         self.render_forward_s = 0.0
         self.telemetry_enabled = False
@@ -166,6 +193,7 @@ class DriveTuning:
         self.spawn_min_distance_between = 0.0
         self.spawn_min_distance_from_edges = 0.0
         self.obstacle_radius = 0.0
+        self.obstacle_render_range_s = 0.0
         self.zone_radius = 0.0
         self.zone_length = 0.0
         self.zone_tick_damage = 0.0

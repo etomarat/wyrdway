@@ -26,7 +26,7 @@ class DriveLogic:
     - спавна/рендера объектов в (s, d).
     """
 
-    def __init__(self, run: "RunState", road: "RoadModel", tuning: "Tuning") -> None:
+    def __init__(self, run: RunState, road: RoadModel, tuning: Tuning) -> None:
         self._run = run
         self._road = road
         self._tuning = tuning
