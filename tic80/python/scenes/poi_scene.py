@@ -5,6 +5,7 @@ if TYPE_CHECKING:
 
     from ..contracts import DriveEnterParams, ResultEnterParams, SceneNavigator
     from ..core.input_buttons import Button
+    from ..core.palette import Color
     from ..core.run_state import EscapeOutcome, PoiAction
     from ..core.scene_ids import SceneId
     from ..data.tuning import TUNING
@@ -55,14 +56,14 @@ class PoiScene:
             self._leave("timeout", "fail", True, "POI TIMEOUT")
 
     def draw(self) -> None:
-        cls(0)
-        print("POI", 112, 30, 12)
-        print("timer=" + str(round(self.timer, 1)), 82, 50, 12)
+        cls(Color.BLACK)
+        print("POI", 112, 30, Color.WHITE)
+        print("timer=" + str(round(self.timer, 1)), 82, 50, Color.WHITE)
         run = self._state.run
         if run is not None:
-            print("inv=" + str(run.inventory_count()), 98, 60, 12)
-        print("A = LOOT", 90, 70, 12)
-        print("B = LEAVE", 88, 80, 12)
+            print("inv=" + str(run.inventory_count()), 98, 60, Color.WHITE)
+        print("Z = LOOT", 90, 70, Color.WHITE)
+        print("X = LEAVE", 88, 80, Color.WHITE)
 
     def exit(self) -> None:
         pass

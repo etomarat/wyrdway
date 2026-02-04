@@ -728,25 +728,10 @@ class DriveLogic:
         ax = d.car_sprite_anchor_x
         ay = d.car_sprite_anchor_y
 
-        steer_sign = 0.0
-        steer_abs = 0.0
-        if self._steer_input < 0:
-            steer_sign = -1.0
-            steer_abs = 1.0
-        elif self._steer_input > 0:
-            steer_sign = 1.0
-            steer_abs = 1.0
-
         rear_px = d.hitbox_rear_px
         rear_py = d.hitbox_rear_py
         front_px = d.hitbox_front_px
         front_py = d.hitbox_front_py
-
-        if d.car_turn_pose_enabled and steer_abs > 0.0:
-            rear_px += steer_sign * d.hitbox_turn_rear_dx
-            rear_py += steer_abs * d.hitbox_turn_rear_dy
-            front_px += steer_sign * d.hitbox_turn_front_dx
-            front_py += steer_abs * d.hitbox_turn_front_dy
 
         rear_right = rear_px - ax
         rear_fwd = -(rear_py - ay)

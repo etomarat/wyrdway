@@ -4,6 +4,7 @@ if TYPE_CHECKING:
     from tic80 import btnp, print
 
     from .input_buttons import Button
+    from .palette import ColorId
 
 
 class DebugOverlay:
@@ -32,7 +33,7 @@ class DebugOverlay:
         lines: list[str],
         x: int = 1,
         y: int = 1,
-        color: int = 12
+        color: ColorId = 12  # Color.WHITE
     ) -> None:
         if not self._enabled:
             return

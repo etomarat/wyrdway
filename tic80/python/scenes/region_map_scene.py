@@ -3,10 +3,9 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from tic80 import btnp, cls, print
 
-    from ..contracts import DriveEnterParams
-    from ..core.run_state import SegmentDelta
-    from ..contracts import SceneNavigator
+    from ..contracts import DriveEnterParams, SceneNavigator
     from ..core.input_buttons import Button
+    from ..core.palette import Color
     from ..core.scene_ids import SceneId
 
 
@@ -36,16 +35,16 @@ class RegionMapScene:
             self._nav.go(SceneId.DRIVE, DriveEnterParams("travel"))
 
     def draw(self) -> None:
-        cls(0)
-        print("REGION MAP", 84, 30, 12)
+        cls(Color.BLACK)
+        print("REGION MAP", 84, 30, Color.WHITE)
         run = self._state.run
         if run is not None:
-            print("seed=" + str(run.seed), 90, 40, 12)
+            print("seed=" + str(run.seed), 90, 40, Color.WHITE)
         for i in range(self.node_count):
             node_id = i + 1
             marker = ">" if node_id == self.selected_node else " "
-            print(marker + " NODE " + str(node_id), 70, 50 + i * 8, 12)
-        print("A = GO", 96, 100, 12)
+            print(marker + " NODE " + str(node_id), 70, 50 + i * 8, Color.WHITE)
+        print("Z = GO", 96, 100, Color.WHITE)
 
     def exit(self) -> None:
         pass

@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING, Callable, Literal, Protocol, overload
 
 if TYPE_CHECKING:
     from .core.game_state import GameState
+    from .core.palette import ColorId
 
 
 class CoreTuning:
@@ -93,7 +94,6 @@ class DriveTuning:
         "view_center_y_max",
         "car_sprite_anchor_x",
         "car_sprite_anchor_y",
-        "car_turn_pose_enabled",
         "debug_vectors_enabled",
         "debug_vectors_heading_len",
         "debug_vectors_vel_scale",
@@ -106,10 +106,6 @@ class DriveTuning:
         "hitbox_front_px",
         "hitbox_front_py",
         "hitbox_front_radius",
-        "hitbox_turn_rear_dx",
-        "hitbox_turn_rear_dy",
-        "hitbox_turn_front_dx",
-        "hitbox_turn_front_dy",
         "render_back_s",
         "render_forward_s",
         "telemetry_enabled",
@@ -128,7 +124,47 @@ class DriveTuning:
         "zone_grip_floor",
         "zone_boost_forward_accel",
         "zone_boost_center_accel",
-        "zone_antislip"
+        "zone_antislip",
+        "slip_eps_speed",
+        "skid_slip_threshold",
+        "skid_min_speed",
+        "skid_back_px",
+        "skid_wheel_dx_px",
+        "skid_seg_len_px",
+        "skid_life_frames",
+        "skid_light_after_frames",
+        "skid_slant_scale",
+        "skid_slant_max",
+        "fx_particles_max",
+        "fx_start_dust_color_a",
+        "fx_start_dust_color_b",
+        "fx_offroad_dust_color_a",
+        "fx_offroad_dust_color_b",
+        "fx_start_dust_seconds",
+        "start_skid_seconds",
+        "fx_damage_dust_seconds",
+        "fx_damage_dust_rate",
+        "fx_dust_life_frames",
+        "fx_dust_len_px",
+        "fx_dust_rate_start",
+        "fx_dust_rate_offroad",
+        "fx_dust_min_speed",
+        "fx_dust_wheel_dx_px",
+        "fx_dust_back_px",
+        "fx_dust_jitter_x_px",
+        "fx_dust_jitter_y_px",
+        "fx_dust_spread_vx",
+        "fx_dust_spread_vy",
+        "fx_speedlines_min_speed_factor",
+        "fx_speedlines_rate",
+        "fx_speedlines_life_frames",
+        "fx_speedlines_len_px",
+        "fx_speedlines_vy",
+        "fx_speedlines_x_spread",
+        "fx_speedlines_back_y0",
+        "fx_speedlines_back_y1",
+        "fx_speedlines_color_a",
+        "fx_speedlines_color_b"
     )
 
     def __init__(self) -> None:
@@ -182,7 +218,6 @@ class DriveTuning:
         self.view_center_y_max = 0.0
         self.car_sprite_anchor_x = 0.0
         self.car_sprite_anchor_y = 0.0
-        self.car_turn_pose_enabled = False
         self.debug_vectors_enabled = False
         self.debug_vectors_heading_len = 0.0
         self.debug_vectors_vel_scale = 0.0
@@ -195,10 +230,6 @@ class DriveTuning:
         self.hitbox_front_px = 0.0
         self.hitbox_front_py = 0.0
         self.hitbox_front_radius = 0.0
-        self.hitbox_turn_rear_dx = 0.0
-        self.hitbox_turn_rear_dy = 0.0
-        self.hitbox_turn_front_dx = 0.0
-        self.hitbox_turn_front_dy = 0.0
         self.render_back_s = 0.0
         self.render_forward_s = 0.0
         self.telemetry_enabled = False
@@ -218,6 +249,46 @@ class DriveTuning:
         self.zone_boost_forward_accel = 0.0
         self.zone_boost_center_accel = 0.0
         self.zone_antislip = 0.0
+        self.slip_eps_speed = 0.0
+        self.skid_slip_threshold = 0.0
+        self.skid_min_speed = 0.0
+        self.skid_back_px = 0.0
+        self.skid_wheel_dx_px = 0.0
+        self.skid_seg_len_px = 0.0
+        self.skid_life_frames = 0
+        self.skid_light_after_frames = 0
+        self.skid_slant_scale = 0.0
+        self.skid_slant_max = 0.0
+        self.fx_particles_max = 0
+        self.fx_start_dust_color_a: ColorId = 0
+        self.fx_start_dust_color_b: ColorId = 0
+        self.fx_offroad_dust_color_a: ColorId = 0
+        self.fx_offroad_dust_color_b: ColorId = 0
+        self.fx_start_dust_seconds = 0.0
+        self.start_skid_seconds = 0.0
+        self.fx_damage_dust_seconds = 0.0
+        self.fx_damage_dust_rate = 0.0
+        self.fx_dust_life_frames = 0
+        self.fx_dust_len_px = 0.0
+        self.fx_dust_rate_start = 0.0
+        self.fx_dust_rate_offroad = 0.0
+        self.fx_dust_min_speed = 0.0
+        self.fx_dust_wheel_dx_px = 0.0
+        self.fx_dust_back_px = 0.0
+        self.fx_dust_jitter_x_px = 0.0
+        self.fx_dust_jitter_y_px = 0.0
+        self.fx_dust_spread_vx = 0.0
+        self.fx_dust_spread_vy = 0.0
+        self.fx_speedlines_min_speed_factor = 0.0
+        self.fx_speedlines_rate = 0.0
+        self.fx_speedlines_life_frames = 0
+        self.fx_speedlines_len_px = 0.0
+        self.fx_speedlines_vy = 0.0
+        self.fx_speedlines_x_spread = 0.0
+        self.fx_speedlines_back_y0 = 0.0
+        self.fx_speedlines_back_y1 = 0.0
+        self.fx_speedlines_color_a: ColorId = 0
+        self.fx_speedlines_color_b: ColorId = 0
 
 
 class PoiTuning:

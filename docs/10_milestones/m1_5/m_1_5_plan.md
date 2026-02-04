@@ -342,7 +342,7 @@ Zone effect:
 
 5.3. Рендер объектов
 
-- obstacle/hazard рисуются в координатах мира (через sample_centerline и смещение по нормали на d).
+- obstacle/zone рисуются в координатах мира (через sample_centerline и смещение по нормали на d).
 
 5.4. FX (минимум)
 

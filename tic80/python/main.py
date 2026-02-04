@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from tic80 import include
 
+    from .contracts import DriveEnterParams
     from .core.debug import DebugOverlay
     from .core.scene_ids import SceneId
     from .core.scene_manager import SceneManager
@@ -21,6 +22,9 @@ if TYPE_CHECKING:
     from .scenes.region_map_scene import make_region_map_scene
     from .scenes.result_scene import make_result_scene
 
+IS_DRIVE_PLAYTEST = True
+
+include("core.palette")
 include("contracts")
 include("data.tuning")
 include("core.debug")
@@ -36,6 +40,7 @@ include("systems.drive.rng")
 include("systems.drive.road_model")
 include("systems.drive.drive_logic")
 include("systems.drive.drive_objects")
+include("systems.drive.fx_particles")
 include("scenes.drive_scene")
 include("scenes.garage_scene")
 include("scenes.poi_scene")
@@ -49,6 +54,19 @@ DEBUG = DebugOverlay()
 
 def BOOT() -> None:
     DEBUG.set_enabled(TUNING.DEBUG.overlay_default)
+    if IS_DRIVE_PLAYTEST:
+        DEBUG.set_enabled(False)
+        SCENE_MANAGER.state.profile.reset()
+        SCENE_MANAGER.state.end_run()
+        SCENE_MANAGER.state.playtest_begin()
+        SCENE_MANAGER.register(SceneId.DRIVE, make_drive_scene)
+        SCENE_MANAGER.register(SceneId.RESULT, make_result_scene)
+        # В плейтесте нам нужен “замкнутый” цикл DRIVE<->RESULT без POI/гаража.
+        # Режим оставляем "travel" (без расширения Literal), а логику развилки держим
+        # в DriveScene через state.playtest_enabled.
+        SCENE_MANAGER.go("DRIVE", DriveEnterParams("travel", "topdown"))
+        return
+
     SCENE_MANAGER.state.load_profile()
     SCENE_MANAGER.register(SceneId.GARAGE, make_garage_scene)
     SCENE_MANAGER.register(SceneId.REGION_MAP, make_region_map_scene)
@@ -62,21 +80,23 @@ def TIC() -> None:
     dt = TUNING.CORE.dt
 
     SCENE_MANAGER.state.clear_debug_lines()
-    DEBUG.handle_input()
+    if not IS_DRIVE_PLAYTEST:
+        DEBUG.handle_input()
     SCENE_MANAGER.update(dt)
     SCENE_MANAGER.draw()
 
-    lines = [
-        "scene=" + str(SCENE_MANAGER.current_id),
-        "dt=" + str(dt),
-        "profile=" + ("loaded" if SCENE_MANAGER.state.profile_loaded else "new")
-    ]
-    if SCENE_MANAGER.state.profile_tuning_mismatch:
-        lines.append(
-            "tuning mismatch: save="
-            + str(SCENE_MANAGER.state.profile_tuning_version)
-            + " cur="
-            + str(TUNING.tuning_version)
-        )
-    lines.extend(SCENE_MANAGER.state.debug_lines())
-    DEBUG.draw(lines)
+    if not IS_DRIVE_PLAYTEST:
+        lines = [
+            "scene=" + str(SCENE_MANAGER.current_id),
+            "dt=" + str(dt),
+            "profile=" + ("loaded" if SCENE_MANAGER.state.profile_loaded else "new")
+        ]
+        if SCENE_MANAGER.state.profile_tuning_mismatch:
+            lines.append(
+                "tuning mismatch: save="
+                + str(SCENE_MANAGER.state.profile_tuning_version)
+                + " cur="
+                + str(TUNING.tuning_version)
+            )
+        lines.extend(SCENE_MANAGER.state.debug_lines())
+        DEBUG.draw(lines)
