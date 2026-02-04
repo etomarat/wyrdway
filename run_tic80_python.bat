@@ -22,12 +22,17 @@ setlocal
 
 REM --- Root = folder of this .bat (WYRDWAY)
 set "ROOT=%~dp0"
+set "FS_ROOT=%ROOT%"
+if "%FS_ROOT:~-1%"=="\" set "FS_ROOT=%FS_ROOT:~0,-1%"
 pushd "%ROOT%" >nul
 
 REM --- Project paths
 set "PROJ_DIR=%ROOT%tic80\python"
 set "GAME_FILE=tic80\python\game.py"
 set "MAIN_FILE=tic80\python\main.py"
+set "BUILD_FILE=tic80\python\build.py"
+set "DIST_DIR=%ROOT%dist"
+set "OUT_BASE=wyrdway"
 
 REM --- Find tq-bundler.exe (1) root, (2) tools\, (3) PATH
 set "TQ_BUNDLER_PATH="
@@ -95,8 +100,10 @@ if not exist "%MAIN_FILE%" (
 REM --- Modes:
 REM   run_tic80_python.bat           -> bundle + run
 REM   run_tic80_python.bat build     -> bundle only
+REM   run_tic80_python.bat dist      -> bundle + export .tic/.exe/html
 set "MODE=%~1"
 if /i "%MODE%"=="build" goto :build_only
+if /i "%MODE%"=="dist" goto :dist
 
 echo [INFO] Using tq-bundler: %TQ_BUNDLER_PATH%
 echo [INFO] Using tic80:     %TIC80_EXE_PATH%
@@ -114,6 +121,29 @@ echo [INFO] Bundling only...
 echo        "%TQ_BUNDLER_PATH%" run "%GAME_FILE%" "%MAIN_FILE%"
 echo.
 "%TQ_BUNDLER_PATH%" run "%GAME_FILE%" "%MAIN_FILE%"
+set "EC=%errorlevel%"
+popd >nul
+exit /b %EC%
+
+:dist
+echo [INFO] Using tq-bundler: %TQ_BUNDLER_PATH%
+echo [INFO] Using tic80:     %TIC80_EXE_PATH%
+echo [INFO] Cleaning dist folder...
+if exist "%DIST_DIR%" rmdir /s /q "%DIST_DIR%"
+mkdir "%DIST_DIR%"
+echo [INFO] Bundling only...
+echo        "%TQ_BUNDLER_PATH%" run "%GAME_FILE%" "%MAIN_FILE%"
+echo.
+"%TQ_BUNDLER_PATH%" run "%GAME_FILE%" "%MAIN_FILE%"
+if errorlevel 1 (
+  set "EC=%errorlevel%"
+  popd >nul
+  exit /b %EC%
+)
+echo [INFO] Exporting .tic/.exe/html to dist...
+echo        "%TIC80_EXE_PATH%" --cli --crt --fs "%FS_ROOT%" --cmd "load tic80/python/game.py & import code tic80/python/build.py & save dist/%OUT_BASE%.tic & export win dist/%OUT_BASE% alone=0 & export html dist/%OUT_BASE% alone=0 & exit"
+echo.
+"%TIC80_EXE_PATH%" --cli --crt --fs "%FS_ROOT%" --cmd "load tic80/python/game.py & import code tic80/python/build.py & save dist/%OUT_BASE%.tic & export win dist/%OUT_BASE% alone=0 & export html dist/%OUT_BASE% alone=0 & exit"
 set "EC=%errorlevel%"
 popd >nul
 exit /b %EC%

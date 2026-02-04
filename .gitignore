@@ -2,3 +2,5 @@
 tic80/python/build.py
 **/.mypy_cache
 **/__pycache__
+tic80.exe
+dist/
