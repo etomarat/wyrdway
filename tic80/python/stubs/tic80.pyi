@@ -159,7 +159,6 @@ def line(x0: int, y0: int, x1: int, y1: int, color: int) -> None:
     Draws a straight line from point (x0,y0) to point (x1,y1) in the specified color."""
     ...
 
-
 def map(
     x: int = 0,
     y: int = 0,

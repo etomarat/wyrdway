@@ -95,8 +95,10 @@ if not exist "%MAIN_FILE%" (
 REM --- Modes:
 REM   run_tic80_python.bat           -> bundle + run
 REM   run_tic80_python.bat build     -> bundle only
+REM   run_tic80_python.bat dist      -> bundle + postprocess (safe) + export .tic
 set "MODE=%~1"
 if /i "%MODE%"=="build" goto :build_only
+if /i "%MODE%"=="dist" goto :dist_build
 
 echo [INFO] Using tq-bundler: %TQ_BUNDLER_PATH%
 echo [INFO] Using tic80:     %TIC80_EXE_PATH%
@@ -114,6 +116,47 @@ echo [INFO] Bundling only...
 echo        "%TQ_BUNDLER_PATH%" run "%GAME_FILE%" "%MAIN_FILE%"
 echo.
 "%TQ_BUNDLER_PATH%" run "%GAME_FILE%" "%MAIN_FILE%"
+set "EC=%errorlevel%"
+popd >nul
+exit /b %EC%
+
+:dist_build
+echo [INFO] Using tq-bundler: %TQ_BUNDLER_PATH%
+echo [INFO] Using tic80:     %TIC80_EXE_PATH%
+REM Всегда пересобираем “чистый” dist, чтобы не было stale артефактов (win/html).
+if exist "%PROJ_DIR%\\dist" rmdir /s /q "%PROJ_DIR%\\dist" >nul 2>nul
+mkdir "%PROJ_DIR%\\dist" >nul 2>nul
+echo [INFO] Bundling (build.py)...
+echo        "%TQ_BUNDLER_PATH%" run "%GAME_FILE%" "%MAIN_FILE%"
+echo.
+"%TQ_BUNDLER_PATH%" run "%GAME_FILE%" "%MAIN_FILE%"
+if errorlevel 1 (
+  set "EC=%errorlevel%"
+  popd >nul
+  exit /b %EC%
+)
+
+echo [INFO] Postprocessing safe code (dist\\build.py)...
+echo        python tools\\tic80_safe_postprocess.py "%PROJ_DIR%\\build.py" "%PROJ_DIR%\\dist\\build.py"
+echo.
+python tools\\tic80_safe_postprocess.py "%PROJ_DIR%\\build.py" "%PROJ_DIR%\\dist\\build.py"
+if errorlevel 1 (
+  set "EC=%errorlevel%"
+  popd >nul
+  exit /b %EC%
+)
+
+REM Важно: dist\build.py содержит ТОЛЬКО код. Ресурсы (sprites/sfx/map/...) живут в game.py.
+REM Поэтому экспорт делаем так:
+REM 1) load game.py           -> загружаем ресурсы и метаданные
+REM 2) import code dist/build.py -> подменяем только код
+REM 3) save dist/wyrdway.tic  -> получаем полноценный cart
+REM 4) export html dist/wyrdway_html -> HTML сборка (tic80 создаст набор файлов с этим базовым именем)
+REM 5) export win  dist/wyrdway_win  -> Windows сборка (tic80 создаст артефакт(ы) с этим базовым именем)
+echo [INFO] Exporting cart + HTML + WIN into dist\\ via TIC-80...
+echo        "%TIC80_EXE_PATH%" --cli --fs "%PROJ_DIR%" --cmd "load game.py & import code dist/build.py & save dist/wyrdway.tic & export html dist/wyrdway_html & export win dist/wyrdway_win & exit"
+echo.
+"%TIC80_EXE_PATH%" --cli --fs "%PROJ_DIR%" --cmd "load game.py & import code dist/build.py & save dist/wyrdway.tic & export html dist/wyrdway_html & export win dist/wyrdway_win & exit"
 set "EC=%errorlevel%"
 popd >nul
 exit /b %EC%

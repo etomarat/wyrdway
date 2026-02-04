@@ -9,6 +9,7 @@ if TYPE_CHECKING:
         SceneNavigator,
         Tuning
     )
+    from ..core.gfx import gfx_line
     from ..core.input_buttons import Button
     from ..core.palette import Color, ColorId
     from ..core.run_state import RunState
@@ -19,10 +20,41 @@ if TYPE_CHECKING:
     from ..systems.drive.drive_objects import (
         DriveObjects,
         DriveObstacle,
-        DriveZone
+        DriveZone,
+        drive_objects_from_road_and_tuning
     )
     from ..systems.drive.fx_particles import Particles2D
-    from ..systems.drive.road_model import RoadModel
+    from ..systems.drive.road_model import RoadModel, road_model_from_tuning
+
+
+def fmt2(v: float) -> str:
+    """Форматирует число как строку с 2 знаками после запятой (без f-string форматтеров).
+
+    Почему не `f"{v:.2f}"`:
+    - в некоторых экспортированных рантаймах TIC-80 формат-спеки в f-string не поддерживаются
+      и падают с `ValueError: invalid format specifer`.
+
+    Реализация: округление до сотых через целые, затем ручная сборка строки.
+    """
+    n = float(v) * 100.0
+    if n >= 0.0:
+        n = n + 0.5
+    else:
+        n = n - 0.5
+
+    i = int(n)
+    sign = ""
+    if i < 0:
+        sign = "-"
+        i = -i
+
+    ip = int(i / 100)
+    frac = i - ip * 100
+    s = sign + str(ip) + "."
+    if frac < 10:
+        s += "0"
+    s += str(frac)
+    return s
 
 
 class DriveTelemetry:
@@ -108,13 +140,13 @@ class DriveTelemetry:
             self._offroad = logic.offroad
             self._add(
                 "t="
-                + f"{self._t:.2f}"
+                + fmt2(self._t)
                 + " EVENT surf="
                 + ("OFF" if logic.offroad else "ROAD")
                 + " s="
                 + str(int(logic.road_s))
                 + " d="
-                + f"{logic.road_d:.2f}"
+                + fmt2(logic.road_d)
             )
 
         if self._every <= 0:
@@ -124,17 +156,17 @@ class DriveTelemetry:
 
         self._add(
             "t="
-            + f"{self._t:.2f}"
+            + fmt2(self._t)
             + " s="
             + str(int(logic.road_s))
             + " d="
-            + f"{logic.road_d:.2f}"
+            + fmt2(logic.road_d)
             + " v="
-            + f"{logic.v_forward:.2f}"
+            + fmt2(logic.v_forward)
             + " side="
-            + f"{logic.v_side:.2f}"
+            + fmt2(logic.v_side)
             + " spd="
-            + f"{logic.speed:.2f}"
+            + fmt2(logic.speed)
             + " steer="
             + str(steer)
             + " thr="
@@ -146,17 +178,17 @@ class DriveTelemetry:
             + " dash="
             + ("1" if dash_pressed else "0")
             + " ss="
-            + f"{logic.dbg_steer_scale:.2f}"
+            + fmt2(logic.dbg_steer_scale)
             + " grip="
-            + f"{logic.dbg_effective_grip:.2f}"
+            + fmt2(logic.dbg_effective_grip)
             + " damp="
-            + f"{logic.dbg_side_damp:.2f}"
+            + fmt2(logic.dbg_side_damp)
             + " surf="
             + ("OFF" if logic.offroad else "ROAD")
             + " fuel="
-            + f"{run.car_fuel:.2f}"
+            + fmt2(run.car_fuel)
             + " hp="
-            + f"{run.car_hp:.2f}"
+            + fmt2(run.car_hp)
         )
 
     def dump(self, reason: str) -> None:
@@ -363,9 +395,9 @@ class DriveTopdownRenderer:
             )
 
             if prev0x is not None and prev0y is not None:
-                line(int(prev0x), int(prev0y), int(sx0), int(sy0), color)
+                gfx_line(prev0x, prev0y, sx0, sy0, color)
             if prev1x is not None and prev1y is not None:
-                line(int(prev1x), int(prev1y), int(sx1), int(sy1), color)
+                gfx_line(prev1x, prev1y, sx1, sy1, color)
 
             prev0x = sx0
             prev0y = sy0
@@ -375,7 +407,7 @@ class DriveTopdownRenderer:
 
         # “Заглушки” на концах (перемычки), чтобы визуально получался прямоугольник.
         if prev0x is not None and prev0y is not None and prev1x is not None and prev1y is not None:
-            line(int(prev0x), int(prev0y), int(prev1x), int(prev1y), color)
+            gfx_line(prev0x, prev0y, prev1x, prev1y, color)
         cx0, cy0 = road.sample_centerline(s0)
         dx0, dy0 = road.direction_at(s0)
         nrm0x = -dy0
@@ -390,7 +422,7 @@ class DriveTopdownRenderer:
         sx1a, sy1a = self._world_to_screen(
             wx1a, wy1a, car_x, car_y, fwd_x, fwd_y, right_x, right_y, center_x, center_y
         )
-        line(int(sx0a), int(sy0a), int(sx1a), int(sy1a), color)
+        gfx_line(sx0a, sy0a, sx1a, sy1a, color)
 
     def _clamp_center_y(self, y: int) -> int:
         """Ограничивает вертикальную позицию “центра камеры” в top-down.
@@ -464,10 +496,12 @@ class DriveTopdownRenderer:
                 rx, ry, car_x, car_y, fwd_x, fwd_y, right_x, right_y, center_x, center_y
             )
 
+            line(10, 20, 110, 20, 12)
+            trace('line ok')
             if prev_lsx is not None and prev_lsy is not None:
-                line(int(prev_lsx), int(prev_lsy), int(lsx), int(lsy), Color.LIGHT_GREEN)
+                gfx_line(prev_lsx, prev_lsy, lsx, lsy, Color.LIGHT_GREEN)
             if prev_rsx is not None and prev_rsy is not None:
-                line(int(prev_rsx), int(prev_rsy), int(rsx), int(rsy), Color.LIGHT_GREEN)
+                gfx_line(prev_rsx, prev_rsy, rsx, rsy, Color.LIGHT_GREEN)
 
             self._draw_zone_stripe_at(
                 road,
@@ -538,7 +572,7 @@ class DriveTopdownRenderer:
         zsx1, zsy1 = self._world_to_screen(
             zx1, zy1, car_x, car_y, fwd_x, fwd_y, right_x, right_y, center_x, center_y
         )
-        line(int(zsx0), int(zsy0), int(zsx1), int(zsy1), Color.YELLOW)
+        gfx_line(zsx0, zsy0, zsx1, zsy1, Color.YELLOW)
 
     def _draw_car_sprite(self, steer_input: int, center_x: int, center_y: int) -> None:
         """Рисует спрайт машины в точке (center_x, center_y) с учётом anchor.
@@ -694,7 +728,7 @@ class DriveTopdownRenderer:
         vel_scale = d.debug_vectors_vel_scale
         accel_scale = d.debug_vectors_accel_scale
 
-        line(cx, cy, cx, int(cy - h), Color.WHITE)
+        gfx_line(cx, cy, cx, cy - h, Color.WHITE)
 
         vx = logic.v_side * vel_scale
         vy = -logic.v_forward * vel_scale
@@ -706,14 +740,14 @@ class DriveTopdownRenderer:
             vy = 60.0
         if vy < -60.0:
             vy = -60.0
-        line(cx, cy, int(cx + vx), int(cy + vy), Color.CYAN)
+        gfx_line(cx, cy, cx + vx, cy + vy, Color.CYAN)
 
         ax = logic.dbg_side_accel * accel_scale
         if ax > 60.0:
             ax = 60.0
         if ax < -60.0:
             ax = -60.0
-        line(cx, cy, int(cx + ax), cy, Color.GREY)
+        gfx_line(cx, cy, cx + ax, cy, Color.GREY)
 
     def _update_and_draw_skid_marks(self, logic: DriveLogic, cx: int, cy: int) -> None:
         """Рисует следы шин позади машины, когда есть заметный занос или зажат ручник.
@@ -773,7 +807,7 @@ class DriveTopdownRenderer:
                 y0 += dy
                 x1 += dx
                 y1 += dy
-                line(int(x0), int(y0), int(x1), int(y1), color)
+                gfx_line(x0, y0, x1, y1, color)
                 life -= 1
                 self._skids[i] = (x0, y0, x1, y1, life)
                 i += 1
@@ -884,6 +918,21 @@ class DriveTopdownRenderer:
 
         self._fx.draw()
 
+    def _fx_next_rand(self) -> int:
+        """Возвращает следующее псевдослучайное число без переполнения (31-bit).
+
+        Park-Miller LCG (Schrage form): не делает больших промежуточных
+        произведений, поэтому стабильно работает в старых export-рантаймах.
+        """
+        if self._fx_seed <= 0:
+            self._fx_seed = 1
+
+        k = int(self._fx_seed / 127773)
+        self._fx_seed = 16807 * (self._fx_seed - k * 127773) - 2836 * k
+        if self._fx_seed <= 0:
+            self._fx_seed += 2147483647
+        return self._fx_seed
+
     def _emit_dust(self, count_accum: float, c0: ColorId, c1: ColorId, cx: int, cy: int) -> None:
         """Спавнит часть пыли, используя накопитель count_accum."""
         d = TUNING.DRIVE
@@ -904,10 +953,8 @@ class DriveTopdownRenderer:
 
         i = 0
         while i < n:
-            self._fx_seed = (self._fx_seed * 1103515245 + 12345) & 0x7fffffff
-            r0 = self._fx_seed
-            self._fx_seed = (self._fx_seed * 1103515245 + 12345) & 0x7fffffff
-            r1 = self._fx_seed
+            r0 = self._fx_next_rand()
+            r1 = self._fx_next_rand()
 
             # Пыль идёт из-под ОБОИХ колёс (2 точки на задней оси), а не из центра машины.
             # Важно: если пыль будет только с одного колеса, это читается как баг.
@@ -961,10 +1008,8 @@ class DriveTopdownRenderer:
 
         i = 0
         while i < n:
-            self._fx_seed = (self._fx_seed * 1103515245 + 12345) & 0x7fffffff
-            r0 = self._fx_seed
-            self._fx_seed = (self._fx_seed * 1103515245 + 12345) & 0x7fffffff
-            r1 = self._fx_seed
+            r0 = self._fx_next_rand()
+            r1 = self._fx_next_rand()
 
             x = cx + ((r0 % 1000) / 1000.0 - 0.5) * d.fx_speedlines_x_spread
             # Speed-lines должны быть ПОЗАДИ машины (ниже по Y), иначе они выглядят как “из центра”.
@@ -1027,9 +1072,9 @@ class DriveScene:
 
         run = self._state.require_run()
         seed = run.seed
-        self._road = RoadModel.from_tuning(seed, TUNING)
+        self._road = road_model_from_tuning(seed, TUNING)
         self._logic = DriveLogic(run, self._road, TUNING)
-        self._objects = DriveObjects.from_road_and_tuning(
+        self._objects = drive_objects_from_road_and_tuning(
             seed, self._road, TUNING)
         self._last_hp = run.car_hp
 
@@ -1381,13 +1426,13 @@ class DriveScene:
         if steer < 0:
             sx = x - int(spoke * n_vis)
             sy = y - spoke
-            line(x, y, sx, sy, color)
+            gfx_line(x, y, sx, sy, color)
         elif steer > 0:
             sx = x + int(spoke * n_vis)
             sy = y - spoke
-            line(x, y, sx, sy, color)
+            gfx_line(x, y, sx, sy, color)
         else:
-            line(x, y, x, y - spoke, color)
+            gfx_line(x, y, x, y - spoke, color)
 
         print("steer x" + self._fmt2(scale), x + 12, y - 4, Color.WHITE)
 
@@ -1423,17 +1468,17 @@ class DriveScene:
             slip = 1.0
 
         # Основа шкалы.
-        line(x0, y0, x0 + w, y0, Color.WHITE)
-        line(cx, y0 - 2, cx, y0 + 2, Color.WHITE)
+        gfx_line(x0, y0, x0 + w, y0, Color.WHITE)
+        gfx_line(cx, y0 - 2, cx, y0 + 2, Color.WHITE)
 
         # Заполнение: влево/вправо по знаку заноса.
         fill = int(half * slip)
         if fill < 0:
             fill = 0
         if v_side < 0.0:
-            line(cx, y0, cx - fill, y0, Color.LIGHT_BLUE)
+            gfx_line(cx, y0, cx - fill, y0, Color.LIGHT_BLUE)
         elif v_side > 0.0:
-            line(cx, y0, cx + fill, y0, Color.RED)
+            gfx_line(cx, y0, cx + fill, y0, Color.RED)
 
         print("slip", x0, y0 - 8, Color.WHITE)
 
@@ -1525,9 +1570,6 @@ class DriveScene:
         objects: DriveObjects
     ) -> list[str]:
         """Строки для DebugOverlay, чтобы HUD не накладывался на оверлей."""
-        def f2(v: float) -> str:
-            return f"{v:.2f}"
-
         vmax_road = logic.estimated_vmax_road()
         vmax_off = logic.estimated_vmax_offroad()
 
@@ -1537,23 +1579,23 @@ class DriveScene:
             + " zones=" + str(objects.zones_count()),
             "drive s=" + str(int(logic.road_s)) + "/" +
             str(int(road.segment_total_length)),
-            "drive d=" + f2(logic.road_d),
-            "drive v=" + f2(logic.v_forward) + " side=" + f2(logic.v_side),
-            "drive spd=" + f2(logic.speed) + " vmax=" +
-            f2(vmax_road) + "/" + f2(vmax_off),
+            "drive d=" + fmt2(logic.road_d),
+            "drive v=" + fmt2(logic.v_forward) + " side=" + fmt2(logic.v_side),
+            "drive spd=" + fmt2(logic.speed) + " vmax=" +
+            fmt2(vmax_road) + "/" + fmt2(vmax_off),
             "drive surf=" + ("OFF" if logic.offroad else "ROAD")
-            + " sf=" + f2(logic.dbg_speed_factor)
-            + " ss=" + f2(logic.dbg_steer_scale)
-            + " hb=" + f2(logic.dbg_handbrake_decel),
-            "drive grip=" + f2(logic.dbg_effective_grip) +
-            " damp=" + f2(logic.dbg_side_damp)
-            + " rec=" + f2(logic.dbg_side_recovery)
-            + " fuel/s=" + f2(logic.dbg_fuel_per_sec),
-            "drive boost fwd=" + f2(logic.dbg_zone_boost_forward)
-            + " ctr=" + f2(logic.dbg_zone_boost_center)
-            + " as=" + f2(logic.dbg_zone_antislip),
-            "drive fuel=" + f2(run.car_fuel),
-            "drive hp=" + f2(run.car_hp)
+            + " sf=" + fmt2(logic.dbg_speed_factor)
+            + " ss=" + fmt2(logic.dbg_steer_scale)
+            + " hb=" + fmt2(logic.dbg_handbrake_decel),
+            "drive grip=" + fmt2(logic.dbg_effective_grip) +
+            " damp=" + fmt2(logic.dbg_side_damp)
+            + " rec=" + fmt2(logic.dbg_side_recovery)
+            + " fuel/s=" + fmt2(logic.dbg_fuel_per_sec),
+            "drive boost fwd=" + fmt2(logic.dbg_zone_boost_forward)
+            + " ctr=" + fmt2(logic.dbg_zone_boost_center)
+            + " as=" + fmt2(logic.dbg_zone_antislip),
+            "drive fuel=" + fmt2(run.car_fuel),
+            "drive hp=" + fmt2(run.car_hp)
         ]
         if logic.offroad:
             lines.append("drive OFFROAD")

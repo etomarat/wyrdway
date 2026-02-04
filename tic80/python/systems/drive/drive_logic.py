@@ -409,9 +409,9 @@ class DriveLogic:
             if self._dash_cd < 0.0:
                 self._dash_cd = 0.0
 
-    @staticmethod
-    def _step_speed_factor(speed: float, max_speed: float) -> float:
+    def _step_speed_factor(self, speed: float, max_speed: float) -> float:
         """Нормализует скорость в диапазон 0..1 (для тюнинга рулёжки/заноса)."""
+        _ = self
         if max_speed <= 0.0:
             return 0.0
         sf = speed / max_speed
@@ -804,7 +804,10 @@ class DriveLogic:
             end = n - 1
 
         best_i = start
-        best_d2 = 1.0e30
+        # Важно для web/exports: `ast.unparse` может переписать `1.0e30` в `1e+30`,
+        # а некоторые сборки TIC-80/PocketPy не принимают литералы вида `e+`.
+        # Поэтому держим “бесконечность” как обычное десятичное число.
+        best_d2 = 1000000000.0
         best_cx = 0.0
         best_cy = 0.0
         best_dx = 1.0
@@ -912,7 +915,8 @@ class DriveLogic:
             end = n - 1
 
         best_i = start
-        best_d2 = 1.0e30
+        # См. комментарий выше про `1e+...` в экспортах.
+        best_d2 = 1000000000.0
         best_cx = 0.0
         best_cy = 0.0
         best_dx = 1.0
@@ -936,7 +940,8 @@ class DriveLogic:
         max_far = self._road.road_width * self._road.road_width * 64.0
         if best_d2 > max_far:
             best_i = 0
-            best_d2 = 1.0e30
+            # См. комментарий выше про `1e+...` в экспортах.
+            best_d2 = 1000000000.0
             i = 0
             while i < n:
                 cx, cy, dx, dy = self._road.center_point_at_index(i)
@@ -969,9 +974,9 @@ class DriveLogic:
         width = self._road.width_at(self._road_s)
         self._offroad = abs(self._road_d) > (width * 0.5)
 
-    @staticmethod
-    def _approach(value: float, target: float, amount: float) -> float:
+    def _approach(self, value: float, target: float, amount: float) -> float:
         """Двигает `value` к `target` не быстрее чем на `amount` за шаг."""
+        _ = self
         if value < target:
             value += amount
             if value > target:

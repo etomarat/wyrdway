@@ -82,85 +82,88 @@ class DriveObjects:
         """Копия списка зон."""
         return list(self._zones)
 
-    @classmethod
-    def from_road_and_tuning(cls, seed: int, road: RoadModel, tuning: Tuning):
-        """Генерирует объекты сегмента по seed + параметрам тюнинга.
+def drive_objects_from_road_and_tuning(seed: int, road, tuning):
+    """Сгенерировать объекты сегмента по seed + параметрам тюнинга.
 
-        Принципы (m1.5):
-        - детерминированно по seed (для сравнения A/B и тюнинга);
-        - не спавнить в safe-start диапазоне;
-        - выдерживать минимальную дистанцию между объектами по s;
-        - избегать краёв дороги (через `spawn_min_distance_from_edges`).
-        """
-        d = tuning.DRIVE
-        rng = Rng(seed ^ 0x9E3779B9)
+    Почему это отдельная функция, а не `@classmethod`:
+    в некоторых сборках TIC-80 (не PRO / экспортированные) отсутствует builtin
+    `classmethod`, и модуль падает при загрузке.
 
-        total = road.segment_total_length
-        safe = road.safe_start_length
-        width = road.road_width
+    Принципы (m1.5):
+    - детерминированно по seed (для сравнения A/B и тюнинга)
+    - не спавнить в safe-start диапазоне
+    - выдерживать минимальную дистанцию между объектами по s
+    - избегать краёв дороги (через `spawn_min_distance_from_edges`)
+    """
+    d = tuning.DRIVE
+    rng = Rng(seed ^ 0x9E3779B9)
 
-        max_d = width * 0.5 - d.spawn_min_distance_from_edges
-        if max_d < 0.0:
-            max_d = 0.0
+    total = road.segment_total_length
+    safe = road.safe_start_length
+    width = road.road_width
 
-        obstacles: list[DriveObstacle] = []
-        zones: list[DriveZone] = []
+    max_d = width * 0.5 - d.spawn_min_distance_from_edges
+    if max_d < 0.0:
+        max_d = 0.0
 
-        obstacles_n = int((total / 100.0) * d.obstacles_per_100m + 0.5)
-        zones_n = int((total / 100.0) * d.zones_per_100m + 0.5)
+    obstacles: list[DriveObstacle] = []
+    zones: list[DriveZone] = []
 
-        if safe > total:
-            safe = total
+    obstacles_n = int((total / 100.0) * d.obstacles_per_100m + 0.5)
+    zones_n = int((total / 100.0) * d.zones_per_100m + 0.5)
 
-        i = 0
-        attempts = 0
-        while i < obstacles_n and attempts < obstacles_n * 80 + 80:
-            attempts += 1
-            s = rng.uniform(safe, total)
-            d0 = rng.uniform(-max_d, max_d) if max_d > 0.0 else 0.0
+    if safe > total:
+        safe = total
 
-            ok = True
-            j = 0
-            while j < len(obstacles):
-                if abs(obstacles[j].s - s) < d.spawn_min_distance_between:
-                    ok = False
-                    break
-                j += 1
-            if ok:
-                obstacles.append(DriveObstacle(s, d0, d.obstacle_radius))
-                i += 1
+    i = 0
+    attempts = 0
+    while i < obstacles_n and attempts < obstacles_n * 80 + 80:
+        attempts += 1
+        s = rng.uniform(safe, total)
+        d0 = rng.uniform(-max_d, max_d) if max_d > 0.0 else 0.0
 
-        i = 0
-        attempts = 0
-        zone_len = d.zone_length
-        if zone_len < road.ds:
-            zone_len = road.ds
+        ok = True
+        j = 0
+        while j < len(obstacles):
+            if abs(obstacles[j].s - s) < d.spawn_min_distance_between:
+                ok = False
+                break
+            j += 1
+        if ok:
+            obstacles.append(DriveObstacle(s, d0, d.obstacle_radius))
+            i += 1
 
-        zone_s_max = total - zone_len
-        if zone_s_max < safe:
-            zone_s_max = safe
+    i = 0
+    attempts = 0
+    zone_len = d.zone_length
+    if zone_len < road.ds:
+        zone_len = road.ds
 
-        while i < zones_n and attempts < zones_n * 80 + 80:
-            attempts += 1
-            s_start = rng.uniform(safe, zone_s_max)
-            s_end = s_start + zone_len
-            d_center = rng.uniform(-max_d, max_d) if max_d > 0.0 else 0.0
+    zone_s_max = total - zone_len
+    if zone_s_max < safe:
+        zone_s_max = safe
 
-            ok = True
-            j = 0
-            while j < len(zones):
-                if abs(zones[j].s_start - s_start) < d.spawn_min_distance_between:
-                    ok = False
-                    break
-                j += 1
-            if ok:
-                zones.append(DriveZone(
-                    s_start,
-                    s_end,
-                    d_center,
-                    d.zone_radius,
-                    d.zone_grip_mult
-                ))
-                i += 1
+    while i < zones_n and attempts < zones_n * 80 + 80:
+        attempts += 1
+        s_start = rng.uniform(safe, zone_s_max)
+        s_end = s_start + zone_len
+        d_center = rng.uniform(-max_d, max_d) if max_d > 0.0 else 0.0
 
-        return cls(obstacles, zones)
+        ok = True
+        j = 0
+        while j < len(zones):
+            if abs(zones[j].s_start - s_start) < d.spawn_min_distance_between:
+                ok = False
+                break
+            j += 1
+        if ok:
+            zones.append(DriveZone(
+                s_start,
+                s_end,
+                d_center,
+                d.zone_radius,
+                d.zone_grip_mult
+            ))
+            i += 1
+
+    return DriveObjects(obstacles, zones)

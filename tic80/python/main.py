@@ -25,6 +25,7 @@ if TYPE_CHECKING:
 IS_DRIVE_PLAYTEST = True
 
 include("core.palette")
+include("core.gfx")
 include("contracts")
 include("data.tuning")
 include("core.debug")

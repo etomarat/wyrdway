@@ -10,7 +10,7 @@ select = [
   "UP",
 ]
 
-ignore = ["UP035"]
+ignore = ["UP035", "E722"]
 
 [tool.ruff.lint.flake8-implicit-str-concat]
 allow-multiline = false

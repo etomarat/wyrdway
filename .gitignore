@@ -1,4 +1,5 @@
 **/.local/
 tic80/python/build.py
+tic80/python/dist/
 **/.mypy_cache
 **/__pycache__

@@ -1,9 +1,8 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from tic80 import line
-
     from ...core.palette import ColorId
+    from ...core.gfx import gfx_line
 
 
 class Particles2D:
@@ -80,5 +79,5 @@ class Particles2D:
             y0 = int(y)
             x1 = int(x + dx)
             y1 = int(y + dy)
-            line(x0, y0, x1, y1, color)
+            gfx_line(x0, y0, x1, y1, color)
             i += 1

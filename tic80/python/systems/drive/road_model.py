@@ -2,7 +2,6 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ...contracts import Tuning
-
     from .rng import Rng
 
 
@@ -10,9 +9,9 @@ class RoadModel:
     """Параметрическая дорога: curvature(s) + базовые параметры ширины/длины.
 
     В m1.5 RoadModel должна быть:
-    - детерминированной по seed,
-    - с safe-start (первые метры почти прямые),
-    - с ограничением максимальной кривизны и плавной сменой curvature.
+    - детерминированной по seed
+    - с safe-start (первые метры почти прямые)
+    - с ограничением максимальной кривизны и плавной сменой curvature
     """
 
     def __init__(
@@ -48,23 +47,6 @@ class RoadModel:
         self._dir_y: list[float] = []
         self._build()
         self._build_centerline()
-
-    @classmethod
-    def from_tuning(cls, seed: int, tuning: Tuning):
-        d = tuning.DRIVE
-        return cls(
-            seed,
-            d.segment_total_length,
-            d.safe_start_length,
-            d.ds,
-            d.road_width,
-            d.min_piece_length,
-            d.max_piece_length,
-            d.max_curvature,
-            d.straight_piece_chance,
-            d.straight_max_curvature,
-            d.ramp_fraction
-        )
 
     def _build(self) -> None:
         ds = self.ds
@@ -129,8 +111,8 @@ class RoadModel:
         По умолчанию target выбирается из [-max_curvature..+max_curvature], но это
         даёт “вечные повороты”. Чтобы иногда появлялись прямые участки, мы делаем
         bias:
-        - с вероятностью `straight_piece_chance` берём маленький диапазон вокруг 0,
-        - иначе берём полный диапазон.
+        - с вероятностью `straight_piece_chance` берём маленький диапазон вокруг 0
+        - иначе берём полный диапазон
         """
         full = self._max_curvature
         if full < 0.0:
@@ -220,6 +202,7 @@ class RoadModel:
         На m1.5 ширина константная, но метод оставлен, чтобы позже можно было
         делать сужения/расширения без переписывания логики.
         """
+        _ = s
         return self.road_width
 
     def sample_centerline(self, s: float) -> tuple[float, float]:
@@ -264,3 +247,26 @@ class RoadModel:
             self._dir_x[idx],
             self._dir_y[idx]
         )
+
+
+def road_model_from_tuning(seed: int, tuning: Tuning):
+    """Создать `RoadModel` по seed и значениям из `TUNING`.
+
+    Почему это отдельная функция, а не `@classmethod`:
+    в некоторых сборках TIC-80 (не PRO / экспортированные) отсутствует builtin
+    `classmethod`, и модуль падает при загрузке.
+    """
+    d = tuning.DRIVE
+    return RoadModel(
+        seed,
+        d.segment_total_length,
+        d.safe_start_length,
+        d.ds,
+        d.road_width,
+        d.min_piece_length,
+        d.max_piece_length,
+        d.max_curvature,
+        d.straight_piece_chance,
+        d.straight_max_curvature,
+        d.ramp_fraction
+    )
