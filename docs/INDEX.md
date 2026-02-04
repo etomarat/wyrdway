@@ -21,6 +21,7 @@ docs/
 - `10_milestones/m1/m1_plan.md`
 - `10_milestones/m1/m1_report.md`
 - `10_milestones/m1_5/m_1_5_plan.md`
+- `10_milestones/m1_5/m_1_5_drive_physics_tuning_plan.md` — план улучшения управления/физики DRIVE.
 
 2) **Спека (источник правды по системам)**
 - `00_spec/0_gdd_v0.md` — GDD v0 (общая картина).
@@ -82,3 +83,4 @@ docs/
 ### Miscellaneous
 - [fennel-tic80-game](https://github.com/stefandevai/fennel-tic80-game): Boilerplate code for game using Fennel lisp.
 - [not-cool](https://github.com/whichxjy/not-cool): Pathfinding algorithms.
+- [Code examples and snippets](https://github.com/nesbox/TIC-80/wiki/code-examples-and-snippets)

@@ -5,6 +5,7 @@ if TYPE_CHECKING:
 
     from ..contracts import SceneNavigator
     from ..core.input_buttons import Button
+    from ..core.palette import Color
     from ..core.scene_ids import SceneId
     from ..data.tuning import TUNING
 
@@ -43,17 +44,17 @@ class GarageScene:
                 self._state.save_profile()
 
     def draw(self) -> None:
-        cls(0)
-        print("GARAGE", 98, 40, 12)
-        print("scrap=" + str(self._state.profile.scrap), 82, 60, 12)
-        print("hp=" + str(round(self._state.profile.garage_hp, 1)), 94, 70, 12)
+        cls(Color.BLACK)
+        print("GARAGE", 98, 40, Color.WHITE)
+        print("scrap=" + str(self._state.profile.scrap), 82, 60, Color.WHITE)
+        print("hp=" + str(round(self._state.profile.garage_hp, 1)), 94, 70, Color.WHITE)
         print("fuel=" + str(round(self._state.profile.garage_fuel, 1)),
-              82, 80, 12)
-        print("A = START", 86, 100, 12)
-        print("B = REPAIR (-" + str(TUNING.PROFILE.repair_cost) + ")",
-              86, 110, 12)
+              82, 80, Color.WHITE)
+        print("Z = START", 86, 100, Color.WHITE)
+        print("X = REPAIR (-" + str(TUNING.PROFILE.repair_cost) + ")",
+              86, 110, Color.WHITE)
         if self._can_restart:
-            print("X = NEW GAME (RESET)", 86, 120, 12)
+            print("A = NEW GAME (RESET)", 86, 120, Color.WHITE)
 
     def exit(self) -> None:
         pass
