@@ -1,0 +1,116 @@
+name: build
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download TIC-80 PRO (Windows)
+        shell: pwsh
+        run: |
+          $url = "http://etomarat.github.io/TIC-80/downloads/tic80-pro-win.exe"
+          Invoke-WebRequest -Uri $url -OutFile "tic80.exe"
+
+      - name: Download TQ-Bundler (Windows)
+        shell: pwsh
+        run: |
+          $repo = "etomarat/TQ-Bundler-python"
+          $asset = "tq-bundler-windows-x86_64.zip"
+          $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$repo/releases/latest"
+          $assetUrl = ($release.assets | Where-Object { $_.name -eq $asset } | Select-Object -First 1).browser_download_url
+          if (-not $assetUrl) {
+            throw "Asset not found: $asset"
+          }
+          Invoke-WebRequest -Uri $assetUrl -OutFile $asset
+          Expand-Archive -Path $asset -DestinationPath ".tq_bundler"
+          $exe = Get-ChildItem -Path ".tq_bundler" -Recurse -Filter "tq-bundler.exe" | Select-Object -First 1
+          if (-not $exe) {
+            throw "tq-bundler.exe not found in archive"
+          }
+          Copy-Item -Path $exe.FullName -Destination "tq-bundler.exe"
+
+      - name: Build dist
+        shell: pwsh
+        run: |
+          .\run_tic80_python.bat dist
+
+      - name: Upload dist artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: wyrdway-dist
+          path: dist/
+
+  deploy:
+    runs-on: windows-latest
+    needs: build
+    if: github.event_name != 'pull_request'
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - name: Download dist artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: wyrdway-dist
+          path: dist
+
+      - name: Prepare site
+        shell: pwsh
+        run: |
+          if (Test-Path "site") { Remove-Item "site" -Recurse -Force }
+          New-Item -ItemType Directory -Path "site" | Out-Null
+          Expand-Archive -Path "dist/wyrdway.zip" -DestinationPath "site/game"
+          New-Item -ItemType Directory -Path "site/downloads" | Out-Null
+          Copy-Item -Path "dist/wyrdway.exe" -Destination "site/downloads/wyrdway.exe"
+          $lines = @(
+            '<!doctype html>',
+            '<html lang="en">',
+            '  <head>',
+            '    <meta charset="utf-8">',
+            '    <meta name="viewport" content="width=device-width, initial-scale=1">',
+            '    <title>Wyrdway</title>',
+            '    <style>',
+            '      body { font-family: Arial, sans-serif; margin: 2rem; }',
+            '      a { display: inline-block; margin-right: 1rem; }',
+            '    </style>',
+            '  </head>',
+            '  <body>',
+            '    <h1>Wyrdway</h1>',
+            '    <p><a href="game/index.html">Play in browser</a></p>',
+            '    <p><a href="downloads/wyrdway.exe">Download Windows exe</a></p>',
+            '  </body>',
+            '</html>'
+          )
+          $lines | Out-File -FilePath "site/index.html" -Encoding utf8
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site/
+
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v4
