@@ -1,5 +1,5 @@
 [tool.ruff]
-line-length = 88
+line-length = 100
 extend-exclude = ["tic80/python/game.py", "tic80/python/build.py"]
 
 [tool.ruff.lint]
