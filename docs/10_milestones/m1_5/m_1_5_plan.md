@@ -288,10 +288,19 @@ DoD (Definition of Done)
 
 Obstacle collision:
 
-- если abs(player_d - obstacle_d) < (player_radius + obstacle_radius) и abs(player_s - obstacle_s) < collision_window:
-  - hp -= collision_damage (скейл от speed)
-  - speed *= collision_speed_mult
-  - небольшой «отскок» по d (push)
+- obstacle хранится в road-space (s, d, radius), но коллизии считаем в world-space:
+  - obstacle_world = sample_centerline(s) + normal(s) * d
+  - машина = 2 круговых хитбокса (rear/front) в world-space
+  - пересечение: circle-vs-circle
+- при пересечении хотим вычислять контакт для FX/шейка/скейла урона:
+  - normal = normalize(hit_center - obstacle_center)
+  - contact_point = obstacle_center + normal * obstacle_radius (или на поверхности хитбокса)
+  - impact = max(0, -dot(v_world, normal))  (скорость “в препятствие” по нормали)
+- последствия (тюнимо):
+  - hp -= damage(impact)  (сила удара => урон)
+  - (опционально) штраф скорости / небольшой push по нормали, чтобы “читалось”
+  - FX в точке контакта (искры/пыль), а не всегда “сзади колёс”
+  - микро-скриншейк с амплитудой от impact
 
 Zone effect:
 
@@ -302,7 +311,10 @@ Zone effect:
 Задачи:
 
 - [x] Реализовать проверку столкновения obstacle.
+- [ ] Добавить вычисление contact_point/normal/impact для obstacle hit (для FX и скейла урона).
+- [ ] Перевести урон препятствий на damage(impact) вместо константы.
 - [x] Реализовать эффект зоны (boost/safe strip).
+- [ ] (опционально) Штраф скорости/отскок при ударе (вместе с FX, чтобы ощущалось честно).
 
 4.4. Телеграфы (честность)
 
@@ -349,6 +361,46 @@ Zone effect:
 - искры при ударе,
 - пыль на оффроуде,
 - след заноса точками.
+
+Требования (чтобы выглядело “логично”):
+
+- при obstacle hit эффект должен появляться в точке контакта (или хотя бы на “бампере” по направлению удара),
+  а не всегда из-под задних колёс;
+- сила эффекта (кол-во/яркость/длина) должна зависеть от impact.
+
+5.4.1. FX-обёртка + vendor-порты (план)
+
+Контекст:
+
+- Сейчас FX для DRIVE живут как screen-space частицы внутри top-down рендера (дёшево и просто).
+- Для m1.5/m2 понадобится единый API, чтобы одинаковые события (hit/offroad/skid) можно было
+  рисовать и в варианте A (top-down), и в варианте B (cockpit/pseudo-3D).
+
+Идея:
+
+- Вводим “FX события” (минимум):
+  - Hit: (world_x, world_y, normal_x, normal_y, impact)
+  - Offroad: intensity (можно по speed и времени на оффроуде)
+  - Skid: slip (для дыма/пыли)
+- Рендеры (A/B) получают эти события и решают, как их визуализировать в своей проекции.
+- Внутри каждого рендера используем общую маленькую библиотеку эмиттеров (на базе Particles2D),
+  чтобы эффекты выглядели единообразно по параметрам и тюнингу.
+
+Vendor:
+
+- `vendor/vand_particles.lua` (vand): набор готовых “красивых” частиц (треугольники/плюсы/пыль/взрывы),
+  удобно как референс для искр/ударов.
+- `vendor/viza_pslib.lua` (Viza): модульная data-driven библиотека (emit timers + emitters + affectors + drawfuncs),
+  потенциально полезна для более сложных систем.
+
+План портирования/интеграции:
+
+- [ ] Зафиксировать атрибуцию и источники: авторы, ссылки, лицензии/разрешения (если в исходниках нет лицензии —
+      считаем “all rights reserved” и не тащим в релиз без явного разрешения).
+- [ ] Переписать выбранные эффекты на Python (PocketPy) с сохранением авторства в заголовках файлов/доках.
+- [ ] Сделать тонкую обёртку `DriveFx`/`FxBus` (emit hit/offroad/skid) и 1–2 реализации (A/B).
+- [ ] Собрать “FX sandbox” режим (или debug hotkey), чтобы быстро пробовать эффекты на месте и выбирать,
+      что “ок” визуально.
 
 ART PLACEHOLDERS (делает другой агент)
 
@@ -457,7 +509,13 @@ ART PLACEHOLDERS (делает другой агент)
   - Разный цвет/интенсивность ROAD vs OFFROAD.
   - Задача: “джип/Нива” ощущается тяжёлой, а поверхность — разной.
 - [ ] Шаг 5 (опционально): микро-скриншейк
-  - Короткий шейк на резком изменении slip/при ударе/съезде с дороги.
+  - Вариант: “trauma” (0..1) + затухание:
+    - при событии добавляем trauma (удар = много, оффроуд = понемногу/в секунду),
+    - каждый кадр уменьшаем trauma,
+    - shake_offset = noise(frame) * (trauma^2) * max_px
+  - Источники:
+    - obstacle hit: амплитуда от impact
+    - offroad: слабая вибрация, амплитуда от speed
 
 ART (не обязательно для m1.5, но можно подготовить заранее):
 
@@ -516,13 +574,24 @@ ART (не обязательно для m1.5, но можно подготови
 
 - fuel_per_sec_idle
 - fuel_per_sec_throttle
-- collision_damage_base
-- collision_damage_speed_mult
-- collision_speed_mult
+- obstacle_damage_base (сейчас есть константа obstacle_hit_damage)
+- obstacle_damage_speed_mult (или другая функция damage(impact) с клампами)
+- obstacle_damage_min_impact (порог, чтобы не дамажить от “еле касания”)
+- obstacle_damage_max (кламп, чтобы не ваншотило)
+- obstacle_speed_mult_on_hit (если делаем штраф скорости)
 - zone_grip_mult
 - zone_boost_forward_accel
 - zone_grip_floor
 - zone_antislip
+
+FX/шейк:
+
+- fx_hit_sparks_* (цвета/скорость/жизнь/кол-во от impact)
+- fx_hit_puff_* (грязь/пыль при ударе, если отделяем от искр)
+- fx_shake_max_px
+- fx_shake_decay_per_sec
+- fx_shake_hit_trauma_mult
+- fx_shake_offroad_trauma_per_sec
 
 Спавн:
 

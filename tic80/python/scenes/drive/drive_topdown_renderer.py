@@ -30,19 +30,45 @@ class DriveTopdownRenderer:
         self._start_dust_t = 0.0
         self._start_skid_t = 0.0
         self._damage_dust_t = 0.0
+        self._damage_dust_wx = 0.0
+        self._damage_dust_wy = 0.0
+        self._damage_dust_nx = 0.0
+        self._damage_dust_ny = -1.0
+        self._damage_dust_impact = 0.0
         self._fx_spawn_accum_start = 0.0
         self._fx_spawn_accum_off = 0.0
         self._fx_spawn_accum_damage = 0.0
         self._fx_spawn_accum_speed = 0.0
         self._fx_seed = 1
+        self._hit_events: list[tuple[float, float, float, float, float,
+                                     float, float]] = []
 
-    def notify_damage(self) -> None:
-        """Сообщает рендеру, что в этом кадре было столкновение (получили урон).
+    def notify_obstacle_hit(
+        self,
+        contact_wx: float,
+        contact_wy: float,
+        normal_x: float,
+        normal_y: float,
+        impact: float,
+        damage: float,
+        hitbox_radius: float
+    ) -> None:
+        """Сообщает рендеру про столкновение с препятствием.
 
-        Это чисто визуальная штука: мы хотим короткий “пух” пыли/грязи, чтобы урон читался
-        без дебага и без текста.
+        Это чисто визуальная штука:
+        - короткий “пух” пыли/грязи в точке контакта,
+        - искры (если хочется "жёсткий" сигнал),
+        чтобы удар читался без дебага и без текста.
         """
         self._damage_dust_t = float(TUNING.DRIVE.fx_damage_dust_seconds)
+        self._damage_dust_wx = contact_wx
+        self._damage_dust_wy = contact_wy
+        self._damage_dust_nx = normal_x
+        self._damage_dust_ny = normal_y
+        self._damage_dust_impact = impact
+        self._hit_events.append(
+            (contact_wx, contact_wy, normal_x, normal_y, impact, damage, hitbox_radius)
+        )
 
     def draw(
         self,
@@ -663,6 +689,30 @@ class DriveTopdownRenderer:
 
         self._fx.update(dt, world_dx, world_dy)
 
+        # События удара: обрабатываем один раз (как "burst") и очищаем.
+        if len(self._hit_events) > 0:
+            car_x = logic.x
+            car_y = logic.y
+            fwd_x = logic.fwd_x
+            fwd_y = logic.fwd_y
+            right_x = -fwd_y
+            right_y = fwd_x
+
+            i = 0
+            while i < len(self._hit_events):
+                wx, wy, nx, ny, impact, dmg, hit_r = self._hit_events[i]
+                sx, sy = self._world_to_screen(
+                    wx, wy, car_x, car_y, fwd_x, fwd_y, right_x, right_y, cx, cy
+                )
+
+                # Проецируем нормаль в screen-space (в системе машины).
+                dir_x = nx * right_x + ny * right_y
+                dir_y = -(nx * fwd_x + ny * fwd_y)
+                self._emit_hit_sparks(float(sx), float(sy), dir_x, dir_y, impact)
+                i += 1
+
+            self._hit_events = []
+
         # Стартовая пыль: когда скорость “сдвинулась с нуля”.
         spd = logic.speed
         if self._prev_speed <= 0.5 and spd > 0.5:
@@ -704,14 +754,40 @@ class DriveTopdownRenderer:
             self._damage_dust_t -= dt
             if self._damage_dust_t < 0.0:
                 self._damage_dust_t = 0.0
-            self._fx_spawn_accum_damage += d.fx_damage_dust_rate * dt
+
+            impact_mult = 1.0
+            if self._damage_dust_impact > 0.0:
+                impact_mult = 0.5 + self._damage_dust_impact / 60.0
+                if impact_mult > 2.0:
+                    impact_mult = 2.0
+
+            self._fx_spawn_accum_damage += d.fx_damage_dust_rate * impact_mult * dt
+
+            car_x = logic.x
+            car_y = logic.y
+            fwd_x = logic.fwd_x
+            fwd_y = logic.fwd_y
+            right_x = -fwd_y
+            right_y = fwd_x
+            sx, sy = self._world_to_screen(
+                self._damage_dust_wx,
+                self._damage_dust_wy,
+                car_x,
+                car_y,
+                fwd_x,
+                fwd_y,
+                right_x,
+                right_y,
+                cx,
+                cy
+            )
             # Цвет берём как у оффроуда: читается как “грязь/песок” и хорошо видна на дороге.
-            self._emit_dust(
+            self._emit_hit_puff(
                 self._fx_spawn_accum_damage,
                 d.fx_offroad_dust_color_a,
                 d.fx_offroad_dust_color_b,
-                cx,
-                cy
+                float(sx),
+                float(sy)
             )
             self._fx_spawn_accum_damage -= int(self._fx_spawn_accum_damage)
 
@@ -725,6 +801,94 @@ class DriveTopdownRenderer:
             self._fx_spawn_accum_speed -= int(self._fx_spawn_accum_speed)
 
         self._fx.draw()
+
+    def _emit_hit_puff(self, count_accum: float, c0: ColorId, c1: ColorId, x: float, y: float) -> None:
+        """Короткий "пух" пыли в точке удара."""
+        d = TUNING.DRIVE
+        n = int(count_accum)
+        if n <= 0:
+            return
+
+        life = int(d.fx_dust_life_frames)
+        if life <= 0:
+            life = 1
+        spread_vx = float(d.fx_dust_spread_vx) * 0.6
+        spread_vy = float(d.fx_dust_spread_vy) * 0.6
+        jitter_x = float(d.fx_dust_jitter_x_px) * 0.8
+        jitter_y = float(d.fx_dust_jitter_y_px) * 0.8
+
+        i = 0
+        while i < n:
+            self._fx_seed = (self._fx_seed * 1103515245 + 12345) & 0x7fffffff
+            r0 = self._fx_seed
+            self._fx_seed = (self._fx_seed * 1103515245 + 12345) & 0x7fffffff
+            r1 = self._fx_seed
+
+            jx = ((r1 % 1000) / 1000.0 - 0.5) * jitter_x
+            jy = ((r0 % 1000) / 1000.0 - 0.5) * jitter_y
+
+            vx0 = ((r0 % 1000) / 1000.0 - 0.5) * spread_vx
+            vy0 = ((r1 % 1000) / 1000.0 - 0.5) * spread_vy
+
+            color = c0 if (r0 & 1) == 0 else c1
+            self._fx.spawn(x + jx, y + jy, 0.0, 0.0, vx0, vy0, life, color)
+            i += 1
+
+    def _emit_hit_sparks(self, x: float, y: float, dir_x: float, dir_y: float, impact: float) -> None:
+        """Искры при ударе (короткие штрихи)."""
+        if impact <= 0.0:
+            return
+
+        d = TUNING.DRIVE
+        l2 = dir_x * dir_x + dir_y * dir_y
+        if l2 > 0.0:
+            inv = 1.0 / (l2 ** 0.5)
+            dir_x *= inv
+            dir_y *= inv
+        else:
+            dir_x = 0.0
+            dir_y = 1.0
+
+        # Количество искр растёт с impact, но клампим.
+        n = 3 + int(impact * 0.10)
+        if n > 18:
+            n = 18
+
+        speed = 120.0 + impact * 1.2
+        if speed > 260.0:
+            speed = 260.0
+        life = 10 + int(impact * 0.08)
+        if life > 22:
+            life = 22
+
+        i = 0
+        while i < n:
+            self._fx_seed = (self._fx_seed * 1103515245 + 12345) & 0x7fffffff
+            r0 = self._fx_seed
+            self._fx_seed = (self._fx_seed * 1103515245 + 12345) & 0x7fffffff
+            r1 = self._fx_seed
+
+            jitter = ((r0 % 1000) / 1000.0 - 0.5) * 0.9
+            jx = ((r1 % 1000) / 1000.0 - 0.5) * 2.0
+            jy = ((r0 % 1000) / 1000.0 - 0.5) * 2.0
+
+            vx0 = (dir_x + jitter) * speed
+            vy0 = (dir_y - jitter) * speed
+
+            seg = 2.0 + ((r1 % 1000) / 1000.0) * 4.0
+            dx = dir_x * seg
+            dy = dir_y * seg
+
+            # Палитра: белый/жёлтый/оранжевый.
+            if (r0 % 3) == 0:
+                color = Color.WHITE
+            elif (r0 % 3) == 1:
+                color = Color.YELLOW
+            else:
+                color = Color.ORANGE
+
+            self._fx.spawn(x + jx, y + jy, dx, dy, vx0, vy0, life, color)
+            i += 1
 
     def _emit_dust(self, count_accum: float, c0: ColorId, c1: ColorId, cx: int, cy: int) -> None:
         """Спавнит часть пыли, используя накопитель count_accum."""

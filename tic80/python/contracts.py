@@ -85,6 +85,8 @@ class DriveTuning:
         "offroad_drag_lin",
         "offroad_drag_quad",
         "offroad_fuel_mult",
+        "offroad_damage_per_sec",
+        "offroad_damage_min_speed",
         "drag_lin",
         "drag_quad",
         "fuel_per_sec_idle",
@@ -117,7 +119,10 @@ class DriveTuning:
         "spawn_min_distance_from_edges",
         "obstacle_radius",
         "obstacle_render_range_s",
-        "obstacle_hit_damage",
+        "obstacle_damage_base",
+        "obstacle_damage_impact_mult",
+        "obstacle_damage_min_impact",
+        "obstacle_damage_max",
         "zone_radius",
         "zone_length",
         "zone_grip_mult",
@@ -209,6 +214,8 @@ class DriveTuning:
         self.offroad_drag_lin = 0.0
         self.offroad_drag_quad = 0.0
         self.offroad_fuel_mult = 0.0
+        self.offroad_damage_per_sec = 0.0
+        self.offroad_damage_min_speed = 0.0
         self.drag_lin = 0.0
         self.drag_quad = 0.0
         self.fuel_per_sec_idle = 0.0
@@ -241,7 +248,10 @@ class DriveTuning:
         self.spawn_min_distance_from_edges = 0.0
         self.obstacle_radius = 0.0
         self.obstacle_render_range_s = 0.0
-        self.obstacle_hit_damage = 0.0
+        self.obstacle_damage_base = 0.0
+        self.obstacle_damage_impact_mult = 0.0
+        self.obstacle_damage_min_impact = 0.0
+        self.obstacle_damage_max = 0.0
         self.zone_radius = 0.0
         self.zone_length = 0.0
         self.zone_grip_mult = 0.0

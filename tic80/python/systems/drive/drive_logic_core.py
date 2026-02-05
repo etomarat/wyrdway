@@ -407,6 +407,7 @@ class DriveLogic:
 
         self._step_apply_drag(dt)
         self._step_apply_fuel(dt, throttle)
+        self._step_apply_offroad_damage(dt)
 
     def _step_update_dash_cooldown(self, dt: float) -> None:
         """Обновляет внутренний таймер кулдауна рывка (dash)."""
@@ -714,6 +715,30 @@ class DriveLogic:
             self._dbg_fuel_per_sec = 0.0
         if fuel_spend > 0.0:
             self._run.consume_fuel(fuel_spend)
+
+    def _step_apply_offroad_damage(self, dt: float) -> None:
+        """Наносит небольшой урон за езду по оффроуду (rate * dt).
+
+        Важно: урон должен быть только при движении. Стоя на месте вне дороги, игрок
+        не должен терять hp.
+        """
+        d = self._tuning.DRIVE
+        if not self._offroad:
+            return
+        rate = d.offroad_damage_per_sec
+        if rate <= 0.0:
+            return
+
+        v2 = self._vx * self._vx + self._vy * self._vy
+        if v2 <= 0.0:
+            return
+        speed = v2 ** 0.5
+        if speed <= d.offroad_damage_min_speed:
+            return
+
+        dmg = rate * dt
+        if dmg > 0.0:
+            self._run.apply_damage(dmg)
 
     def finished(self) -> bool:
         """True, если игрок доехал по дороге до конца сегмента."""

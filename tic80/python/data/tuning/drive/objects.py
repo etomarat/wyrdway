@@ -30,7 +30,21 @@ TUNING.DRIVE.obstacle_radius = 2.0
 TUNING.DRIVE.obstacle_render_range_s = 200.0
 
 # Урон за столкновение с препятствием (единоразово, за каждое препятствие).
-TUNING.DRIVE.obstacle_hit_damage = 8.0
+#
+# Урон зависит от "силы удара" (impact) — компоненты скорости вдоль нормали контакта:
+#   impact = max(0, -dot(v_world, normal))
+#
+# Это даёт:
+# - сильный урон при влёте лоб-в-лоб,
+# - слабый/нулевой урон при касании боком.
+#
+# Формула (см. DriveScene):
+#   impact2 = max(0, impact - obstacle_damage_min_impact)
+#   damage = clamp(obstacle_damage_base + impact2 * obstacle_damage_impact_mult, 0..obstacle_damage_max)
+TUNING.DRIVE.obstacle_damage_base = 0.0
+TUNING.DRIVE.obstacle_damage_impact_mult = 0.10
+TUNING.DRIVE.obstacle_damage_min_impact = 8.0
+TUNING.DRIVE.obstacle_damage_max = 16.0
 
 # Радиус зоны (по d). Чем больше, тем шире полоса на дороге.
 TUNING.DRIVE.zone_radius = 5.0
