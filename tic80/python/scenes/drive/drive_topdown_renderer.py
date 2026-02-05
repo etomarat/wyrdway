@@ -26,6 +26,7 @@ class DriveTopdownRenderer:
         # Короткий буфер “следов” (skid marks), чтобы занос читался без поворота спрайта.
         self._skids: list[tuple[float, float, float, float, int]] = []
         self._fx = Particles2D(TUNING.DRIVE.fx_particles_max)
+        self._fx_hit = Particles2D(max(16, int(TUNING.DRIVE.fx_particles_max / 2)))
         self._prev_speed = 0.0
         self._start_dust_t = 0.0
         self._start_skid_t = 0.0
@@ -155,6 +156,8 @@ class DriveTopdownRenderer:
         self._update_and_draw_fx(logic, center_x, center_y)
         self._update_and_draw_skid_marks(logic, center_x, center_y)
         self._draw_car_sprite(logic.steer_input, center_x, center_y)
+        # Ударные эффекты рисуем ПОВЕРХ машины (иначе их легко не заметить).
+        self._fx_hit.draw()
         if TUNING.DRIVE.debug_vectors_enabled:
             self._draw_debug_vectors(logic, center_x, center_y)
         if TUNING.DRIVE.debug_hitboxes_enabled:
@@ -688,6 +691,7 @@ class DriveTopdownRenderer:
         world_dy = logic.v_forward * dt
 
         self._fx.update(dt, world_dx, world_dy)
+        self._fx_hit.update(dt, world_dx, world_dy)
 
         # События удара: обрабатываем один раз (как "burst") и очищаем.
         if len(self._hit_events) > 0:
@@ -705,10 +709,25 @@ class DriveTopdownRenderer:
                     wx, wy, car_x, car_y, fwd_x, fwd_y, right_x, right_y, cx, cy
                 )
 
-                # Проецируем нормаль в screen-space (в системе машины).
-                dir_x = nx * right_x + ny * right_y
-                dir_y = -(nx * fwd_x + ny * fwd_y)
-                self._emit_hit_sparks(float(sx), float(sy), dir_x, dir_y, impact)
+                # Направление вылета: как раньше, но "вперёд" = -normal.
+                # normal приходит как (obstacle -> car). Для удара передом это будет "назад",
+                # поэтому берём -normal, чтобы частицы летели "вперёд" (в сторону препятствия).
+                n_x = nx * right_x + ny * right_y
+                n_y = -(nx * fwd_x + ny * fwd_y)
+                dir_x = -n_x
+                dir_y = -n_y
+
+                # Лёгкий сдвиг "из кузова наружу", чтобы эффект не прятался под спрайтом.
+                off = hit_r + 2.0
+                if off < 0.0:
+                    off = 0.0
+                self._emit_hit_sparks(
+                    float(sx + dir_x * off),
+                    float(sy + dir_y * off),
+                    dir_x,
+                    dir_y,
+                    impact
+                )
                 i += 1
 
             self._hit_events = []
@@ -781,13 +800,21 @@ class DriveTopdownRenderer:
                 cx,
                 cy
             )
+
+            n_x = self._damage_dust_nx * right_x + self._damage_dust_ny * right_y
+            n_y = -(self._damage_dust_nx * fwd_x + self._damage_dust_ny * fwd_y)
+            dir_x = -n_x
+            dir_y = -n_y
+            off = 8.0
+            if off < 0.0:
+                off = 0.0
             # Цвет берём как у оффроуда: читается как “грязь/песок” и хорошо видна на дороге.
             self._emit_hit_puff(
                 self._fx_spawn_accum_damage,
                 d.fx_offroad_dust_color_a,
                 d.fx_offroad_dust_color_b,
-                float(sx),
-                float(sy)
+                float(sx + dir_x * off),
+                float(sy + dir_y * off)
             )
             self._fx_spawn_accum_damage -= int(self._fx_spawn_accum_damage)
 
@@ -831,7 +858,7 @@ class DriveTopdownRenderer:
             vy0 = ((r1 % 1000) / 1000.0 - 0.5) * spread_vy
 
             color = c0 if (r0 & 1) == 0 else c1
-            self._fx.spawn(x + jx, y + jy, 0.0, 0.0, vx0, vy0, life, color)
+            self._fx_hit.spawn(x + jx, y + jy, 0.0, 0.0, vx0, vy0, life, color)
             i += 1
 
     def _emit_hit_sparks(self, x: float, y: float, dir_x: float, dir_y: float, impact: float) -> None:
@@ -848,6 +875,12 @@ class DriveTopdownRenderer:
         else:
             dir_x = 0.0
             dir_y = 1.0
+
+        # Перпендикуляр к направлению: используем для симметричного "конуса" искр.
+        # Это важно: простой jitter по компонентам (x+=j, y-=j) даёт заметную асимметрию
+        # лево/право из-за округления и корреляций шума.
+        perp_x = -dir_y
+        perp_y = dir_x
 
         # Количество искр растёт с impact, но клампим.
         n = 3 + int(impact * 0.10)
@@ -867,17 +900,42 @@ class DriveTopdownRenderer:
             r0 = self._fx_seed
             self._fx_seed = (self._fx_seed * 1103515245 + 12345) & 0x7fffffff
             r1 = self._fx_seed
+            self._fx_seed = (self._fx_seed * 1103515245 + 12345) & 0x7fffffff
+            r2 = self._fx_seed
 
-            jitter = ((r0 % 1000) / 1000.0 - 0.5) * 0.9
-            jx = ((r1 % 1000) / 1000.0 - 0.5) * 2.0
-            jy = ((r0 % 1000) / 1000.0 - 0.5) * 2.0
+            t0 = (r0 % 1000) / 1000.0
+            t1 = (r1 % 1000) / 1000.0
+            t2 = (r2 % 1000) / 1000.0
 
-            vx0 = (dir_x + jitter) * speed
-            vy0 = (dir_y - jitter) * speed
+            # Разброс по перпендикуляру: конус искр вокруг dir (симметрично для лево/право).
+            spread = 0.75 + impact / 120.0
+            if spread > 1.35:
+                spread = 1.35
+            if spread < 0.25:
+                spread = 0.25
+            j_perp = (t0 - 0.5) * spread
+            out_x = dir_x + perp_x * j_perp
+            out_y = dir_y + perp_y * j_perp
+            ol2 = out_x * out_x + out_y * out_y
+            if ol2 > 0.0:
+                inv = 1.0 / (ol2 ** 0.5)
+                out_x *= inv
+                out_y *= inv
+            else:
+                out_x = dir_x
+                out_y = dir_y
 
-            seg = 2.0 + ((r1 % 1000) / 1000.0) * 4.0
-            dx = dir_x * seg
-            dy = dir_y * seg
+            # Небольшой джиттер старта, чтобы искры не слипались в одну "полоску".
+            jx = (t1 - 0.5) * 3.0
+            jy = (t2 - 0.5) * 3.0
+
+            sp = speed * (0.80 + 0.40 * t2)
+            vx0 = out_x * sp
+            vy0 = out_y * sp
+
+            seg = 2.0 + t1 * 4.0
+            dx = out_x * seg
+            dy = out_y * seg
 
             # Палитра: белый/жёлтый/оранжевый.
             if (r0 % 3) == 0:
@@ -887,7 +945,7 @@ class DriveTopdownRenderer:
             else:
                 color = Color.ORANGE
 
-            self._fx.spawn(x + jx, y + jy, dx, dy, vx0, vy0, life, color)
+            self._fx_hit.spawn(x + jx, y + jy, dx, dy, vx0, vy0, life, color)
             i += 1
 
     def _emit_dust(self, count_accum: float, c0: ColorId, c1: ColorId, cx: int, cy: int) -> None:
