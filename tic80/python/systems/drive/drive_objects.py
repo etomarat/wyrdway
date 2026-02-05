@@ -82,6 +82,20 @@ class DriveObjects:
         """Копия списка зон."""
         return list(self._zones)
 
+    def obstacles_items_view(self) -> list[DriveObstacle]:
+        """Ссылка на внутренний список препятствий (без копии).
+
+        Важно: не мутировать список извне. Используйте только для чтения.
+        """
+        return self._obstacles
+
+    def zones_items_view(self) -> list[DriveZone]:
+        """Ссылка на внутренний список зон (без копии).
+
+        Важно: не мутировать список извне. Используйте только для чтения.
+        """
+        return self._zones
+
     @classmethod
     def from_road_and_tuning(cls, seed: int, road: RoadModel, tuning: Tuning):
         """Генерирует объекты сегмента по seed + параметрам тюнинга.

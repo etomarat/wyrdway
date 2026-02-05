@@ -228,7 +228,7 @@ class DriveTopdownRenderer:
         right_y = fwd_x
 
         start_idx, end_idx = self._visible_index_range(road, p_s)
-        zones = objects.zones_items()
+        zones = objects.zones_items_view()
         self._draw_road_edges_and_zones(
             road,
             zones,
@@ -267,7 +267,7 @@ class DriveTopdownRenderer:
                 )
                 i += 1
 
-        obstacles = objects.obstacles_items()
+        obstacles = objects.obstacles_items_view()
         self._draw_obstacles(
             obstacles,
             road,

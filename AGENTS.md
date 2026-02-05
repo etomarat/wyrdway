@@ -58,7 +58,7 @@ include("test")
 - If you’re unsure whether something works, assume it doesn’t until validated inside TIC-80.
 
 ### Hard bans (unsupported / incompatible features)
-- **Do not use `__slots__`** (appears to be ignored; instances still have `__dict__`).
+- `__slots__` разрешён для типов/документации и статического анализа, но **не полагаться на него в рантайме**: в PocketPy он игнорируется (инстансы всё равно имеют `__dict__`).
 - **Do not use multiple inheritance** (only single inheritance).
 - **Do not use custom descriptors** (`__get__` / `__set__`), except `property` (custom `__get__` did not trigger in testing).
 - **Do not use `__del__`** finalizers.
