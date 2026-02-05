@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     from ..core.run_state import RunState
     from ..core.scene_ids import SceneId
     from ..data.tuning import TUNING
-    from ..systems.drive.drive_logic import DriveLogic
+    from ..systems.drive.drive_logic_core import DriveLogic
     from ..systems.drive.drive_objects import DriveObjects, DriveZone
     from ..systems.drive.drive_telemetry import DriveTelemetry
     from ..systems.drive.road_model import RoadModel

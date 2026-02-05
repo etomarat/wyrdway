@@ -5,7 +5,7 @@ if TYPE_CHECKING:
 
     from ...contracts import Tuning
     from ...core.run_state import RunState
-    from .drive_logic import DriveLogic
+    from .drive_logic_core import DriveLogic
 
 
 class DriveTelemetry:

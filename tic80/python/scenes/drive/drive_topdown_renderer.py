@@ -6,7 +6,7 @@ if TYPE_CHECKING:
     from ...core.palette import Color, ColorId
     from ...core.sprites import NIVA_TOPDOWN
     from ...data.tuning import TUNING
-    from ...systems.drive.drive_logic import DriveLogic
+    from ...systems.drive.drive_logic_core import DriveLogic
     from ...systems.drive.drive_objects import (
         DriveObjects,
         DriveObstacle,

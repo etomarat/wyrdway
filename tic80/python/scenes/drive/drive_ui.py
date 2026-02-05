@@ -6,7 +6,7 @@ if TYPE_CHECKING:
     from ...core.palette import Color
     from ...core.run_state import RunState
     from ...data.tuning import TUNING
-    from ...systems.drive.drive_logic import DriveLogic
+    from ...systems.drive.drive_logic_core import DriveLogic
 
 
 class DriveUi:
