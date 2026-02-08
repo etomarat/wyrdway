@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from ...systems.drive.fx_particles import Particles2D
     from ...systems.drive.drive_fx import DriveFx, TopdownProjector
     from ...systems.drive.road_model import RoadModel
+    from ...systems.fx.vendor.vand_particles import VandParticles
 
 
 class DriveTopdownRenderer:
@@ -27,11 +28,18 @@ class DriveTopdownRenderer:
         # Короткий буфер “следов” (skid marks), чтобы занос читался без поворота спрайта.
         self._skids: list[tuple[float, float, float, float, int]] = []
         self._fx = Particles2D(TUNING.DRIVE.fx_particles_max)
+        # Вспышки искр при переходе “дорога <-> оффроад” должны читаться поверх пыли.
+        self._fx_transition = Particles2D(40)
         self._drive_fx = DriveFx(TUNING)
+        self._offroad_smoke = VandParticles(1337)
         self._prev_speed = 0.0
+        self._prev_offroad = False
+        self._offroad_side_sign = 1
+        self._offroad_transition_cooldown = 0.0
         self._start_skid_t = 0.0
         self._fx_spawn_accum_off = 0.0
         self._fx_spawn_accum_speed = 0.0
+        self._fx_spawn_accum_off_smoke = 0.0
         self._fx_seed = 1
         self._hit_events: list[tuple[float, float, float, float, float,
                                      float]] = []
@@ -133,8 +141,12 @@ class DriveTopdownRenderer:
         #
         # Порядок важен: FX обновляет таймер “старта движения”, а skid marks могут
         # использовать этот таймер, чтобы кратко показать следы сразу при старте.
-        self._update_and_draw_fx(logic, center_x, center_y, proj)
+        self._update_and_draw_fx(road, logic, center_x, center_y, proj)
         self._update_and_draw_skid_marks(logic, center_x, center_y)
+        # Следы шин должны быть ПОД пылью/дымом.
+        self._fx.draw()
+        self._offroad_smoke.draw()
+        self._fx_transition.draw()
         # Стартовый дым/пыль рисуем ВЫШЕ skid marks, но НИЖЕ кузова.
         self._drive_fx.draw(0)
         self._draw_car_sprite(logic.steer_input, center_x, center_y)
@@ -668,7 +680,7 @@ class DriveTopdownRenderer:
         self._skids.append((left_x, y0, left_x + slant, y1, life))
         self._skids.append((right_x, y0, right_x + slant, y1, life))
 
-    def _update_and_draw_fx(self, logic: DriveLogic, cx: int, cy: int, proj: TopdownProjector) -> None:
+    def _update_and_draw_fx(self, road: RoadModel, logic: DriveLogic, cx: int, cy: int, proj: TopdownProjector) -> None:
         """Общий слой частиц DRIVE (пыль/скоростные линии).
 
         Держим это рядом с рендером, потому что эффекты завязаны на screen-space и не должны
@@ -682,7 +694,17 @@ class DriveTopdownRenderer:
         world_dy = logic.v_forward * dt
 
         self._fx.update(dt, world_dx, world_dy)
+        # Искры перехода должны читаться как “локальный” эффект у колёс,
+        # а не как частицы, остающиеся в мире. Поэтому не применяем world-shift,
+        # иначе при сильном боковом движении машины направление визуально “едет”.
+        self._fx_transition.update(dt, 0.0, 0.0)
         self._drive_fx.update(dt, world_dx, world_dy)
+        self._offroad_smoke.update(dt, world_dx, world_dy)
+
+        if self._offroad_transition_cooldown > 0.0:
+            self._offroad_transition_cooldown -= dt
+            if self._offroad_transition_cooldown < 0.0:
+                self._offroad_transition_cooldown = 0.0
 
         # События удара: обрабатываем один раз (burst) и очищаем.
         if len(self._hit_events) > 0:
@@ -705,16 +727,26 @@ class DriveTopdownRenderer:
         self._prev_speed = spd
 
         # Оффроад пыль: постоянная, другой цвет (сигнал OFFROAD).
-        if logic.offroad and spd > d.fx_dust_min_speed:
-            self._fx_spawn_accum_off += d.fx_dust_rate_offroad * dt
-            self._emit_dust(
-                self._fx_spawn_accum_off,
-                d.fx_offroad_dust_color_a,
-                d.fx_offroad_dust_color_b,
-                cx,
-                cy
-            )
-            self._fx_spawn_accum_off -= int(self._fx_spawn_accum_off)
+        offroad = logic.offroad
+        if offroad:
+            rd = logic.road_d
+            if rd > 0.0:
+                self._offroad_side_sign = 1
+            elif rd < 0.0:
+                self._offroad_side_sign = -1
+
+        if offroad != self._prev_offroad:
+            if spd > d.fx_dust_min_speed and self._offroad_transition_cooldown <= 0.0:
+                self._emit_offroad_transition_sparks(offroad, road, logic, cx, cy)
+                self._offroad_transition_cooldown = 0.20
+            self._prev_offroad = offroad
+
+        if offroad and spd > d.fx_dust_min_speed:
+            # Небольшой жёлто-оранжевый "дым" (vand dust) из-под колёс.
+            # Только пыль на оффроуде (искры — только при переходе туда/обратно).
+            self._fx_spawn_accum_off_smoke += (d.fx_dust_rate_offroad * 0.65) * dt
+            self._emit_offroad_smoke_vand(self._fx_spawn_accum_off_smoke, cx, cy)
+            self._fx_spawn_accum_off_smoke -= int(self._fx_spawn_accum_off_smoke)
 
         # Speed-lines: при высокой скорости (выше max_speed).
         speed_factor = 0.0
@@ -725,8 +757,7 @@ class DriveTopdownRenderer:
             self._emit_speedlines(self._fx_spawn_accum_speed, logic, cx, cy)
             self._fx_spawn_accum_speed -= int(self._fx_spawn_accum_speed)
 
-        self._fx.draw()
-        # UNDER_CAR FX рисуем после skid marks (см. draw()).
+        # Рисование делаем в draw(), чтобы следы шин были под пылью/дымом.
 
     def _next_fx_seed(self) -> int:
         self._fx_seed = (self._fx_seed * 1103515245 + 12345) & 0x7fffffff
@@ -785,6 +816,259 @@ class DriveTopdownRenderer:
                            d.fx_dust_life_frames, color_l)
             self._fx.spawn(x_r, y_r, seg_dx, seg_dy, -vx0,
                            vy0, d.fx_dust_life_frames, color_r)
+            i += 1
+
+    def _emit_offroad_smoke_vand(self, count_accum: float, cx: int, cy: int) -> None:
+        n = int(count_accum)
+        if n <= 0:
+            return
+
+        d = TUNING.DRIVE
+        wheel_dx = float(d.fx_dust_wheel_dx_px)
+        back = float(d.fx_dust_back_px)
+        jitter_x = float(d.fx_dust_jitter_x_px)
+        jitter_y = float(d.fx_dust_jitter_y_px)
+
+        i = 0
+        while i < n:
+            self._fx_seed = (self._fx_seed * 1103515245 + 12345) & 0x7fffffff
+            r0 = self._fx_seed
+            self._fx_seed = (self._fx_seed * 1103515245 + 12345) & 0x7fffffff
+            r1 = self._fx_seed
+
+            jx = ((r1 % 1000) / 1000.0 - 0.5) * jitter_x
+            jy = ((r0 % 1000) / 1000.0) * jitter_y
+
+            x_l = (cx - wheel_dx) + jx
+            y_l = (cy + back) + jy
+            x_r = (cx + wheel_dx) - jx
+            y_r = (cy + back) + jy
+
+            # Мелкие частые пуфы читаются как "пыль/туман", а не как редкие круги.
+            t = (r0 % 1000) / 1000.0
+            r = 1.0 + t * 2.0
+            c = Color.YELLOW
+            if (r1 % 1000) >= 500:
+                c = Color.ORANGE
+
+            self._offroad_smoke.spawn_dust_down_color(float(x_l), float(y_l), float(r), int(c))
+            self._offroad_smoke.spawn_dust_down_color(float(x_r), float(y_r), float(r), int(c))
+
+            # Второй пуф чуть поменьше/побольше, чтобы объём был живее.
+            r2 = 0.75 + ((r1 % 1000) / 1000.0) * 1.75
+            c2 = Color.ORANGE if c == Color.YELLOW else Color.YELLOW
+            # Немного "по бокам" из-под колёс: разнос влево/вправо, чтобы пыль не была строго за машиной.
+            side = 2.0 + ((r1 % 1000) / 1000.0) * 4.0
+            self._offroad_smoke.spawn_dust_down_color(float(x_l - side), float(y_l), float(r2), int(c2))
+            self._offroad_smoke.spawn_dust_down_color(float(x_r + side), float(y_r), float(r2), int(c2))
+            i += 1
+
+    def _emit_offroad_transition_sparks(
+        self,
+        entering_offroad: bool,
+        road: RoadModel,
+        logic: DriveLogic,
+        cx: int,
+        cy: int
+    ) -> None:
+        d = TUNING.DRIVE
+        wheel_dx = float(d.fx_transition_sparks_wheel_dx_px)
+        back = float(d.fx_transition_sparks_back_px)
+        wheelbase = float(d.fx_transition_sparks_wheelbase_px)
+
+        # Сторона границы (бордюра): +1 = справа, -1 = слева.
+        # Важно: это именно “какой край пересекаем”, а не направление выброса.
+        boundary_sign = self._offroad_side_sign
+
+        # Требуемое поведение (по ощущениям):
+        # - при ВЪЕЗДЕ на оффроуд справа искра от правого колеса летит к дороге (внутрь),
+        # - при ВЫЕЗДЕ на дорогу справа искра от левого колеса летит к оффроуду (наружу).
+        #
+        # Обобщение:
+        # - точка спавна: на стороне границы при въезде, на противоположной стороне при выезде;
+        # - направление: при въезде ВНУТРЬ (к дороге), при выезде НАРУЖУ (к оффроуду).
+        spawn_sign = -boundary_sign
+        dir_sign = -boundary_sign
+        if not entering_offroad:
+            spawn_sign = boundary_sign
+            dir_sign = boundary_sign
+
+        # Боковая составляющая (в screen-space машины): строго влево/вправо.
+        e_nx = float(dir_sign)
+        e_ny = 0.0
+
+        # “Хвост” относительно машины: куда сдвигается мир (вниз по экрану при движении вперёд).
+        # Важно: для искр лучше держать “читабельный” хвост (вниз), иначе при сильном заносе
+        # боковая компонента скорости может визуально “переворачивать” направление.
+        tail_x = 0.0
+        tail_y = 1.0
+
+        # Сила пересечения границы: насколько направление движения “врезается” в границу.
+        # Чем ближе скорость к нормали (e_n), тем больше должен быть вылет в сторону.
+        move_x = -logic.v_side
+        move_y = logic.v_forward
+        denom_move = abs(move_x) + abs(move_y)
+        if denom_move < 0.001:
+            denom_move = 1.0
+        move_x /= denom_move
+        move_y /= denom_move
+        cross = abs(move_x * e_nx + move_y * e_ny)
+        if cross > 1.0:
+            cross = 1.0
+
+        # Вес нормали: чем “перпендикулярнее” пересечение, тем больше боковой вылет.
+        w_n = 0.45 + 1.10 * cross
+        w_tail = 1.10
+        if not entering_offroad:
+            w_tail = 1.35
+
+        dir_x = e_nx * w_n + tail_x * w_tail
+        dir_y = e_ny * w_n + tail_y * w_tail
+        denom_dir = abs(dir_x) + abs(dir_y)
+        if denom_dir < 0.001:
+            denom_dir = 1.0
+        dir_x /= denom_dir
+        dir_y /= denom_dir
+
+        # Количество/скорость зависит от скорости машины.
+        spd = logic.speed
+        n = 5 + int(spd * 0.05)
+        if not entering_offroad:
+            n = int(n * 1.7)
+        if n < 6:
+            n = 6
+        if n > 26:
+            n = 26
+
+        speed = 160.0 + spd * 2.6
+        if speed > 320.0:
+            speed = 320.0
+
+        life = 9 + int(spd * 0.01)
+        if not entering_offroad:
+            life += 4
+        if life > 20:
+            life = 20
+
+        # Спавним искры не в центре, а с той стороны, где мы пересекаем границу.
+        rear_x = float(cx) + float(spawn_sign) * wheel_dx
+        rear_y = float(cy) + back
+        # Переднее колесо визуально уже/ближе к корпусу, поэтому:
+        # - по X берём чуть меньший вынос,
+        # - по Y держим искры чуть ближе к задним, чтобы не “улетали” к капоту.
+        front_x = float(cx) + float(spawn_sign) * (wheel_dx * 0.72)
+        front_y = rear_y - wheelbase + 3.0
+
+        # От переднего колеса добавляем ещё пачку, но чуть меньше, чтобы не забивать экран.
+        n_front = int(n * 0.6)
+        if n_front < 3:
+            n_front = 3
+        if n_front > n:
+            n_front = n
+
+        # Конус разлёта: будем добавлять компоненту в перпендикуляр к направлению.
+        perp_x = -dir_y
+        perp_y = dir_x
+
+        i = 0
+        while i < n:
+            self._fx_seed = (self._fx_seed * 1103515245 + 12345) & 0x7fffffff
+            r0 = self._fx_seed
+            self._fx_seed = (self._fx_seed * 1103515245 + 12345) & 0x7fffffff
+            r1 = self._fx_seed
+
+            t0 = (r0 % 1000) / 1000.0
+            t1 = (r1 % 1000) / 1000.0
+
+            jx = (t0 - 0.5) * 2.5
+            jy = (t1 - 0.5) * 2.0
+
+            # Разлёт по углу: делаем чуть шире, особенно на выезде на дорогу.
+            spread = 0.28 + t1 * 0.26
+            if not entering_offroad:
+                spread += 0.12
+            k = (t0 - 0.5) * 2.0 * spread
+
+            vx = dir_x + perp_x * k
+            vy = dir_y + perp_y * k
+            denom_v = abs(vx) + abs(vy)
+            if denom_v < 0.001:
+                denom_v = 1.0
+            vx /= denom_v
+            vy /= denom_v
+
+            pvx = vx * speed * (0.80 + t0 * 0.40)
+            pvy = vy * speed * (0.80 + t1 * 0.40)
+
+            seg = 3.0 + t0 * 6.0
+            if not entering_offroad:
+                seg *= 1.15
+            dx = vx * seg
+            dy = vy * seg
+
+            m = int(r0 % 3)
+            color = Color.WHITE
+            if m == 0:
+                color = Color.WHITE
+            elif m == 1:
+                color = Color.YELLOW
+            else:
+                color = Color.ORANGE
+
+            # Немного шума вокруг точки контакта у колеса.
+            x0 = rear_x + jx
+            y0 = rear_y + jy
+            self._fx_transition.spawn(x0, y0, dx, dy, pvx, pvy, life, color)
+            i += 1
+
+        # И ещё немного от переднего колеса (та же сторона по X, выше по Y).
+        i = 0
+        while i < n_front:
+            self._fx_seed = (self._fx_seed * 1103515245 + 12345) & 0x7fffffff
+            r0 = self._fx_seed
+            self._fx_seed = (self._fx_seed * 1103515245 + 12345) & 0x7fffffff
+            r1 = self._fx_seed
+
+            t0 = (r0 % 1000) / 1000.0
+            t1 = (r1 % 1000) / 1000.0
+
+            jx = (t0 - 0.5) * 2.2
+            jy = (t1 - 0.5) * 1.8
+
+            spread = 0.24 + t1 * 0.22
+            if not entering_offroad:
+                spread += 0.10
+            k = (t0 - 0.5) * 2.0 * spread
+
+            vx = dir_x + perp_x * k
+            vy = dir_y + perp_y * k
+            denom_v = abs(vx) + abs(vy)
+            if denom_v < 0.001:
+                denom_v = 1.0
+            vx /= denom_v
+            vy /= denom_v
+
+            pvx = vx * speed * 0.85 * (0.80 + t0 * 0.40)
+            pvy = vy * speed * 0.85 * (0.80 + t1 * 0.40)
+
+            seg = (3.0 + t0 * 6.0) * 0.85
+            if not entering_offroad:
+                seg *= 1.10
+            dx = vx * seg
+            dy = vy * seg
+
+            m = int(r0 % 3)
+            color = Color.WHITE
+            if m == 0:
+                color = Color.WHITE
+            elif m == 1:
+                color = Color.YELLOW
+            else:
+                color = Color.ORANGE
+
+            x0 = front_x + jx
+            y0 = front_y + jy
+            self._fx_transition.spawn(x0, y0, dx, dy, pvx, pvy, life, color)
             i += 1
 
     def _emit_speedlines(self, count_accum: float, logic: DriveLogic, cx: int, cy: int) -> None:

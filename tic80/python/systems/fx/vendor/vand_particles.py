@@ -291,6 +291,37 @@ class _DustDownParticle(_VandParticle):
             circb(int(self.x), int(self.y), int(self.r), 0)
 
 
+class _DustDownColorParticle(_VandParticle):
+    """Dust, который стелется вниз (+Y) и остаётся в заданном цвете."""
+
+    def __init__(self, x: float, y: float, r: float, c: int, rng: Rng) -> None:
+        ang = rng.uniform(0.0, math.pi)
+        self.x = x
+        self.y = y
+        self.c = int(c)
+        self.ty = rng.uniform(-1.0, 1.0)
+        self.vx = math.cos(ang)
+        self.vy = math.sin(ang)
+        self.r = rng.uniform(0.0, r)
+        self.t = 20.0
+
+    def update(self, dt: float, world_dx: float, world_dy: float, frame: int, rng: Rng) -> bool:
+        self.x += world_dx + self.vx
+        self.y += world_dy + self.vy
+        self.vx *= 0.95
+        self.vy *= 0.95
+        if self.t < 5.0:
+            self.r /= 1.1
+        self.t -= 1.0 + rng.uniform(0.0, 1.0)
+        if self.r < 1.0:
+            return True
+        return False
+
+    def draw(self) -> None:
+        # Для цветного дыма/пыли нам важна читаемость цвета. Поэтому рисуем всегда filled.
+        circ(int(self.x), int(self.y), int(self.r), self.c)
+
+
 class _FireParticle(_VandParticle):
     def __init__(self, x: float, y: float, r: float, c: int, rng: Rng) -> None:
         ang = rng.uniform(0.0, math.pi * 2.0)
@@ -492,6 +523,9 @@ class VandParticles(FxSystem):
 
     def spawn_dust_down(self, x: float, y: float, r: float) -> None:
         self._particles.append(_DustDownParticle(x, y, r, self._rng))
+
+    def spawn_dust_down_color(self, x: float, y: float, r: float, c: int) -> None:
+        self._particles.append(_DustDownColorParticle(x, y, r, c, self._rng))
 
     def spawn_fire(self, x: float, y: float, r: float, c: int) -> None:
         self._particles.append(_FireParticle(x, y, r, c, self._rng))

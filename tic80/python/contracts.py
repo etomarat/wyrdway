@@ -158,6 +158,9 @@ class DriveTuning:
         "fx_dust_min_speed",
         "fx_dust_wheel_dx_px",
         "fx_dust_back_px",
+        "fx_transition_sparks_wheel_dx_px",
+        "fx_transition_sparks_back_px",
+        "fx_transition_sparks_wheelbase_px",
         "fx_dust_jitter_x_px",
         "fx_dust_jitter_y_px",
         "fx_dust_spread_vx",
@@ -289,6 +292,9 @@ class DriveTuning:
         self.fx_dust_min_speed = 0.0
         self.fx_dust_wheel_dx_px = 0.0
         self.fx_dust_back_px = 0.0
+        self.fx_transition_sparks_wheel_dx_px = 0.0
+        self.fx_transition_sparks_back_px = 0.0
+        self.fx_transition_sparks_wheelbase_px = 0.0
         self.fx_dust_jitter_x_px = 0.0
         self.fx_dust_jitter_y_px = 0.0
         self.fx_dust_spread_vx = 0.0

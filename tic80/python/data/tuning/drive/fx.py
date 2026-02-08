@@ -68,6 +68,12 @@ TUNING.DRIVE.fx_dust_min_speed = 8.0
 # Если кажется, что пыль выходит “из кузова”, увеличивай fx_dust_back_px (сдвиг вниз).
 TUNING.DRIVE.fx_dust_wheel_dx_px = 5.0
 TUNING.DRIVE.fx_dust_back_px = 12.0
+# Оффсеты для искр при переходе “дорога <-> оффроад”.
+# Делим от fx_dust_*, потому что искры читаются лучше, когда они ближе к краю кузова.
+TUNING.DRIVE.fx_transition_sparks_wheel_dx_px = 9.0
+TUNING.DRIVE.fx_transition_sparks_back_px = 11.0
+# Расстояние между задним и передним колесом (по экранному Y) для искр перехода.
+TUNING.DRIVE.fx_transition_sparks_wheelbase_px = 12.0
 # Небольшой шум, чтобы пыль не была идеальными столбиками.
 TUNING.DRIVE.fx_dust_jitter_x_px = 5.0
 TUNING.DRIVE.fx_dust_jitter_y_px = 4.0
