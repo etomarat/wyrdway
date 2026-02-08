@@ -872,65 +872,16 @@ class DriveTopdownRenderer:
         cy: int
     ) -> None:
         d = TUNING.DRIVE
-        wheel_dx = float(d.fx_transition_sparks_wheel_dx_px)
-        back = float(d.fx_transition_sparks_back_px)
-        wheelbase = float(d.fx_transition_sparks_wheelbase_px)
 
-        # Сторона границы (бордюра): +1 = справа, -1 = слева.
-        # Важно: это именно “какой край пересекаем”, а не направление выброса.
         boundary_sign = self._offroad_side_sign
-
-        # Требуемое поведение (по ощущениям):
-        # - при ВЪЕЗДЕ на оффроуд справа искра от правого колеса летит к дороге (внутрь),
-        # - при ВЫЕЗДЕ на дорогу справа искра от левого колеса летит к оффроуду (наружу).
-        #
-        # Обобщение:
-        # - точка спавна: на стороне границы при въезде, на противоположной стороне при выезде;
-        # - направление: при въезде ВНУТРЬ (к дороге), при выезде НАРУЖУ (к оффроуду).
         spawn_sign = -boundary_sign
         dir_sign = -boundary_sign
         if not entering_offroad:
             spawn_sign = boundary_sign
             dir_sign = boundary_sign
 
-        # Боковая составляющая (в screen-space машины): строго влево/вправо.
-        e_nx = float(dir_sign)
-        e_ny = 0.0
+        dir_x, dir_y, cross = self._edge_spark_dir(road, logic, dir_sign, entering_offroad)
 
-        # “Хвост” относительно машины: куда сдвигается мир (вниз по экрану при движении вперёд).
-        # Важно: для искр лучше держать “читабельный” хвост (вниз), иначе при сильном заносе
-        # боковая компонента скорости может визуально “переворачивать” направление.
-        tail_x = 0.0
-        tail_y = 1.0
-
-        # Сила пересечения границы: насколько направление движения “врезается” в границу.
-        # Чем ближе скорость к нормали (e_n), тем больше должен быть вылет в сторону.
-        move_x = -logic.v_side
-        move_y = logic.v_forward
-        denom_move = abs(move_x) + abs(move_y)
-        if denom_move < 0.001:
-            denom_move = 1.0
-        move_x /= denom_move
-        move_y /= denom_move
-        cross = abs(move_x * e_nx + move_y * e_ny)
-        if cross > 1.0:
-            cross = 1.0
-
-        # Вес нормали: чем “перпендикулярнее” пересечение, тем больше боковой вылет.
-        w_n = 0.45 + 1.10 * cross
-        w_tail = 1.10
-        if not entering_offroad:
-            w_tail = 1.35
-
-        dir_x = e_nx * w_n + tail_x * w_tail
-        dir_y = e_ny * w_n + tail_y * w_tail
-        denom_dir = abs(dir_x) + abs(dir_y)
-        if denom_dir < 0.001:
-            denom_dir = 1.0
-        dir_x /= denom_dir
-        dir_y /= denom_dir
-
-        # Количество/скорость зависит от скорости машины.
         spd = logic.speed
         n = 5 + int(spd * 0.05)
         if not entering_offroad:
@@ -950,125 +901,139 @@ class DriveTopdownRenderer:
         if life > 20:
             life = 20
 
-        # Спавним искры не в центре, а с той стороны, где мы пересекаем границу.
+        wheel_dx = float(d.fx_transition_sparks_wheel_dx_px)
+        back = float(d.fx_transition_sparks_back_px)
+        wheelbase = float(d.fx_transition_sparks_wheelbase_px)
+
         rear_x = float(cx) + float(spawn_sign) * wheel_dx
         rear_y = float(cy) + back
-        # Переднее колесо визуально уже/ближе к корпусу, поэтому:
-        # - по X берём чуть меньший вынос,
-        # - по Y держим искры чуть ближе к задним, чтобы не “улетали” к капоту.
         front_x = float(cx) + float(spawn_sign) * (wheel_dx * 0.72)
         front_y = rear_y - wheelbase + 3.0
 
-        # От переднего колеса добавляем ещё пачку, но чуть меньше, чтобы не забивать экран.
         n_front = int(n * 0.6)
         if n_front < 3:
             n_front = 3
         if n_front > n:
             n_front = n
 
-        # Конус разлёта: будем добавлять компоненту в перпендикуляр к направлению.
-        perp_x = -dir_y
-        perp_y = dir_x
+        self._edge_spark_burst(rear_x, rear_y, dir_x, dir_y, cross, speed, n, life, entering_offroad, 1.0)
+        self._edge_spark_burst(front_x, front_y, dir_x, dir_y, cross, speed, n_front, life, entering_offroad, 0.85)
+
+    def _edge_spark_dir(
+        self,
+        road: RoadModel,
+        logic: DriveLogic,
+        dir_sign: int,
+        entering_offroad: bool
+    ) -> tuple[float, float, float]:
+        dx, dy = road.direction_at(logic.road_s)
+        rx = -dy
+        ry = dx
+
+        fx = logic.fwd_x
+        fy = logic.fwd_y
+        crx = -fy
+        cry = fx
+
+        sx = rx * crx + ry * cry
+        sy = -(rx * fx + ry * fy)
+        d0 = abs(sx) + abs(sy)
+        if d0 < 0.001:
+            sx = 1.0
+            sy = 0.0
+            d0 = 1.0
+        sx = (sx / d0) * float(dir_sign)
+        sy = (sy / d0) * float(dir_sign)
+
+        mx = -logic.v_side
+        my = logic.v_forward
+        d1 = abs(mx) + abs(my)
+        if d1 < 0.001:
+            d1 = 1.0
+        mx /= d1
+        my /= d1
+        cross = abs(mx * sx + my * sy)
+        if cross > 1.0:
+            cross = 1.0
+
+        wn = 0.45 + 1.10 * cross
+        wt = 1.10
+        if not entering_offroad:
+            wt = 1.35
+
+        dx = sx * wn
+        dy = sy * wn + wt
+        d2 = abs(dx) + abs(dy)
+        if d2 < 0.001:
+            d2 = 1.0
+        dx /= d2
+        dy /= d2
+        return dx, dy, cross
+
+    def _edge_spark_burst(
+        self,
+        base_x: float,
+        base_y: float,
+        dir_x: float,
+        dir_y: float,
+        cross: float,
+        speed: float,
+        count: int,
+        life: int,
+        entering_offroad: bool,
+        scale: float
+    ) -> None:
+        px = -dir_y
+        py = dir_x
 
         i = 0
-        while i < n:
+        while i < count:
             self._fx_seed = (self._fx_seed * 1103515245 + 12345) & 0x7fffffff
             r0 = self._fx_seed
             self._fx_seed = (self._fx_seed * 1103515245 + 12345) & 0x7fffffff
             r1 = self._fx_seed
 
-            t0 = (r0 % 1000) / 1000.0
-            t1 = (r1 % 1000) / 1000.0
+            t = (r0 % 1000) / 1000.0
+            u = (r1 % 1000) / 1000.0
 
-            jx = (t0 - 0.5) * 2.5
-            jy = (t1 - 0.5) * 2.0
-
-            # Разлёт по углу: делаем чуть шире, особенно на выезде на дорогу.
-            spread = 0.28 + t1 * 0.26
+            # Меньше промежуточных переменных: в PocketPy есть лимит на число locals.
+            spread = (0.28 + u * 0.26) * (0.75 + 0.70 * cross)
             if not entering_offroad:
                 spread += 0.12
-            k = (t0 - 0.5) * 2.0 * spread
+            spread *= (0.80 + 0.20 * scale)
 
-            vx = dir_x + perp_x * k
-            vy = dir_y + perp_y * k
-            denom_v = abs(vx) + abs(vy)
-            if denom_v < 0.001:
-                denom_v = 1.0
-            vx /= denom_v
-            vy /= denom_v
+            vx = dir_x + px * ((t - 0.5) * 2.0 * spread)
+            vy = dir_y + py * ((t - 0.5) * 2.0 * spread)
+            den = abs(vx) + abs(vy)
+            if den < 0.001:
+                den = 1.0
+            vx /= den
+            vy /= den
 
-            pvx = vx * speed * (0.80 + t0 * 0.40)
-            pvy = vy * speed * (0.80 + t1 * 0.40)
-
-            seg = 3.0 + t0 * 6.0
+            seg = (3.0 + t * 6.0) * scale
             if not entering_offroad:
                 seg *= 1.15
-            dx = vx * seg
-            dy = vy * seg
 
-            m = int(r0 % 3)
+            pvx = vx * speed * (0.80 + t * 0.40) * scale
+            pvy = vy * speed * (0.80 + u * 0.40) * scale
+
             color = Color.WHITE
-            if m == 0:
-                color = Color.WHITE
-            elif m == 1:
+            m = int(r0 % 3)
+            if m == 1:
                 color = Color.YELLOW
-            else:
+            elif m == 2:
                 color = Color.ORANGE
 
-            # Немного шума вокруг точки контакта у колеса.
-            x0 = rear_x + jx
-            y0 = rear_y + jy
-            self._fx_transition.spawn(x0, y0, dx, dy, pvx, pvy, life, color)
-            i += 1
-
-        # И ещё немного от переднего колеса (та же сторона по X, выше по Y).
-        i = 0
-        while i < n_front:
-            self._fx_seed = (self._fx_seed * 1103515245 + 12345) & 0x7fffffff
-            r0 = self._fx_seed
-            self._fx_seed = (self._fx_seed * 1103515245 + 12345) & 0x7fffffff
-            r1 = self._fx_seed
-
-            t0 = (r0 % 1000) / 1000.0
-            t1 = (r1 % 1000) / 1000.0
-
-            jx = (t0 - 0.5) * 2.2
-            jy = (t1 - 0.5) * 1.8
-
-            spread = 0.24 + t1 * 0.22
-            if not entering_offroad:
-                spread += 0.10
-            k = (t0 - 0.5) * 2.0 * spread
-
-            vx = dir_x + perp_x * k
-            vy = dir_y + perp_y * k
-            denom_v = abs(vx) + abs(vy)
-            if denom_v < 0.001:
-                denom_v = 1.0
-            vx /= denom_v
-            vy /= denom_v
-
-            pvx = vx * speed * 0.85 * (0.80 + t0 * 0.40)
-            pvy = vy * speed * 0.85 * (0.80 + t1 * 0.40)
-
-            seg = (3.0 + t0 * 6.0) * 0.85
-            if not entering_offroad:
-                seg *= 1.10
-            dx = vx * seg
-            dy = vy * seg
-
-            m = int(r0 % 3)
-            color = Color.WHITE
-            if m == 0:
-                color = Color.WHITE
-            elif m == 1:
-                color = Color.YELLOW
-            else:
-                color = Color.ORANGE
-
-            x0 = front_x + jx
-            y0 = front_y + jy
-            self._fx_transition.spawn(x0, y0, dx, dy, pvx, pvy, life, color)
+            self._fx_transition.spawn(
+                base_x + (t - 0.5) * 2.5 * scale,
+                base_y + (u - 0.5) * 2.0 * scale,
+                vx * seg,
+                vy * seg,
+                pvx,
+                pvy,
+                life,
+                color
+            )
             i += 1
 
     def _emit_speedlines(self, count_accum: float, logic: DriveLogic, cx: int, cy: int) -> None:
