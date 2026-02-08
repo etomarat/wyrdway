@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 TUNING.DRIVE.skid_slip_threshold = 0.25
 TUNING.DRIVE.skid_min_speed = 5.0
 TUNING.DRIVE.skid_back_px = 12.0
-TUNING.DRIVE.skid_wheel_dx_px = 5.0
+TUNING.DRIVE.skid_wheel_dx_px = 6.0
 TUNING.DRIVE.skid_seg_len_px = 8.0
 TUNING.DRIVE.skid_life_frames = 24
 # Начиная с какого возраста (в кадрах жизни сегмента) переключаем цвет следа на более светлый.
@@ -24,6 +24,14 @@ TUNING.DRIVE.skid_life_frames = 24
 TUNING.DRIVE.skid_light_after_frames = 18
 TUNING.DRIVE.skid_slant_scale = 16.0
 TUNING.DRIVE.skid_slant_max = 16.0
+
+# Выбор стиля FX (через enum-like IDs из `systems.fx.fx_ids.FxId`).
+# Значения задаём числом, чтобы не зависеть от импортов (в рантайме всё бандлится через include()).
+#
+# FxId.DRIVE_START_SMOKE_VAND_DUST
+TUNING.DRIVE.fx_start_id = 12
+# FxId.DRIVE_HIT_VAND_EXPLOSION_PLUS_SPARKS
+TUNING.DRIVE.fx_hit_id = 24
 
 # FX частицы (пыль + speed-lines).
 #

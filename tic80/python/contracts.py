@@ -140,6 +140,8 @@ class DriveTuning:
         "skid_light_after_frames",
         "skid_slant_scale",
         "skid_slant_max",
+        "fx_start_id",
+        "fx_hit_id",
         "fx_particles_max",
         "fx_start_dust_color_a",
         "fx_start_dust_color_b",
@@ -269,6 +271,8 @@ class DriveTuning:
         self.skid_light_after_frames = 0
         self.skid_slant_scale = 0.0
         self.skid_slant_max = 0.0
+        self.fx_start_id = 0
+        self.fx_hit_id = 0
         self.fx_particles_max = 0
         self.fx_start_dust_color_a: ColorId = 0
         self.fx_start_dust_color_b: ColorId = 0
