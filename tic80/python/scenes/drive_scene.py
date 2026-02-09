@@ -13,6 +13,7 @@ if TYPE_CHECKING:
     from ..systems.drive.drive_obstacle_hits import apply_obstacle_hits
     from ..systems.drive.drive_objects import DriveObjects, DriveZone
     from ..systems.drive.drive_telemetry import DriveTelemetry
+    from ..systems.drive.drive_zones import zone_at_hitboxes
     from ..systems.drive.road_model import RoadModel
     from .drive.drive_topdown_renderer import DriveTopdownRenderer
     from .drive.drive_ui import DriveUi
@@ -78,7 +79,7 @@ class DriveScene:
             self._state.playtest_add_time(dt)
 
         zones = self._objects.zones_items_view()
-        z_before = self._zone_at_hitboxes(self._logic, zones)
+        z_before = zone_at_hitboxes(self._logic, zones)
         self._apply_zone_effects(z_before)
 
         steer = 0
@@ -94,7 +95,7 @@ class DriveScene:
 
         dash_pressed = a_pressed and not self._logic.finished()
         self._logic.update(dt, steer, throttle, brake, handbrake, dash_pressed)
-        z_after = self._zone_at_hitboxes(self._logic, zones)
+        z_after = zone_at_hitboxes(self._logic, zones)
         self._active_zone = z_after if z_after is not None else z_before
 
         self._apply_obstacle_hits(run)
@@ -193,62 +194,6 @@ class DriveScene:
         self._state.set_debug_lines(
             self._drive_debug_lines(road, logic, run, objects))
         return
-
-    def _zone_at_hitboxes(self, logic: DriveLogic, zones: list[DriveZone]) -> DriveZone | None:
-        """Возвращает зону, которая пересекается с хитбоксом машины (если есть).
-
-        Почему так:
-        - игрок ориентируется по спрайту;
-        - у машины уже есть 2 круговых хитбокса (перед/зад), настроенные под спрайт;
-        - если проверять зону только по “центральной точке физики”, игрок будет видеть
-          “я на полосках, но эффекта нет”.
-
-        Реализация:
-        - берём 2 круга машины в road-space (`DriveLogic.hitbox_road_circles`);
-        - каждая зона — прямоугольник в (s,d):
-            s in [s_start..s_end]
-            d in [d_center-radius .. d_center+radius]
-        - проверяем пересечение круга и прямоугольника (circle-vs-AABB в road-space).
-        """
-        def clamp(v: float, lo: float, hi: float) -> float:
-            if v < lo:
-                return lo
-            if v > hi:
-                return hi
-            return v
-
-        rear_s, rear_d, rear_r, front_s, front_d, front_r = logic.hitbox_road_circles()
-        circles = [
-            (rear_s, rear_d, rear_r),
-            (front_s, front_d, front_r)
-        ]
-
-        j = 0
-        while j < len(circles):
-            ps, pd, pr = circles[j]
-            if pr <= 0.0:
-                j += 1
-                continue
-
-            i = 0
-            while i < len(zones):
-                z = zones[i]
-                zs0 = z.s_start
-                zs1 = z.s_end
-                zd0 = z.d_center - z.radius
-                zd1 = z.d_center + z.radius
-
-                cs = clamp(ps, zs0, zs1)
-                cd = clamp(pd, zd0, zd1)
-                ds = ps - cs
-                dd = pd - cd
-                if (ds * ds + dd * dd) <= (pr * pr):
-                    return z
-                i += 1
-
-            j += 1
-
-        return None
 
     def _apply_zone_effects(self, z: DriveZone | None) -> None:
         """Применяет эффекты зоны к DriveLogic на следующий кадр.
