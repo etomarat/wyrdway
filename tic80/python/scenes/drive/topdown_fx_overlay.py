@@ -329,23 +329,41 @@ class TopdownFxOverlay:
         dir_x, dir_y, cross = self._edge_spark_dir(road, logic, dir_sign, entering_offroad)
 
         spd = logic.speed
-        n = 5 + int(spd * 0.05)
+        min_spd = float(d.fx_transition_sparks_min_speed)
+        ramp = float(d.fx_transition_sparks_ramp_speed)
+        if ramp < 0.01:
+            ramp = 0.01
+        strength = (spd - min_spd) / ramp
+        if strength <= 0.0:
+            return
+        if strength > 1.0:
+            strength = 1.0
+
+        # Количество и скорость поднимаем плавно от скорости, чтобы на малой скорости
+        # искры не “взрывались” и не мешали.
+        n_base = 4 + int(spd * 0.04)
+        n = int(n_base * strength)
         if not entering_offroad:
             n = int(n * 1.7)
-        if n < 6:
-            n = 6
-        if n > 26:
-            n = 26
+        if n < 1:
+            return
+        if n > 20:
+            n = 20
 
-        speed = 160.0 + spd * 2.6
-        if speed > 320.0:
-            speed = 320.0
+        speed = 55.0 + spd * 1.1
+        if speed > 180.0:
+            speed = 180.0
+        speed *= 0.65 + 0.35 * strength
 
-        life = 9 + int(spd * 0.01)
+        # Делаем жизнь чуть длиннее, иначе при замедлении искры могут "пропасть" визуально.
+        life = 12 + int(spd * 0.012)
         if not entering_offroad:
-            life += 4
-        if life > 20:
-            life = 20
+            life += 3
+        life = int(life * (0.60 + 0.60 * strength))
+        if life < 7:
+            life = 7
+        if life > 26:
+            life = 26
 
         wheel_dx = float(d.fx_transition_sparks_wheel_dx_px)
         back = float(d.fx_transition_sparks_back_px)
@@ -362,8 +380,10 @@ class TopdownFxOverlay:
         if n_front > n:
             n_front = n
 
-        self._edge_spark_burst(rear_x, rear_y, dir_x, dir_y, cross, speed, n, life, entering_offroad, 1.0)
-        self._edge_spark_burst(front_x, front_y, dir_x, dir_y, cross, speed, n_front, life, entering_offroad, 0.85)
+        self._edge_spark_burst(rear_x, rear_y, dir_x, dir_y,
+                               cross, speed, n, life, entering_offroad, 1.0, strength)
+        self._edge_spark_burst(front_x, front_y, dir_x, dir_y, cross,
+                               speed, n_front, life, entering_offroad, 0.85, strength)
 
     def _edge_spark_dir(
         self,
@@ -427,7 +447,8 @@ class TopdownFxOverlay:
         count: int,
         life: int,
         entering_offroad: bool,
-        scale: float
+        scale: float,
+        strength: float
     ) -> None:
         px = -dir_y
         py = dir_x
@@ -455,9 +476,10 @@ class TopdownFxOverlay:
             vx /= den
             vy /= den
 
-            seg = (3.0 + t * 6.0) * scale
+            seg = (2.0 + t * 4.0) * scale
             if not entering_offroad:
                 seg *= 1.15
+            seg *= 0.70 + 0.50 * strength
 
             pvx = vx * speed * (0.80 + t * 0.40) * scale
             pvy = vy * speed * (0.80 + u * 0.40) * scale

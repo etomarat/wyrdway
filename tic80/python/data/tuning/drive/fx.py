@@ -72,6 +72,11 @@ TUNING.DRIVE.fx_transition_sparks_wheel_dx_px = 9.0
 TUNING.DRIVE.fx_transition_sparks_back_px = 11.0
 # Расстояние между задним и передним колесом (по экранному Y) для искр перехода.
 TUNING.DRIVE.fx_transition_sparks_wheelbase_px = 12.0
+# Искры перехода по скорости:
+# - на низкой скорости эффект должен быть почти незаметен или отсутствовать
+# - чем выше скорость, тем заметнее (с плавной “раскачкой”, а не рубильником)
+TUNING.DRIVE.fx_transition_sparks_min_speed = 20.0
+TUNING.DRIVE.fx_transition_sparks_ramp_speed = 40.0
 # Небольшой шум, чтобы пыль не была идеальными столбиками.
 TUNING.DRIVE.fx_dust_jitter_x_px = 5.0
 TUNING.DRIVE.fx_dust_jitter_y_px = 4.0
