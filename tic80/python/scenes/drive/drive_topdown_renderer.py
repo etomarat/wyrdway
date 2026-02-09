@@ -1,8 +1,10 @@
+import math
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from tic80 import ttri
+
     from ...core.palette import Color
-    from ...core.sprites import NIVA_TOPDOWN
     from ...data.tuning import TUNING
     from ...systems.drive.drive_fx import TopdownProjector
     from ...systems.drive.drive_logic_core import DriveLogic
@@ -21,12 +23,19 @@ class DriveTopdownRenderer:
     Задача класса: только рисовать. Никаких изменений состояния RunState/DriveLogic.
     """
 
+    _CAR_SPRITE_BASE_ID = 320
+    _CAR_SPRITE_PIXEL_SIZE = 32.0
+    _CAR_CHROMAKEY = 12
+
     def __init__(self) -> None:
         self._road_draw = TopdownRoadDraw()
         self._obstacles_draw = TopdownObstaclesDraw()
         self._skid_marks = TopdownSkidMarks()
         self._debug_draw = TopdownDebugDraw()
         self._fx_overlay = TopdownFxOverlay()
+        self._cam_fwd_x = 1.0
+        self._cam_fwd_y = 0.0
+        self._cam_inited = False
 
     def notify_obstacle_hit(
         self,
@@ -61,12 +70,8 @@ class DriveTopdownRenderer:
         p_s = logic.road_s
         car_x = logic.x
         car_y = logic.y
-        fwd_x = logic.fwd_x
-        fwd_y = logic.fwd_y
-        right_x = -fwd_y
-        right_y = fwd_x
-
-        proj = TopdownProjector(car_x, car_y, fwd_x, fwd_y, center_x, center_y)
+        cam_fwd_x, cam_fwd_y = self._camera_forward(logic)
+        proj = TopdownProjector(car_x, car_y, cam_fwd_x, cam_fwd_y, center_x, center_y)
 
         start_idx, end_idx = self._road_draw.visible_index_range(road, p_s)
         zones = objects.zones_items_view()
@@ -114,7 +119,7 @@ class DriveTopdownRenderer:
 
         # Стартовый дым/пыль рисуем ВЫШЕ skid marks, но НИЖЕ кузова.
         self._fx_overlay.draw_under_car()
-        self._draw_car_sprite(logic.steer_input, center_x, center_y)
+        self._draw_car_ttri_heading(logic, center_x, center_y, cam_fwd_x, cam_fwd_y)
         self._fx_overlay.draw_over_car()
 
         if TUNING.DRIVE.debug_vectors_enabled:
@@ -122,8 +127,140 @@ class DriveTopdownRenderer:
         if TUNING.DRIVE.debug_hitboxes_enabled:
             self._debug_draw.draw_hitboxes(logic.steer_input, center_x, center_y)
 
-    def _draw_car_sprite(self, steer_input: int, center_x: int, center_y: int) -> None:
-        steer_input = 0
-        ax = int(TUNING.DRIVE.car_sprite_anchor_x)
-        ay = int(TUNING.DRIVE.car_sprite_anchor_y)
-        NIVA_TOPDOWN.draw(steer_input, center_x - ax, center_y - ay)
+    def _camera_forward(self, logic: DriveLogic) -> tuple[float, float]:
+        heading_x = logic.fwd_x
+        heading_y = logic.fwd_y
+
+        speed_blend = self._speed_blend(logic.speed)
+        target_x = heading_x
+        target_y = heading_y
+        if speed_blend > 0.0:
+            vel_x, vel_y = self._normalize_or_fallback(logic.vx, logic.vy, heading_x, heading_y)
+            target_x = heading_x * (1.0 - speed_blend) + vel_x * speed_blend
+            target_y = heading_y * (1.0 - speed_blend) + vel_y * speed_blend
+            target_x, target_y = self._normalize_or_fallback(target_x, target_y, heading_x, heading_y)
+
+        if not self._cam_inited:
+            self._cam_fwd_x = target_x
+            self._cam_fwd_y = target_y
+            self._cam_inited = True
+            return (self._cam_fwd_x, self._cam_fwd_y)
+
+        lerp = self._clamp(float(TUNING.DRIVE.cam_vel_dir_lerp), 0.0, 1.0)
+        sx = self._cam_fwd_x * (1.0 - lerp) + target_x * lerp
+        sy = self._cam_fwd_y * (1.0 - lerp) + target_y * lerp
+        self._cam_fwd_x, self._cam_fwd_y = self._normalize_or_fallback(sx, sy, target_x, target_y)
+        return (self._cam_fwd_x, self._cam_fwd_y)
+
+    def _draw_car_ttri_heading(
+        self,
+        logic: DriveLogic,
+        center_x: int,
+        center_y: int,
+        cam_fwd_x: float,
+        cam_fwd_y: float
+    ) -> None:
+        ax = float(TUNING.DRIVE.car_sprite_anchor_x)
+        ay = float(TUNING.DRIVE.car_sprite_anchor_y)
+        size = self._CAR_SPRITE_PIXEL_SIZE
+
+        x0 = float(center_x) - ax
+        y0 = float(center_y) - ay
+        x1 = x0 + size
+        y1 = y0 + size
+
+        heading_angle = self._car_heading_screen_angle(logic.fwd_x, logic.fwd_y, cam_fwd_x, cam_fwd_y)
+        cos_t = math.cos(heading_angle)
+        sin_t = math.sin(heading_angle)
+        px = float(center_x)
+        py = float(center_y)
+
+        rx0, ry0 = self._rotated_point(x0, y0, px, py, cos_t, sin_t)
+        rx1, ry1 = self._rotated_point(x1, y0, px, py, cos_t, sin_t)
+        rx2, ry2 = self._rotated_point(x1, y1, px, py, cos_t, sin_t)
+        rx3, ry3 = self._rotated_point(x0, y1, px, py, cos_t, sin_t)
+
+        u0 = float((self._CAR_SPRITE_BASE_ID % 16) * 8)
+        v0 = float((self._CAR_SPRITE_BASE_ID // 16) * 8)
+        u1 = u0 + size
+        v1 = v0 + size
+
+        ttri(
+            rx0, ry0,
+            rx1, ry1,
+            rx2, ry2,
+            u0, v0,
+            u1, v0,
+            u1, v1,
+            0,
+            self._CAR_CHROMAKEY
+        )
+        ttri(
+            rx0, ry0,
+            rx2, ry2,
+            rx3, ry3,
+            u0, v0,
+            u1, v1,
+            u0, v1,
+            0,
+            self._CAR_CHROMAKEY
+        )
+
+    def _speed_blend(self, speed: float) -> float:
+        min_speed = float(TUNING.DRIVE.cam_vel_min_speed)
+        full_speed = float(TUNING.DRIVE.cam_vel_full_speed)
+        if speed <= min_speed:
+            return 0.0
+        denom = full_speed - min_speed
+        if denom <= 0.0:
+            return 1.0
+        return self._clamp((speed - min_speed) / denom, 0.0, 1.0)
+
+    @staticmethod
+    def _car_heading_screen_angle(
+        car_fwd_x: float,
+        car_fwd_y: float,
+        cam_fwd_x: float,
+        cam_fwd_y: float
+    ) -> float:
+        cam_right_x = -cam_fwd_y
+        cam_right_y = cam_fwd_x
+        local_fwd = car_fwd_x * cam_fwd_x + car_fwd_y * cam_fwd_y
+        local_right = car_fwd_x * cam_right_x + car_fwd_y * cam_right_y
+        return math.atan2(local_right, local_fwd)
+
+    @staticmethod
+    def _normalize_or_fallback(
+        x: float,
+        y: float,
+        fallback_x: float,
+        fallback_y: float
+    ) -> tuple[float, float]:
+        l2 = x * x + y * y
+        if l2 > 0.000001:
+            inv = 1.0 / (l2 ** 0.5)
+            return (x * inv, y * inv)
+        return (fallback_x, fallback_y)
+
+    @staticmethod
+    def _rotated_point(
+        x: float,
+        y: float,
+        px: float,
+        py: float,
+        cos_t: float,
+        sin_t: float
+    ) -> tuple[float, float]:
+        dx = x - px
+        dy = y - py
+        rx = dx * cos_t - dy * sin_t
+        ry = dx * sin_t + dy * cos_t
+        return (px + rx, py + ry)
+
+    @staticmethod
+    def _clamp(value: float, min_value: float, max_value: float) -> float:
+        if value < min_value:
+            return min_value
+        if value > max_value:
+            return max_value
+        return value

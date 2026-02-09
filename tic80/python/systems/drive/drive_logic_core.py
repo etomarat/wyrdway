@@ -169,6 +169,14 @@ class DriveLogic:
         return self._fwd_y
 
     @property
+    def vx(self) -> float:
+        return self._vx
+
+    @property
+    def vy(self) -> float:
+        return self._vy
+
+    @property
     def speed(self) -> float:
         v2 = self._vx * self._vx + self._vy * self._vy
         return v2 ** 0.5

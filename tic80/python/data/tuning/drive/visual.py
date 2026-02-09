@@ -22,6 +22,15 @@ TUNING.DRIVE.view_center_y_min = 40.0
 # Максимально допустимый Y для `view_center_y` (зажим в рендере).
 TUNING.DRIVE.view_center_y_max = 128.0
 
+# cam-v1: ось камеры ориентируем по velocity (со сглаживанием).
+#
+# При низкой скорости доверяем heading машины, чтобы избежать дрожи.
+# Между min..full делаем плавный blend heading -> velocity direction.
+TUNING.DRIVE.cam_vel_min_speed = 2.0
+TUNING.DRIVE.cam_vel_full_speed = 10.0
+# Низкочастотное сглаживание направления камеры (0..1 за кадр).
+TUNING.DRIVE.cam_vel_dir_lerp = 0.18
+
 # Где у машины “опорная точка” физики на спрайте (top-down).
 #
 # Мы считаем физику в одной точке (x,y). В рендере мы можем совместить эту точку
