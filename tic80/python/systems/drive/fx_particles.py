@@ -35,6 +35,9 @@ class Particles2D:
     def clear(self) -> None:
         self._items = []
 
+    def count(self) -> int:
+        return len(self._items)
+
     def spawn(
         self,
         x: float,

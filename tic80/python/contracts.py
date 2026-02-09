@@ -140,6 +140,8 @@ class DriveTuning:
         "skid_light_after_frames",
         "skid_slant_scale",
         "skid_slant_max",
+        "fx_start_id",
+        "fx_hit_id",
         "fx_particles_max",
         "fx_start_dust_color_a",
         "fx_start_dust_color_b",
@@ -147,8 +149,6 @@ class DriveTuning:
         "fx_offroad_dust_color_b",
         "fx_start_dust_seconds",
         "start_skid_seconds",
-        "fx_damage_dust_seconds",
-        "fx_damage_dust_rate",
         "fx_dust_life_frames",
         "fx_dust_len_px",
         "fx_dust_rate_start",
@@ -156,20 +156,24 @@ class DriveTuning:
         "fx_dust_min_speed",
         "fx_dust_wheel_dx_px",
         "fx_dust_back_px",
+        "fx_transition_sparks_wheel_dx_px",
+        "fx_transition_sparks_back_px",
+        "fx_transition_sparks_wheelbase_px",
+        "fx_transition_sparks_min_speed",
+        "fx_transition_sparks_ramp_speed",
         "fx_dust_jitter_x_px",
         "fx_dust_jitter_y_px",
         "fx_dust_spread_vx",
         "fx_dust_spread_vy",
-        "fx_speedlines_min_speed_factor",
-        "fx_speedlines_rate",
-        "fx_speedlines_life_frames",
-        "fx_speedlines_len_px",
-        "fx_speedlines_vy",
-        "fx_speedlines_x_spread",
-        "fx_speedlines_back_y0",
-        "fx_speedlines_back_y1",
-        "fx_speedlines_color_a",
-        "fx_speedlines_color_b"
+        "fx_exhaust_min_speed_factor",
+        "fx_exhaust_ramp_speed_factor",
+        "fx_exhaust_rate",
+        "fx_exhaust_dx_px",
+        "fx_exhaust_dy_px",
+        "fx_exhaust_r_min",
+        "fx_exhaust_r_max",
+        "fx_exhaust_color_a",
+        "fx_exhaust_color_b"
     )
 
     def __init__(self) -> None:
@@ -269,6 +273,8 @@ class DriveTuning:
         self.skid_light_after_frames = 0
         self.skid_slant_scale = 0.0
         self.skid_slant_max = 0.0
+        self.fx_start_id = 0
+        self.fx_hit_id = 0
         self.fx_particles_max = 0
         self.fx_start_dust_color_a: ColorId = 0
         self.fx_start_dust_color_b: ColorId = 0
@@ -276,8 +282,6 @@ class DriveTuning:
         self.fx_offroad_dust_color_b: ColorId = 0
         self.fx_start_dust_seconds = 0.0
         self.start_skid_seconds = 0.0
-        self.fx_damage_dust_seconds = 0.0
-        self.fx_damage_dust_rate = 0.0
         self.fx_dust_life_frames = 0
         self.fx_dust_len_px = 0.0
         self.fx_dust_rate_start = 0.0
@@ -285,20 +289,24 @@ class DriveTuning:
         self.fx_dust_min_speed = 0.0
         self.fx_dust_wheel_dx_px = 0.0
         self.fx_dust_back_px = 0.0
+        self.fx_transition_sparks_wheel_dx_px = 0.0
+        self.fx_transition_sparks_back_px = 0.0
+        self.fx_transition_sparks_wheelbase_px = 0.0
+        self.fx_transition_sparks_min_speed = 0.0
+        self.fx_transition_sparks_ramp_speed = 0.0
         self.fx_dust_jitter_x_px = 0.0
         self.fx_dust_jitter_y_px = 0.0
         self.fx_dust_spread_vx = 0.0
         self.fx_dust_spread_vy = 0.0
-        self.fx_speedlines_min_speed_factor = 0.0
-        self.fx_speedlines_rate = 0.0
-        self.fx_speedlines_life_frames = 0
-        self.fx_speedlines_len_px = 0.0
-        self.fx_speedlines_vy = 0.0
-        self.fx_speedlines_x_spread = 0.0
-        self.fx_speedlines_back_y0 = 0.0
-        self.fx_speedlines_back_y1 = 0.0
-        self.fx_speedlines_color_a: ColorId = 0
-        self.fx_speedlines_color_b: ColorId = 0
+        self.fx_exhaust_min_speed_factor = 0.0
+        self.fx_exhaust_ramp_speed_factor = 0.0
+        self.fx_exhaust_rate = 0.0
+        self.fx_exhaust_dx_px = 0.0
+        self.fx_exhaust_dy_px = 0.0
+        self.fx_exhaust_r_min = 0.0
+        self.fx_exhaust_r_max = 0.0
+        self.fx_exhaust_color_a: ColorId = 0
+        self.fx_exhaust_color_b: ColorId = 0
 
 
 class PoiTuning:

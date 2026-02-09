@@ -31,6 +31,8 @@ set "PROJ_DIR=%ROOT%tic80\python"
 set "GAME_FILE=tic80\python\game.py"
 set "MAIN_FILE=tic80\python\main.py"
 set "BUILD_FILE=tic80\python\build.py"
+set "MIN_BUILD_FILE=tic80\python\build.min.py"
+set "MINIFY_SCRIPT=%ROOT%scripts\minify_tic80_build.py"
 set "DIST_DIR=%ROOT%dist"
 set "OUT_BASE=wyrdway"
 
@@ -96,18 +98,60 @@ if not exist "%MAIN_FILE%" (
   popd >nul
   exit /b 1
 )
+if not exist "%MINIFY_SCRIPT%" (
+  echo [ERROR] Missing: %MINIFY_SCRIPT%
+  popd >nul
+  exit /b 1
+)
 
 REM --- Modes:
-REM   run_tic80_python.bat           -> bundle + run
-REM   run_tic80_python.bat build     -> bundle only
-REM   run_tic80_python.bat dist      -> bundle + export .tic/.exe/html
+REM   run_tic80_python.bat        -> bundle + minify + run (minified, python-minifier always on)
+REM   run_tic80_python.bat dev    -> bundle + run (non-minified, direct)
+REM   run_tic80_python.bat build  -> bundle + minify only
+REM   run_tic80_python.bat dist   -> bundle + minify + export .tic/.exe/html
 set "MODE=%~1"
+if /i "%MODE%"=="dev" goto :run_dev
 if /i "%MODE%"=="build" goto :build_only
 if /i "%MODE%"=="dist" goto :dist
+if not "%MODE%"=="" if /i not "%MODE%"=="run" (
+  echo [ERROR] Unknown mode: %MODE%
+  echo Usage: run_tic80_python.bat [dev^|build^|dist]
+  popd >nul
+  exit /b 1
+)
 
 echo [INFO] Using tq-bundler: %TQ_BUNDLER_PATH%
 echo [INFO] Using tic80:     %TIC80_EXE_PATH%
-echo [INFO] Bundling + launching TIC-80...
+echo [INFO] Bundling...
+echo        "%TQ_BUNDLER_PATH%" run "%GAME_FILE%" "%MAIN_FILE%"
+echo.
+"%TQ_BUNDLER_PATH%" run "%GAME_FILE%" "%MAIN_FILE%"
+set "EC=%errorlevel%"
+if %EC% neq 0 (
+  popd >nul
+  exit /b %EC%
+)
+echo [INFO] Minifying bundle...
+echo        python "%MINIFY_SCRIPT%" "%BUILD_FILE%" "%MIN_BUILD_FILE%"
+echo.
+python "%MINIFY_SCRIPT%" "%BUILD_FILE%" "%MIN_BUILD_FILE%"
+set "EC=%errorlevel%"
+if %EC% neq 0 (
+  popd >nul
+  exit /b %EC%
+)
+echo [INFO] Launching TIC-80 with minified bundle...
+echo        "%TIC80_EXE_PATH%" --fs "%FS_ROOT%" --cmd "load tic80/python/game.py & import code tic80/python/build.min.py & run" --crt
+echo.
+"%TIC80_EXE_PATH%" --fs "%FS_ROOT%" --cmd "load tic80/python/game.py & import code tic80/python/build.min.py & run" --crt
+set "EC=%errorlevel%"
+popd >nul
+exit /b %EC%
+
+:run_dev
+echo [INFO] Using tq-bundler: %TQ_BUNDLER_PATH%
+echo [INFO] Using tic80:     %TIC80_EXE_PATH%
+echo [INFO] Bundling + launching TIC-80 (dev, non-minified)...
 echo        "%TQ_BUNDLER_PATH%" run "%GAME_FILE%" "%MAIN_FILE%" --tic "%TIC80_EXE_PATH%"
 echo.
 "%TQ_BUNDLER_PATH%" run "%GAME_FILE%" "%MAIN_FILE%" --tic "%TIC80_EXE_PATH%"
@@ -121,6 +165,15 @@ echo [INFO] Bundling only...
 echo        "%TQ_BUNDLER_PATH%" run "%GAME_FILE%" "%MAIN_FILE%"
 echo.
 "%TQ_BUNDLER_PATH%" run "%GAME_FILE%" "%MAIN_FILE%"
+set "EC=%errorlevel%"
+if %EC% neq 0 (
+  popd >nul
+  exit /b %EC%
+)
+echo [INFO] Minifying bundle...
+echo        python "%MINIFY_SCRIPT%" "%BUILD_FILE%" "%MIN_BUILD_FILE%"
+echo.
+python "%MINIFY_SCRIPT%" "%BUILD_FILE%" "%MIN_BUILD_FILE%"
 set "EC=%errorlevel%"
 popd >nul
 exit /b %EC%
@@ -140,10 +193,19 @@ if errorlevel 1 (
   popd >nul
   exit /b %EC%
 )
-echo [INFO] Exporting .tic/.exe/html to dist...
-echo        "%TIC80_EXE_PATH%" --cli --crt --fs "%FS_ROOT%" --cmd "load tic80/python/game.py & import code tic80/python/build.py & save dist/%OUT_BASE%.tic & export win dist/%OUT_BASE% alone=0 & export html dist/%OUT_BASE% alone=0 & exit"
+echo [INFO] Minifying bundle...
+echo        python "%MINIFY_SCRIPT%" "%BUILD_FILE%" "%MIN_BUILD_FILE%"
 echo.
-"%TIC80_EXE_PATH%" --cli --crt --fs "%FS_ROOT%" --cmd "load tic80/python/game.py & import code tic80/python/build.py & save dist/%OUT_BASE%.tic & export win dist/%OUT_BASE% alone=0 & export html dist/%OUT_BASE% alone=0 & exit"
+python "%MINIFY_SCRIPT%" "%BUILD_FILE%" "%MIN_BUILD_FILE%"
+if errorlevel 1 (
+  set "EC=%errorlevel%"
+  popd >nul
+  exit /b %EC%
+)
+echo [INFO] Exporting .tic/.exe/html to dist...
+echo        "%TIC80_EXE_PATH%" --cli --crt --fs "%FS_ROOT%" --cmd "load tic80/python/game.py & import code tic80/python/build.min.py & save dist/%OUT_BASE%.tic & export win dist/%OUT_BASE% alone=0 & export html dist/%OUT_BASE% alone=0 & exit"
+echo.
+"%TIC80_EXE_PATH%" --cli --crt --fs "%FS_ROOT%" --cmd "load tic80/python/game.py & import code tic80/python/build.min.py & save dist/%OUT_BASE%.tic & export win dist/%OUT_BASE% alone=0 & export html dist/%OUT_BASE% alone=0 & exit"
 set "EC=%errorlevel%"
 popd >nul
 exit /b %EC%

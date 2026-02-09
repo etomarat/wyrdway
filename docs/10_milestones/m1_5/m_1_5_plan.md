@@ -399,8 +399,20 @@ Vendor:
       считаем “all rights reserved” и не тащим в релиз без явного разрешения).
 - [ ] Переписать выбранные эффекты на Python (PocketPy) с сохранением авторства в заголовках файлов/доках.
 - [ ] Сделать тонкую обёртку `DriveFx`/`FxBus` (emit hit/offroad/skid) и 1–2 реализации (A/B).
-- [ ] Собрать “FX sandbox” режим (или debug hotkey), чтобы быстро пробовать эффекты на месте и выбирать,
-      что “ок” визуально.
+- [ ] Итерировать эффекты вручную через `TUNING.DRIVE.fx_start_id` / `TUNING.DRIVE.fx_hit_id` (без sandbox UI),
+      чтобы честно оценивать 1 эффект за раз.
+
+FX trylist (что хотим попробовать в DRIVE)
+
+| Эффект | Источник | Где использовать | Что хотим проверить |
+|---|---|---|---|
+| Start smoke (white, from wheels) | Viza pslib `make_smoke_fx` | Старт движения на дороге | Читаемость “дыма из-под колёс”, белая гамма, 2 эмиттера (лев/прав) |
+| Hit explosion (simple) | Viza pslib `make_explosion_fx` | Удар об obstacle | Размер/яркость от impact, позиция в contact point |
+| Hit sparks (fillcirc/pixel) | Viza pslib `make_sparks_fx` / `make_explosparks_fx` | Удар об obstacle | Читаются ли как “искры”, не мусорят ли экран |
+| Hit rich explosion | Viza pslib `make_rich_explosion_fx` | Удар об obstacle | “Киношность” + цена по FPS |
+| Hit explosion (vand) | vand pack `spawn_explosion` | Удар об obstacle | Стиль/форма, насколько хорошо читается в top-down |
+| Dust / dirt puffs | vand pack `spawn_dust` | Оффроад/занос | Не спорит ли с текущей процедурной пылью, выглядит ли лучше |
+| Small fire/smoke | vand pack `spawn_fire` | Критический урон/особые зоны | Можно ли использовать как “горение/дым” без спрайтов |
 
 ART PLACEHOLDERS (делает другой агент)
 
