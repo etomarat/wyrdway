@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from ..systems.drive.drive_obstacle_hits import apply_obstacle_hits
     from ..systems.drive.drive_objects import DriveObjects, DriveZone
     from ..systems.drive.drive_telemetry import DriveTelemetry
+    from ..systems.drive.drive_zone_effects import apply_zone_effects
     from ..systems.drive.drive_zones import zone_at_hitboxes
     from ..systems.drive.road_model import RoadModel
     from .drive.drive_topdown_renderer import DriveTopdownRenderer
@@ -81,7 +82,7 @@ class DriveScene:
 
         zones = self._objects.zones_items_view()
         z_before = zone_at_hitboxes(self._logic, zones)
-        self._apply_zone_effects(z_before)
+        apply_zone_effects(self._logic, z_before, TUNING)
 
         allow_dash = not self._logic.finished()
         inp = read_drive_input(allow_dash)
@@ -92,7 +93,7 @@ class DriveScene:
         self._apply_obstacle_hits(run)
 
         # Обновляем эффекты зон для СЛЕДУЮЩЕГО кадра (без 1-кадрового “залипания”).
-        self._apply_zone_effects(z_after)
+        apply_zone_effects(self._logic, z_after, TUNING)
         if self._telemetry is not None:
             self._telemetry.after_update(
                 dt,
@@ -192,30 +193,6 @@ class DriveScene:
         self._state.set_debug_lines(
             self._drive_debug_lines(road, logic, run, objects))
         return
-
-    def _apply_zone_effects(self, z: DriveZone | None) -> None:
-        """Применяет эффекты зоны к DriveLogic на следующий кадр.
-
-        Вынесено в отдельный метод, чтобы не дублировать “если в зоне / если вне зоны”
-        в нескольких местах (до и после `DriveLogic.update`).
-        """
-        logic = self._logic
-        if logic is None:
-            return
-        if z is None:
-            logic.set_zone_grip_mult(1.0)
-            logic.set_zone_boost(0.0, 0.0)
-            logic.set_zone_antislip(0.0)
-            logic.set_zone_grip_floor(0.0)
-            return
-
-        logic.set_zone_grip_mult(z.grip_mult)
-        logic.set_zone_boost(
-            TUNING.DRIVE.zone_boost_forward_accel,
-            TUNING.DRIVE.zone_boost_center_accel
-        )
-        logic.set_zone_antislip(TUNING.DRIVE.zone_antislip)
-        logic.set_zone_grip_floor(TUNING.DRIVE.zone_grip_floor)
 
     def _drive_debug_lines(
         self,
