@@ -12,7 +12,6 @@ if TYPE_CHECKING:
 
 class TopdownFxOverlay:
     def __init__(self) -> None:
-        self._fx = Particles2D(TUNING.DRIVE.fx_particles_max)
         # Вспышки искр при переходе “дорога <-> оффроад” должны читаться поверх пыли.
         self._fx_transition = Particles2D(40)
         self._drive_fx = DriveFx(TUNING)
@@ -60,7 +59,6 @@ class TopdownFxOverlay:
         world_dx = -logic.v_side * dt
         world_dy = logic.v_forward * dt
 
-        self._fx.update(dt, world_dx, world_dy)
         # Искры перехода должны читаться как “локальный” эффект у колёс,
         # а не как частицы, остающиеся в мире. Поэтому не применяем world-shift,
         # иначе при сильном боковом движении машины направление визуально “едет”.
@@ -131,7 +129,6 @@ class TopdownFxOverlay:
         return start_move
 
     def draw_world(self) -> None:
-        self._fx.draw()
         self._offroad_smoke.draw()
         self._exhaust_smoke.draw()
         self._fx_transition.draw()

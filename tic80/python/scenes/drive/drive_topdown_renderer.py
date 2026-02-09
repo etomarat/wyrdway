@@ -1,8 +1,6 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from tic80 import spr
-
     from ...core.palette import Color
     from ...core.sprites import NIVA_TOPDOWN
     from ...data.tuning import TUNING
@@ -77,14 +75,7 @@ class DriveTopdownRenderer:
             zones,
             start_idx,
             end_idx,
-            car_x,
-            car_y,
-            fwd_x,
-            fwd_y,
-            right_x,
-            right_y,
-            center_x,
-            center_y
+            proj
         )
 
         if TUNING.DRIVE.debug_zones_enabled:
@@ -99,14 +90,7 @@ class DriveTopdownRenderer:
                     z,
                     start_idx,
                     end_idx,
-                    car_x,
-                    car_y,
-                    fwd_x,
-                    fwd_y,
-                    right_x,
-                    right_y,
-                    center_x,
-                    center_y,
+                    proj,
                     color
                 )
                 i += 1
@@ -116,14 +100,7 @@ class DriveTopdownRenderer:
             obstacles,
             road,
             p_s,
-            car_x,
-            car_y,
-            fwd_x,
-            fwd_y,
-            right_x,
-            right_y,
-            center_x,
-            center_y
+            proj
         )
 
         # FX/следы лучше рисовать ДО машины, чтобы кузов перекрывал их.

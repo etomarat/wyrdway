@@ -5,6 +5,7 @@ if TYPE_CHECKING:
 
     from ...core.palette import Color, ColorId
     from ...data.tuning import TUNING
+    from ...systems.drive.drive_fx import DriveFxProjector
     from ...systems.drive.drive_objects import DriveZone
     from ...systems.drive.road_model import RoadModel
 
@@ -38,14 +39,7 @@ class TopdownRoadDraw:
         zones: list[DriveZone],
         start_idx: int,
         end_idx: int,
-        car_x: float,
-        car_y: float,
-        fwd_x: float,
-        fwd_y: float,
-        right_x: float,
-        right_y: float,
-        center_x: int,
-        center_y: int
+        proj: DriveFxProjector
     ) -> None:
         prev_lsx = None
         prev_lsy = None
@@ -64,12 +58,8 @@ class TopdownRoadDraw:
             rx = cx + nrm_x * half
             ry = cy + nrm_y * half
 
-            lsx, lsy = self._world_to_screen(
-                lx, ly, car_x, car_y, fwd_x, fwd_y, right_x, right_y, center_x, center_y
-            )
-            rsx, rsy = self._world_to_screen(
-                rx, ry, car_x, car_y, fwd_x, fwd_y, right_x, right_y, center_x, center_y
-            )
+            lsx, lsy = proj.world_to_screen(lx, ly)
+            rsx, rsy = proj.world_to_screen(rx, ry)
 
             if prev_lsx is not None and prev_lsy is not None:
                 line(int(prev_lsx), int(prev_lsy), int(lsx), int(lsy), Color.LIGHT_GREEN)
@@ -85,14 +75,7 @@ class TopdownRoadDraw:
                 nrm_x,
                 nrm_y,
                 half,
-                car_x,
-                car_y,
-                fwd_x,
-                fwd_y,
-                right_x,
-                right_y,
-                center_x,
-                center_y
+                proj
             )
 
             prev_lsx = lsx
@@ -107,14 +90,7 @@ class TopdownRoadDraw:
         z: DriveZone,
         start_idx: int,
         end_idx: int,
-        car_x: float,
-        car_y: float,
-        fwd_x: float,
-        fwd_y: float,
-        right_x: float,
-        right_y: float,
-        center_x: int,
-        center_y: int,
+        proj: DriveFxProjector,
         color: ColorId
     ) -> None:
         s_vis0 = start_idx * road.ds
@@ -151,12 +127,8 @@ class TopdownRoadDraw:
             wy0 = cy + nrm_y * d0
             wx1 = cx + nrm_x * d1
             wy1 = cy + nrm_y * d1
-            zsx0, zsy0 = self._world_to_screen(
-                wx0, wy0, car_x, car_y, fwd_x, fwd_y, right_x, right_y, center_x, center_y
-            )
-            zsx1, zsy1 = self._world_to_screen(
-                wx1, wy1, car_x, car_y, fwd_x, fwd_y, right_x, right_y, center_x, center_y
-            )
+            zsx0, zsy0 = proj.world_to_screen(wx0, wy0)
+            zsx1, zsy1 = proj.world_to_screen(wx1, wy1)
             if prev0x is not None and prev0y is not None:
                 line(int(prev0x), int(prev0y), int(zsx0), int(zsy0), color)
             if prev1x is not None and prev1y is not None:
@@ -178,14 +150,7 @@ class TopdownRoadDraw:
         nrm_x: float,
         nrm_y: float,
         half: float,
-        car_x: float,
-        car_y: float,
-        fwd_x: float,
-        fwd_y: float,
-        right_x: float,
-        right_y: float,
-        center_x: int,
-        center_y: int
+        proj: DriveFxProjector
     ) -> None:
         span = self._zone_span_at_s(idx * road.ds, zones)
         if span is None:
@@ -205,12 +170,8 @@ class TopdownRoadDraw:
         zy0 = cy + nrm_y * d0
         zx1 = cx + nrm_x * d1
         zy1 = cy + nrm_y * d1
-        zsx0, zsy0 = self._world_to_screen(
-            zx0, zy0, car_x, car_y, fwd_x, fwd_y, right_x, right_y, center_x, center_y
-        )
-        zsx1, zsy1 = self._world_to_screen(
-            zx1, zy1, car_x, car_y, fwd_x, fwd_y, right_x, right_y, center_x, center_y
-        )
+        zsx0, zsy0 = proj.world_to_screen(zx0, zy0)
+        zsx1, zsy1 = proj.world_to_screen(zx1, zy1)
         line(int(zsx0), int(zsy0), int(zsx1), int(zsy1), Color.YELLOW)
 
     def _zone_span_at_s(self, s: float, zones: list[DriveZone]) -> tuple[float, float] | None:
@@ -221,24 +182,3 @@ class TopdownRoadDraw:
                 return (z.d_center - z.radius, z.d_center + z.radius)
             i += 1
         return None
-
-    def _world_to_screen(
-        self,
-        wx: float,
-        wy: float,
-        px: float,
-        py: float,
-        fwd_x: float,
-        fwd_y: float,
-        right_x: float,
-        right_y: float,
-        sx0: int,
-        sy0: int
-    ) -> tuple[float, float]:
-        vx = wx - px
-        vy = wy - py
-        local_fwd = vx * fwd_x + vy * fwd_y
-        local_right = vx * right_x + vy * right_y
-        sx = sx0 + local_right
-        sy = sy0 - local_fwd
-        return sx, sy
