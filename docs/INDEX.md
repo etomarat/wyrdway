@@ -22,6 +22,8 @@ docs/
 - `10_milestones/m1/m1_report.md`
 - `10_milestones/m1_5/m_1_5_plan.md`
 - `10_milestones/m1_5/m_1_5_drive_physics_tuning_plan.md` — план улучшения управления/физики DRIVE.
+- `10_milestones/m1_6/m_1_6_drift_readability_plan.md` — план экспериментов по читаемости дрифта.
+- `10_milestones/m1_6/m_1_6_drift_readability_log.md` — журнал решений и результатов по веткам `drift/*`.
 
 2) **Спека (источник правды по системам)**
 - `00_spec/0_gdd_v0.md` — GDD v0 (общая картина).
