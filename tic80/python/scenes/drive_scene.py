@@ -141,35 +141,7 @@ class DriveScene:
 
     def draw(self) -> None:
         cls(Color.BLACK)
-        if self._variant == "topdown":
-            self._draw_topdown()
-        else:
-            self._draw_placeholder()
-
-    def _draw_placeholder(self) -> None:
-        print("DRIVE", 104, 30, Color.WHITE)
-        print("mode=" + self._mode, 86, 40, Color.WHITE)
-        print("view=" + self._variant, 82, 50, Color.WHITE)
-        run = self._state.run
-        if run is not None:
-            print("fuel=" + str(round(run.car_fuel, 1)), 88, 60, Color.WHITE)
-            print("hp=" + str(round(run.car_hp, 1)), 94, 70, Color.WHITE)
-
-        logic = self._logic
-        road = self._road
-        if logic is not None and road is not None:
-            self._ui.draw_steer_wheel(logic)
-            self._ui.draw_slip_bar(logic)
-            print("s=" + str(int(logic.road_s)) + "/" + str(int(road.segment_total_length)),
-                  70, 82, Color.WHITE)
-            print("d=" + str(round(logic.road_d, 2)), 90, 92, Color.WHITE)
-            print("spd=" + str(round(logic.speed, 1)), 84, 102, Color.WHITE)
-            if logic.offroad:
-                print("OFFROAD", 96, 112, Color.RED)
-            if logic.finished():
-                print("Z = CONTINUE", 70, 122, Color.WHITE)
-            else:
-                print("UP/DOWN/LEFT/RIGHT + X", 68, 122, Color.WHITE)
+        self._draw_topdown()
 
     def _draw_topdown(self) -> None:
         """Top-down рендер DRIVE: дорога, зоны, препятствия, машина, подсказки."""
@@ -178,7 +150,6 @@ class DriveScene:
         run = self._state.run
         objects = self._objects
         if logic is None or road is None or run is None or objects is None:
-            self._draw_placeholder()
             return
 
         # Рендер держим отдельно от сцены, чтобы позже легко подключить второй вид (cockpit)
