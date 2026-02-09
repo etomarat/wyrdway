@@ -40,8 +40,6 @@ class DriveTopdownRenderer:
         self._offroad_side_sign = 1
         self._offroad_transition_cooldown = 0.0
         self._start_skid_t = 0.0
-        self._fx_spawn_accum_off = 0.0
-        self._fx_spawn_accum_speed = 0.0
         self._fx_spawn_accum_off_smoke = 0.0
         self._fx_spawn_accum_exhaust = 0.0
         self._fx_seed = 1
@@ -812,11 +810,6 @@ class DriveTopdownRenderer:
                 self._emit_exhaust_smoke_vand(self._fx_spawn_accum_exhaust, cx, cy, strength)
                 self._fx_spawn_accum_exhaust -= int(self._fx_spawn_accum_exhaust)
 
-        if d.fx_speedlines_rate > 0.0 and speed_factor > d.fx_speedlines_min_speed_factor:
-            self._fx_spawn_accum_speed += d.fx_speedlines_rate * dt
-            self._emit_speedlines(self._fx_spawn_accum_speed, logic, cx, cy)
-            self._fx_spawn_accum_speed -= int(self._fx_spawn_accum_speed)
-
         # Рисование делаем в draw(), чтобы следы шин были под пылью/дымом.
 
     def _next_fx_seed(self) -> int:
@@ -888,6 +881,8 @@ class DriveTopdownRenderer:
         back = float(d.fx_dust_back_px)
         jitter_x = float(d.fx_dust_jitter_x_px)
         jitter_y = float(d.fx_dust_jitter_y_px)
+        c0 = int(d.fx_offroad_dust_color_a)
+        c1 = int(d.fx_offroad_dust_color_b)
 
         i = 0
         while i < n:
@@ -907,16 +902,16 @@ class DriveTopdownRenderer:
             # Мелкие частые пуфы читаются как "пыль/туман", а не как редкие круги.
             t = (r0 % 1000) / 1000.0
             r = 1.0 + t * 2.0
-            c = Color.YELLOW
+            c = c0
             if (r1 % 1000) >= 500:
-                c = Color.ORANGE
+                c = c1
 
             self._offroad_smoke.spawn_dust_down_color(float(x_l), float(y_l), float(r), int(c))
             self._offroad_smoke.spawn_dust_down_color(float(x_r), float(y_r), float(r), int(c))
 
             # Второй пуф чуть поменьше/побольше, чтобы объём был живее.
             r2 = 0.75 + ((r1 % 1000) / 1000.0) * 1.75
-            c2 = Color.ORANGE if c == Color.YELLOW else Color.YELLOW
+            c2 = c1 if c == c0 else c0
             # Немного "по бокам" из-под колёс: разнос влево/вправо, чтобы пыль не была строго за машиной.
             side = 2.0 + ((r1 % 1000) / 1000.0) * 4.0
             self._offroad_smoke.spawn_dust_down_color(float(x_l - side), float(y_l), float(r2), int(c2))
@@ -1169,62 +1164,3 @@ class DriveTopdownRenderer:
             )
             i += 1
 
-    def _emit_speedlines(self, count_accum: float, logic: DriveLogic, cx: int, cy: int) -> None:
-        """Спавнит speed-lines при высокой скорости."""
-        d = TUNING.DRIVE
-        n = int(count_accum)
-        if n <= 0:
-            return
-
-        # В screen-space “траектория” задаётся скоростью машины:
-        # world_dx/world_dy (в update) основаны на:
-        #   dx = -v_side * dt
-        #   dy =  v_forward * dt
-        # Чтобы speed-lines выглядели согласованно с дымом, рисуем их вдоль этого же направления.
-        dir_x = -logic.v_side
-        dir_y = logic.v_forward
-        denom = abs(dir_x) + abs(dir_y)
-        if denom < 0.001:
-            denom = 1.0
-            dir_x = 0.0
-            dir_y = 1.0
-        nx = dir_x / denom
-        ny = dir_y / denom
-
-        i = 0
-        while i < n:
-            self._fx_seed = (self._fx_seed * 1103515245 + 12345) & 0x7fffffff
-            r0 = self._fx_seed
-            self._fx_seed = (self._fx_seed * 1103515245 + 12345) & 0x7fffffff
-            r1 = self._fx_seed
-
-            x = cx + ((r0 % 1000) / 1000.0 - 0.5) * d.fx_speedlines_x_spread
-            # Speed-lines должны быть ПОЗАДИ машины (ниже по Y), иначе они выглядят как “из центра”.
-            y0 = cy + d.fx_speedlines_back_y0
-            y1 = cy + d.fx_speedlines_back_y1
-            # Рендер — screen-space (240x136). Подстрахуемся, чтобы не спавнить “в пустоту”.
-            if y0 < 0.0:
-                y0 = 0.0
-            if y0 > 136.0:
-                y0 = 136.0
-            if y1 < 0.0:
-                y1 = 0.0
-            if y1 > 136.0:
-                y1 = 136.0
-            if y1 < y0:
-                t = y0
-                y0 = y1
-                y1 = t
-            y = y0 + ((r1 % 1000) / 1000.0) * (y1 - y0)
-            ln = d.fx_speedlines_len_px
-            color = d.fx_speedlines_color_a
-            if (r1 % 1000) >= 500:
-                color = d.fx_speedlines_color_b
-            # В отличие от “палок” по оси Y, тут отрезок поворачиваем по траектории.
-            dx = nx * ln
-            dy = ny * ln
-            vx = nx * d.fx_speedlines_vy
-            vy = ny * d.fx_speedlines_vy
-            self._fx.spawn(x, y, dx, dy, vx, vy,
-                           d.fx_speedlines_life_frames, color)
-            i += 1

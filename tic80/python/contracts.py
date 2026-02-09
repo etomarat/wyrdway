@@ -149,8 +149,6 @@ class DriveTuning:
         "fx_offroad_dust_color_b",
         "fx_start_dust_seconds",
         "start_skid_seconds",
-        "fx_damage_dust_seconds",
-        "fx_damage_dust_rate",
         "fx_dust_life_frames",
         "fx_dust_len_px",
         "fx_dust_rate_start",
@@ -165,16 +163,6 @@ class DriveTuning:
         "fx_dust_jitter_y_px",
         "fx_dust_spread_vx",
         "fx_dust_spread_vy",
-        "fx_speedlines_min_speed_factor",
-        "fx_speedlines_rate",
-        "fx_speedlines_life_frames",
-        "fx_speedlines_len_px",
-        "fx_speedlines_vy",
-        "fx_speedlines_x_spread",
-        "fx_speedlines_back_y0",
-        "fx_speedlines_back_y1",
-        "fx_speedlines_color_a",
-        "fx_speedlines_color_b",
         "fx_exhaust_min_speed_factor",
         "fx_exhaust_ramp_speed_factor",
         "fx_exhaust_rate",
@@ -292,8 +280,6 @@ class DriveTuning:
         self.fx_offroad_dust_color_b: ColorId = 0
         self.fx_start_dust_seconds = 0.0
         self.start_skid_seconds = 0.0
-        self.fx_damage_dust_seconds = 0.0
-        self.fx_damage_dust_rate = 0.0
         self.fx_dust_life_frames = 0
         self.fx_dust_len_px = 0.0
         self.fx_dust_rate_start = 0.0
@@ -308,16 +294,6 @@ class DriveTuning:
         self.fx_dust_jitter_y_px = 0.0
         self.fx_dust_spread_vx = 0.0
         self.fx_dust_spread_vy = 0.0
-        self.fx_speedlines_min_speed_factor = 0.0
-        self.fx_speedlines_rate = 0.0
-        self.fx_speedlines_life_frames = 0
-        self.fx_speedlines_len_px = 0.0
-        self.fx_speedlines_vy = 0.0
-        self.fx_speedlines_x_spread = 0.0
-        self.fx_speedlines_back_y0 = 0.0
-        self.fx_speedlines_back_y1 = 0.0
-        self.fx_speedlines_color_a: ColorId = 0
-        self.fx_speedlines_color_b: ColorId = 0
         self.fx_exhaust_min_speed_factor = 0.0
         self.fx_exhaust_ramp_speed_factor = 0.0
         self.fx_exhaust_rate = 0.0

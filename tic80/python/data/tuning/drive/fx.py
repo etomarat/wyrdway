@@ -52,8 +52,6 @@ TUNING.DRIVE.fx_offroad_dust_color_a = Color.YELLOW
 TUNING.DRIVE.fx_offroad_dust_color_b = Color.ORANGE
 TUNING.DRIVE.fx_start_dust_seconds = 1
 TUNING.DRIVE.start_skid_seconds = 1.5
-TUNING.DRIVE.fx_damage_dust_seconds = 0.25
-TUNING.DRIVE.fx_damage_dust_rate = 120.0
 TUNING.DRIVE.fx_dust_life_frames = 24
 # Длина “палочки” пыли (в пикселях).
 # - 0 => точки (самый читаемый вариант; похоже на песок/грязь)
@@ -79,20 +77,6 @@ TUNING.DRIVE.fx_dust_jitter_x_px = 5.0
 TUNING.DRIVE.fx_dust_jitter_y_px = 4.0
 TUNING.DRIVE.fx_dust_spread_vx = 80.0
 TUNING.DRIVE.fx_dust_spread_vy = 40.0
-
-TUNING.DRIVE.fx_speedlines_min_speed_factor = 1.05
-# Speed-lines временно выключены: мешают читаемости (сливаются со следами и пылью).
-TUNING.DRIVE.fx_speedlines_rate = 0.0
-TUNING.DRIVE.fx_speedlines_life_frames = 18
-TUNING.DRIVE.fx_speedlines_len_px = 6.0
-TUNING.DRIVE.fx_speedlines_vy = 180.0
-TUNING.DRIVE.fx_speedlines_x_spread = 16.0
-# Вертикальный диапазон speed-lines относительно машины: за машиной (ниже по Y).
-# 0..20 = в районе кузова, 20..80 = “хвост” за машиной.
-TUNING.DRIVE.fx_speedlines_back_y0 = 0.0
-TUNING.DRIVE.fx_speedlines_back_y1 = 20.0
-TUNING.DRIVE.fx_speedlines_color_a = Color.WHITE
-TUNING.DRIVE.fx_speedlines_color_b = Color.LIGHT_BLUE
 
 # “Выхлоп” на высокой скорости: легкий дымок снизу машины, чуть левее центра.
 TUNING.DRIVE.fx_exhaust_min_speed_factor = 1.0
