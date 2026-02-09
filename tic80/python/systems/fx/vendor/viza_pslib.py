@@ -95,15 +95,19 @@ class ParticleSystem:
         timenow = self._t
 
         i = 0
+        write = 0
         while i < len(self.emittimers):
             et = self.emittimers[i]
             keep = et.timerfunc(self, et.params)
-            if keep is False:
-                self.emittimers.pop(i)
-                continue
+            if keep is not False:
+                self.emittimers[write] = et
+                write += 1
             i += 1
+        while len(self.emittimers) > write:
+            self.emittimers.pop()
 
         i = 0
+        write = 0
         while i < len(self.particles):
             p = self.particles[i]
             denom = p.deathtime - p.starttime
@@ -128,10 +132,13 @@ class ParticleSystem:
                 dead = True
             if timenow >= p.deathtime:
                 dead = True
-            if dead:
-                self.particles.pop(i)
-                continue
+
+            if not dead:
+                self.particles[write] = p
+                write += 1
             i += 1
+        while len(self.particles) > write:
+            self.particles.pop()
 
     def emit_particle(self) -> None:
         if len(self.emitters) <= 0:

@@ -13,10 +13,11 @@ class CoreTuning:
 
 
 class DebugTuning:
-    __slots__ = ["overlay_default"]
+    __slots__ = ["overlay_default", "perf_overlay_default"]
 
     def __init__(self) -> None:
         self.overlay_default = False
+        self.perf_overlay_default = False
 
 
 class ProfileTuning:

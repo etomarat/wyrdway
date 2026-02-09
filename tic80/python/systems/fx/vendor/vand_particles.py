@@ -655,13 +655,16 @@ class VandParticles(FxSystem):
         self._frame += 1
 
         i = 0
+        write = 0
         while i < len(self._particles):
             p = self._particles[i]
             dead = p.update(dt, world_dx, world_dy, self._frame, self._rng)
-            if dead:
-                self._particles.pop(i)
-                continue
+            if not dead:
+                self._particles[write] = p
+                write += 1
             i += 1
+        while len(self._particles) > write:
+            self._particles.pop()
 
     def draw(self) -> None:
         i = 0

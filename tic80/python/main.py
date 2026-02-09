@@ -13,6 +13,7 @@ if TYPE_CHECKING:
 
     from .contracts import DriveEnterParams
     from .core.debug import DebugOverlay
+    from .core.perf_overlay import PerfOverlay
     from .core.scene_ids import SceneId
     from .core.scene_manager import SceneManager
     from .data.tuning import TUNING
@@ -29,6 +30,7 @@ include("contracts")
 include("data.tuning.__init__")
 include("core.debug")
 include("core.input_buttons")
+include("core.perf_overlay")
 include("core.save_system")
 include("core.profile")
 include("core.run_state")
@@ -71,10 +73,12 @@ include("scenes.result_scene")
 
 SCENE_MANAGER = SceneManager()
 DEBUG = DebugOverlay()
+PERF = PerfOverlay()
 
 
 def BOOT() -> None:
     DEBUG.set_enabled(TUNING.DEBUG.overlay_default)
+    PERF.set_enabled(TUNING.DEBUG.perf_overlay_default)
     if IS_DRIVE_PLAYTEST:
         DEBUG.set_enabled(False)
         SCENE_MANAGER.state.profile.reset()
@@ -100,6 +104,9 @@ def BOOT() -> None:
 def TIC() -> None:
     dt = TUNING.CORE.dt
 
+    PERF.handle_input()
+    PERF.begin_frame()
+
     SCENE_MANAGER.state.clear_debug_lines()
     if not IS_DRIVE_PLAYTEST:
         DEBUG.handle_input()
@@ -121,3 +128,6 @@ def TIC() -> None:
             )
         lines.extend(SCENE_MANAGER.state.debug_lines())
         DEBUG.draw(lines)
+
+    PERF.end_frame()
+    PERF.draw()
