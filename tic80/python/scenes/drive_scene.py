@@ -9,6 +9,7 @@ if TYPE_CHECKING:
     from ..core.run_state import RunState
     from ..core.scene_ids import SceneId
     from ..data.tuning import TUNING
+    from ..systems.drive.drive_input import DriveInput, read_drive_input
     from ..systems.drive.drive_logic_core import DriveLogic
     from ..systems.drive.drive_obstacle_hits import apply_obstacle_hits
     from ..systems.drive.drive_objects import DriveObjects, DriveZone
@@ -82,19 +83,9 @@ class DriveScene:
         z_before = zone_at_hitboxes(self._logic, zones)
         self._apply_zone_effects(z_before)
 
-        steer = 0
-        if btn(Button.LEFT):
-            steer -= 1
-        if btn(Button.RIGHT):
-            steer += 1
-
-        throttle = btn(Button.UP)
-        brake = btn(Button.DOWN)
-        handbrake = btn(Button.B)
-        a_pressed = btnp(Button.A)
-
-        dash_pressed = a_pressed and not self._logic.finished()
-        self._logic.update(dt, steer, throttle, brake, handbrake, dash_pressed)
+        allow_dash = not self._logic.finished()
+        inp = read_drive_input(allow_dash)
+        self._logic.update(dt, inp.steer, inp.throttle, inp.brake, inp.handbrake, inp.dash_pressed)
         z_after = zone_at_hitboxes(self._logic, zones)
         self._active_zone = z_after if z_after is not None else z_before
 
@@ -104,7 +95,14 @@ class DriveScene:
         self._apply_zone_effects(z_after)
         if self._telemetry is not None:
             self._telemetry.after_update(
-                dt, steer, throttle, brake, handbrake, dash_pressed, run, self._logic
+                dt,
+                inp.steer,
+                inp.throttle,
+                inp.brake,
+                inp.handbrake,
+                inp.dash_pressed,
+                run,
+                self._logic
             )
 
         if not self._evacuated:
@@ -115,7 +113,7 @@ class DriveScene:
                 self._evacuate(run, "CAR DESTROYED")
                 return
 
-        if self._logic.finished() and a_pressed:
+        if self._logic.finished() and inp.a_pressed:
             if self._telemetry is not None:
                 self._telemetry.dump("finish")
             if self._state.playtest_enabled:
