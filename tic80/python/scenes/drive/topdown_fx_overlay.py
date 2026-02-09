@@ -217,39 +217,23 @@ class TopdownFxOverlay:
             x_r = (cx + wheel_dx) - jx
             y_r = (cy + back) + jy
 
-            r = int(r0 & 0x7fffffff)
-            r0f = (r % 1000) / 1000.0
-            r = int(r1 & 0x7fffffff)
-            r1f = (r % 1000) / 1000.0
-            swap = False
-            if (r & 1) == 1:
-                swap = True
+            # Мелкие частые пуфы читаются как "пыль/туман", а не как редкие круги.
+            t = (r0 % 1000) / 1000.0
+            r = 1.0 + t * 2.0
+            c = c0
+            if (r1 % 1000) >= 500:
+                c = c1
 
-            if swap:
-                x0 = x_r
-                y0 = y_r
-                x1 = x_l
-                y1 = y_l
-            else:
-                x0 = x_l
-                y0 = y_l
-                x1 = x_r
-                y1 = y_r
+            self._offroad_smoke.spawn_dust_down_color(float(x_l), float(y_l), float(r), int(c))
+            self._offroad_smoke.spawn_dust_down_color(float(x_r), float(y_r), float(r), int(c))
 
-            life_base = int(d.fx_dust_life_frames)
-            if life_base < 1:
-                life_base = 1
-
-            r_min = 1.4
-            r_max = 3.8
-            r_small = r_min + (r_max - r_min) * (0.20 + 0.55 * r0f)
-            r_big = r_min + (r_max - r_min) * (0.55 + 0.45 * r1f)
-
-            life_small = life_base + int(r0f * 8.0)
-            life_big = life_base + 6 + int(r1f * 10.0)
-
-            self._offroad_smoke.spawn_dust_down_two_tone_life(x0, y0, r_small, c0, c1, life_small)
-            self._offroad_smoke.spawn_dust_down_two_tone_life(x1, y1, r_big, c0, c1, life_big)
+            # Второй пуф чуть поменьше/побольше, чтобы объём был живее.
+            r2 = 0.75 + ((r1 % 1000) / 1000.0) * 1.75
+            c2 = c1 if c == c0 else c0
+            # Немного "по бокам" из-под колёс: разнос влево/вправо, чтобы пыль не была строго за машиной.
+            side = 2.0 + ((r1 % 1000) / 1000.0) * 4.0
+            self._offroad_smoke.spawn_dust_down_color(float(x_l - side), float(y_l), float(r2), int(c2))
+            self._offroad_smoke.spawn_dust_down_color(float(x_r + side), float(y_r), float(r2), int(c2))
             i += 1
 
     def _emit_exhaust_smoke_vand(self, count_accum: float, cx: int, cy: int, strength: float) -> None:
