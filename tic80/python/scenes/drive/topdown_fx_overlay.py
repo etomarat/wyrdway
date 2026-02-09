@@ -1,0 +1,501 @@
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ...core.palette import Color
+    from ...data.tuning import TUNING
+    from ...systems.drive.drive_fx import DriveFx, TopdownProjector
+    from ...systems.drive.drive_logic_core import DriveLogic
+    from ...systems.drive.fx_particles import Particles2D
+    from ...systems.drive.road_model import RoadModel
+    from ...systems.fx.vendor.vand_particles import VandParticles
+
+
+class TopdownFxOverlay:
+    def __init__(self) -> None:
+        self._fx = Particles2D(TUNING.DRIVE.fx_particles_max)
+        # Вспышки искр при переходе “дорога <-> оффроад” должны читаться поверх пыли.
+        self._fx_transition = Particles2D(40)
+        self._drive_fx = DriveFx(TUNING)
+        self._offroad_smoke = VandParticles(1337)
+        self._exhaust_smoke = VandParticles(2469)
+
+        self._prev_fwd_x = 0.0
+        self._prev_fwd_y = 1.0
+        self._prev_speed = 0.0
+        self._prev_offroad = False
+
+        self._offroad_side_sign = 1
+        self._offroad_transition_cooldown = 0.0
+        self._fx_spawn_accum_off_smoke = 0.0
+        self._fx_spawn_accum_exhaust = 0.0
+        self._fx_seed = 1
+        self._hit_events: list[tuple[float, float, float, float, float, float]] = []
+
+    def notify_obstacle_hit(
+        self,
+        contact_wx: float,
+        contact_wy: float,
+        normal_x: float,
+        normal_y: float,
+        impact: float,
+        damage: float,
+        hitbox_radius: float
+    ) -> None:
+        # Ударные эффекты обрабатываем в draw(), когда у нас есть актуальная проекция world->screen.
+        self._hit_events.append((contact_wx, contact_wy, normal_x, normal_y, impact, hitbox_radius))
+
+    def update(
+        self,
+        road: RoadModel,
+        logic: DriveLogic,
+        cx: int,
+        cy: int,
+        proj: TopdownProjector
+    ) -> bool:
+        d = TUNING.DRIVE
+        dt = TUNING.CORE.dt
+
+        start_move = False
+
+        world_dx = -logic.v_side * dt
+        world_dy = logic.v_forward * dt
+
+        self._fx.update(dt, world_dx, world_dy)
+        # Искры перехода должны читаться как “локальный” эффект у колёс,
+        # а не как частицы, остающиеся в мире. Поэтому не применяем world-shift,
+        # иначе при сильном боковом движении машины направление визуально “едет”.
+        self._fx_transition.update(dt, 0.0, 0.0)
+        self._drive_fx.update(dt, world_dx, world_dy)
+        self._offroad_smoke.update(dt, world_dx, world_dy)
+
+        self._update_exhaust_rotation(logic, cx, cy)
+        self._exhaust_smoke.update(dt, world_dx, world_dy)
+
+        if self._offroad_transition_cooldown > 0.0:
+            self._offroad_transition_cooldown -= dt
+            if self._offroad_transition_cooldown < 0.0:
+                self._offroad_transition_cooldown = 0.0
+
+        self._flush_hit_events(proj)
+
+        spd = logic.speed
+        if self._prev_speed <= 0.5 and spd > 0.5:
+            # Букс/дым на старте имеет смысл только на дороге.
+            # На оффроуде пусть будет просто “постоянная пыль”, без старта как на асфальте.
+            if not logic.offroad:
+                start_move = True
+                self._drive_fx.start_move(cx, cy, self._next_fx_seed())
+        self._prev_speed = spd
+
+        offroad = logic.offroad
+        if offroad:
+            rd = logic.road_d
+            if rd > 0.0:
+                self._offroad_side_sign = 1
+            elif rd < 0.0:
+                self._offroad_side_sign = -1
+
+        if offroad != self._prev_offroad:
+            if spd > d.fx_dust_min_speed and self._offroad_transition_cooldown <= 0.0:
+                self._emit_offroad_transition_sparks(offroad, road, logic, cx, cy)
+                self._offroad_transition_cooldown = 0.20
+            self._prev_offroad = offroad
+
+        if offroad and spd > d.fx_dust_min_speed:
+            # Небольшой жёлто-оранжевый "дым" (vand dust) из-под колёс.
+            # Только пыль на оффроуде (искры — только при переходе туда/обратно).
+            self._fx_spawn_accum_off_smoke += (d.fx_dust_rate_offroad * 0.65) * dt
+            self._emit_offroad_smoke_vand(self._fx_spawn_accum_off_smoke, cx, cy)
+            self._fx_spawn_accum_off_smoke -= int(self._fx_spawn_accum_off_smoke)
+
+        speed_factor = 0.0
+        if d.max_speed > 0.0:
+            speed_factor = spd / d.max_speed
+        if d.fx_exhaust_rate > 0.0:
+            over = speed_factor - d.fx_exhaust_min_speed_factor
+            ramp = float(d.fx_exhaust_ramp_speed_factor)
+            if ramp < 0.01:
+                ramp = 0.01
+            strength = over / ramp
+            if strength < 0.0:
+                strength = 0.0
+            if strength > 1.0:
+                strength = 1.0
+            strength = strength * strength
+            if strength > 0.0:
+                rate = d.fx_exhaust_rate * strength
+                self._fx_spawn_accum_exhaust += rate * dt
+                self._emit_exhaust_smoke_vand(self._fx_spawn_accum_exhaust, cx, cy, strength)
+                self._fx_spawn_accum_exhaust -= int(self._fx_spawn_accum_exhaust)
+
+        return start_move
+
+    def draw_world(self) -> None:
+        self._fx.draw()
+        self._offroad_smoke.draw()
+        self._exhaust_smoke.draw()
+        self._fx_transition.draw()
+
+    def draw_under_car(self) -> None:
+        self._drive_fx.draw(0)
+
+    def draw_over_car(self) -> None:
+        self._drive_fx.draw(1)
+
+    def _flush_hit_events(self, proj: TopdownProjector) -> None:
+        if len(self._hit_events) <= 0:
+            return
+
+        i = 0
+        while i < len(self._hit_events):
+            wx, wy, nx, ny, impact, hit_r = self._hit_events[i]
+            seed = self._next_fx_seed()
+            self._drive_fx.obstacle_hit(wx, wy, nx, ny, impact, seed, hit_r, proj)
+            i += 1
+        self._hit_events = []
+
+    def _next_fx_seed(self) -> int:
+        self._fx_seed = (self._fx_seed * 1103515245 + 12345) & 0x7fffffff
+        return self._fx_seed
+
+    def _update_exhaust_rotation(self, logic: DriveLogic, cx: int, cy: int) -> None:
+        pfx = float(self._prev_fwd_x)
+        pfy = float(self._prev_fwd_y)
+        pl2 = pfx * pfx + pfy * pfy
+        if pl2 > 0.0001:
+            inv = 1.0 / (pl2 ** 0.5)
+            pfx *= inv
+            pfy *= inv
+        else:
+            pfx = 0.0
+            pfy = 1.0
+
+        cur_fx = float(logic.fwd_x)
+        cur_fy = float(logic.fwd_y)
+        cl2 = cur_fx * cur_fx + cur_fy * cur_fy
+        if cl2 > 0.0001:
+            inv = 1.0 / (cl2 ** 0.5)
+            cur_fx *= inv
+            cur_fy *= inv
+        else:
+            cur_fx = 0.0
+            cur_fy = 1.0
+
+        dot = pfx * cur_fx + pfy * cur_fy
+        if dot > 1.0:
+            dot = 1.0
+        if dot < -1.0:
+            dot = -1.0
+        cross = pfx * cur_fy - pfy * cur_fx
+        if abs(cross) > 0.0001 or abs(dot - 1.0) > 0.0001:
+            self._exhaust_smoke.rotate_around(float(cx), float(cy), dot, -cross)
+        self._prev_fwd_x = cur_fx
+        self._prev_fwd_y = cur_fy
+
+    def _emit_offroad_smoke_vand(self, count_accum: float, cx: int, cy: int) -> None:
+        n = int(count_accum)
+        if n <= 0:
+            return
+
+        d = TUNING.DRIVE
+        wheel_dx = float(d.fx_dust_wheel_dx_px)
+        back = float(d.fx_dust_back_px)
+        jitter_x = float(d.fx_dust_jitter_x_px)
+        jitter_y = float(d.fx_dust_jitter_y_px)
+        c0 = int(d.fx_offroad_dust_color_a)
+        c1 = int(d.fx_offroad_dust_color_b)
+
+        i = 0
+        while i < n:
+            self._fx_seed = (self._fx_seed * 1103515245 + 12345) & 0x7fffffff
+            r0 = self._fx_seed
+            self._fx_seed = (self._fx_seed * 1103515245 + 12345) & 0x7fffffff
+            r1 = self._fx_seed
+
+            jx = ((r1 % 1000) / 1000.0 - 0.5) * jitter_x
+            jy = ((r0 % 1000) / 1000.0) * jitter_y
+
+            x_l = (cx - wheel_dx) + jx
+            y_l = (cy + back) + jy
+            x_r = (cx + wheel_dx) - jx
+            y_r = (cy + back) + jy
+
+            r = int(r0 & 0x7fffffff)
+            r0f = (r % 1000) / 1000.0
+            r = int(r1 & 0x7fffffff)
+            r1f = (r % 1000) / 1000.0
+            swap = False
+            if (r & 1) == 1:
+                swap = True
+
+            if swap:
+                x0 = x_r
+                y0 = y_r
+                x1 = x_l
+                y1 = y_l
+            else:
+                x0 = x_l
+                y0 = y_l
+                x1 = x_r
+                y1 = y_r
+
+            life_base = int(d.fx_dust_life_frames)
+            if life_base < 1:
+                life_base = 1
+
+            r_min = 1.4
+            r_max = 3.8
+            r_small = r_min + (r_max - r_min) * (0.20 + 0.55 * r0f)
+            r_big = r_min + (r_max - r_min) * (0.55 + 0.45 * r1f)
+
+            life_small = life_base + int(r0f * 8.0)
+            life_big = life_base + 6 + int(r1f * 10.0)
+
+            self._offroad_smoke.spawn_dust_down_two_tone_life(x0, y0, r_small, c0, c1, life_small)
+            self._offroad_smoke.spawn_dust_down_two_tone_life(x1, y1, r_big, c0, c1, life_big)
+            i += 1
+
+    def _emit_exhaust_smoke_vand(self, count_accum: float, cx: int, cy: int, strength: float) -> None:
+        n = int(count_accum)
+        if n <= 0:
+            return
+
+        d = TUNING.DRIVE
+        s = float(strength)
+        if s < 0.0:
+            s = 0.0
+        if s > 1.0:
+            s = 1.0
+
+        x0 = float(cx) + float(d.fx_exhaust_dx_px)
+        y0 = float(cy) + float(d.fx_exhaust_dy_px)
+        r0 = float(d.fx_exhaust_r_min)
+        r1 = float(d.fx_exhaust_r_max)
+        if r1 < r0:
+            t = r0
+            r0 = r1
+            r1 = t
+        c0 = int(d.fx_exhaust_color_a)
+        c1 = int(d.fx_exhaust_color_b)
+
+        i = 0
+        while i < n:
+            self._fx_seed = (self._fx_seed * 1103515245 + 12345) & 0x7fffffff
+            r = self._fx_seed
+            t = (r % 1000) / 1000.0
+            u = ((r // 1000) % 1000) / 1000.0
+
+            # Выхлоп пробуем тем же типом частиц, что и стартовый "дым из-под колёс":
+            # vand `dust_down` (кружки, которые “стелются” в +Y и постепенно темнеют).
+            #
+            # Схема:
+            # - у трубы: тонкая струйка из маленьких кружков
+            # - ближе к хвосту: больше размер и больше плотность, чтобы читалось как клубы
+
+            # Струйка (2 маленьких кружка).
+            s_jx = (t - 0.5) * 0.8
+            s_jy = (u - 0.5) * 0.35
+            sr = r0 * (0.70 + t * 0.40) * (0.85 + 0.35 * s)
+            if sr < 1.2:
+                sr = 1.2
+            self._exhaust_smoke.spawn_dust_down_two_tone_life(x0 + s_jx, y0 + s_jy, sr, c0, c1, 18)
+            self._exhaust_smoke.spawn_dust_down_two_tone_life(x0 - s_jx * 0.55, y0 + s_jy * 0.55, sr * 0.85, c0, c1, 16)
+
+            # Средний слой (2 штуки).
+            my = y0 + 3.0 + u * 4.0
+            mr = (r0 + (r1 - r0) * (0.25 + t * 0.20)) * (0.80 + 0.55 * s)
+            if mr < sr:
+                mr = sr
+            mid_life = 26 + int(s * 18.0)
+            self._exhaust_smoke.spawn_dust_down_two_tone_life(x0 + (u - 0.5) * 1.6, my, mr, c0, c1, mid_life)
+            self._exhaust_smoke.spawn_dust_down_two_tone_life(x0 - (u - 0.5) * 1.2, my + 1.2, mr * 0.95, c0, c1, mid_life - 2)
+
+            # Хвост (клубы): плотный кластер ближе к машине.
+            tail_y = y0 + 5.0 + u * 6.0
+            if tail_y > 128.0:
+                tail_y = 128.0
+            tail_r = r1 * (0.85 + t * 0.35) * (0.70 + 0.70 * s)
+            if tail_r < mr:
+                tail_r = mr
+            tail_life = 34 + int(s * 26.0)
+            self._exhaust_smoke.spawn_dust_down_two_tone_life(x0 + (t - 0.5) * 2.8, tail_y, tail_r, c0, c1, tail_life)
+            self._exhaust_smoke.spawn_dust_down_two_tone_life(x0 + (u - 0.5) * 2.2 + 1.2, tail_y + 1.6, tail_r * 0.92, c0, c1, tail_life - 2)
+            self._exhaust_smoke.spawn_dust_down_two_tone_life(x0 - (u - 0.5) * 2.0 - 1.0, tail_y + 2.6, tail_r * 0.88, c0, c1, tail_life - 4)
+            self._exhaust_smoke.spawn_dust_down_two_tone_life(x0 + (t - 0.5) * 2.0 - 1.4, tail_y + 3.6, tail_r * 0.84, c0, c1, tail_life - 6)
+            self._exhaust_smoke.spawn_dust_down_two_tone_life(x0 + (t - 0.5) * 2.4 + 0.8, tail_y + 4.6, tail_r * 0.78, c0, c1, tail_life - 8)
+            if (r & 1) == 0:
+                self._exhaust_smoke.spawn_dust_down_two_tone_life(x0 + (u - 0.5) * 2.8, tail_y + 5.4, tail_r * 0.72, c0, c1, tail_life - 10)
+
+            i += 1
+
+    def _emit_offroad_transition_sparks(
+        self,
+        entering_offroad: bool,
+        road: RoadModel,
+        logic: DriveLogic,
+        cx: int,
+        cy: int
+    ) -> None:
+        d = TUNING.DRIVE
+
+        boundary_sign = self._offroad_side_sign
+        spawn_sign = -boundary_sign
+        dir_sign = -boundary_sign
+        if not entering_offroad:
+            spawn_sign = boundary_sign
+            dir_sign = boundary_sign
+
+        dir_x, dir_y, cross = self._edge_spark_dir(road, logic, dir_sign, entering_offroad)
+
+        spd = logic.speed
+        n = 5 + int(spd * 0.05)
+        if not entering_offroad:
+            n = int(n * 1.7)
+        if n < 6:
+            n = 6
+        if n > 26:
+            n = 26
+
+        speed = 160.0 + spd * 2.6
+        if speed > 320.0:
+            speed = 320.0
+
+        life = 9 + int(spd * 0.01)
+        if not entering_offroad:
+            life += 4
+        if life > 20:
+            life = 20
+
+        wheel_dx = float(d.fx_transition_sparks_wheel_dx_px)
+        back = float(d.fx_transition_sparks_back_px)
+        wheelbase = float(d.fx_transition_sparks_wheelbase_px)
+
+        rear_x = float(cx) + float(spawn_sign) * wheel_dx
+        rear_y = float(cy) + back
+        front_x = float(cx) + float(spawn_sign) * (wheel_dx * 0.72)
+        front_y = rear_y - wheelbase + 3.0
+
+        n_front = int(n * 0.6)
+        if n_front < 3:
+            n_front = 3
+        if n_front > n:
+            n_front = n
+
+        self._edge_spark_burst(rear_x, rear_y, dir_x, dir_y, cross, speed, n, life, entering_offroad, 1.0)
+        self._edge_spark_burst(front_x, front_y, dir_x, dir_y, cross, speed, n_front, life, entering_offroad, 0.85)
+
+    def _edge_spark_dir(
+        self,
+        road: RoadModel,
+        logic: DriveLogic,
+        dir_sign: int,
+        entering_offroad: bool
+    ) -> tuple[float, float, float]:
+        dx, dy = road.direction_at(logic.road_s)
+        rx = -dy
+        ry = dx
+
+        fx = logic.fwd_x
+        fy = logic.fwd_y
+        crx = -fy
+        cry = fx
+
+        sx = rx * crx + ry * cry
+        sy = -(rx * fx + ry * fy)
+        d0 = abs(sx) + abs(sy)
+        if d0 < 0.001:
+            sx = 1.0
+            sy = 0.0
+            d0 = 1.0
+        sx = (sx / d0) * float(dir_sign)
+        sy = (sy / d0) * float(dir_sign)
+
+        mx = -logic.v_side
+        my = logic.v_forward
+        d1 = abs(mx) + abs(my)
+        if d1 < 0.001:
+            d1 = 1.0
+        mx /= d1
+        my /= d1
+        cross = abs(mx * sx + my * sy)
+        if cross > 1.0:
+            cross = 1.0
+
+        wn = 0.45 + 1.10 * cross
+        wt = 1.10
+        if not entering_offroad:
+            wt = 1.35
+
+        dx = sx * wn
+        dy = sy * wn + wt
+        d2 = abs(dx) + abs(dy)
+        if d2 < 0.001:
+            d2 = 1.0
+        dx /= d2
+        dy /= d2
+        return dx, dy, cross
+
+    def _edge_spark_burst(
+        self,
+        base_x: float,
+        base_y: float,
+        dir_x: float,
+        dir_y: float,
+        cross: float,
+        speed: float,
+        count: int,
+        life: int,
+        entering_offroad: bool,
+        scale: float
+    ) -> None:
+        px = -dir_y
+        py = dir_x
+
+        i = 0
+        while i < count:
+            self._fx_seed = (self._fx_seed * 1103515245 + 12345) & 0x7fffffff
+            r0 = self._fx_seed
+            self._fx_seed = (self._fx_seed * 1103515245 + 12345) & 0x7fffffff
+            r1 = self._fx_seed
+
+            t = (r0 % 1000) / 1000.0
+            u = (r1 % 1000) / 1000.0
+
+            spread = (0.28 + u * 0.26) * (0.75 + 0.70 * cross)
+            if not entering_offroad:
+                spread += 0.12
+            spread *= (0.80 + 0.20 * scale)
+
+            vx = dir_x + px * ((t - 0.5) * 2.0 * spread)
+            vy = dir_y + py * ((t - 0.5) * 2.0 * spread)
+            den = abs(vx) + abs(vy)
+            if den < 0.001:
+                den = 1.0
+            vx /= den
+            vy /= den
+
+            seg = (3.0 + t * 6.0) * scale
+            if not entering_offroad:
+                seg *= 1.15
+
+            pvx = vx * speed * (0.80 + t * 0.40) * scale
+            pvy = vy * speed * (0.80 + u * 0.40) * scale
+
+            color = Color.WHITE
+            m = int(r0 % 3)
+            if m == 1:
+                color = Color.YELLOW
+            elif m == 2:
+                color = Color.ORANGE
+
+            self._fx_transition.spawn(
+                base_x + (t - 0.5) * 2.5 * scale,
+                base_y + (u - 0.5) * 2.0 * scale,
+                vx * seg,
+                vy * seg,
+                pvx,
+                pvy,
+                life,
+                color
+            )
+            i += 1
