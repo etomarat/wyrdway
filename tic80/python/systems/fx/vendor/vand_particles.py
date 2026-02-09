@@ -291,6 +291,99 @@ class _DustDownParticle(_VandParticle):
             circb(int(self.x), int(self.y), int(self.r), 0)
 
 
+class _DustDownLongParticle(_VandParticle):
+    """Dust_down c параметризуемым временем жизни (для длинных хвостов дыма/выхлопа)."""
+
+    def __init__(self, x: float, y: float, r: float, life_frames: int, rng: Rng) -> None:
+        ang = rng.uniform(0.0, math.pi)
+        self.x = x
+        self.y = y
+        self.c = 12
+        self.ty = rng.uniform(-1.0, 1.0)
+        self.vx = math.cos(ang)
+        self.vy = math.sin(ang)
+        self.r = rng.uniform(0.0, r)
+
+        lf = int(life_frames)
+        if lf < 6:
+            lf = 6
+        self._fade_t = 5.0
+        if float(lf) * 0.22 > self._fade_t:
+            self._fade_t = float(lf) * 0.22
+        self.t = float(lf)
+
+    def update(self, dt: float, world_dx: float, world_dy: float, frame: int, rng: Rng) -> bool:
+        self.x += world_dx + self.vx
+        self.y += world_dy + self.vy
+        self.vx *= 0.95
+        self.vy *= 0.95
+        if self.t < self._fade_t:
+            self.r /= 1.08
+            if frame % 10 == 0:
+                if self.c < 15:
+                    self.c += 1
+        self.t -= 1.0 + rng.uniform(0.0, 1.0) * 0.65
+        if self.r < 1.0:
+            return True
+        return False
+
+    def draw(self) -> None:
+        if self.ty >= 0.0:
+            circ(int(self.x), int(self.y), int(self.r), self.c)
+        else:
+            circb(int(self.x), int(self.y), int(self.r), 0)
+
+
+class _DustDownTwoToneLongParticle(_VandParticle):
+    """Dust_down с 2 цветами (светлый -> тёмный) и длинной жизнью."""
+
+    def __init__(self, x: float, y: float, r: float, c0: int, c1: int, life_frames: int, rng: Rng) -> None:
+        ang = rng.uniform(0.0, math.pi)
+        self.x = x
+        self.y = y
+        self._c0 = int(c0)
+        self._c1 = int(c1)
+        self.c = int(c0)
+        self.ty = rng.uniform(-1.0, 1.0)
+        self.vx = math.cos(ang)
+        self.vy = math.sin(ang)
+        self.r = rng.uniform(0.0, r)
+
+        lf = int(life_frames)
+        if lf < 6:
+            lf = 6
+        self._t0 = float(lf)
+        self.t = float(lf)
+
+        # Переключаем цвет примерно после половины жизни.
+        self._switch_t = self._t0 * 0.55
+        self._fade_t = 5.0
+        if float(lf) * 0.22 > self._fade_t:
+            self._fade_t = float(lf) * 0.22
+
+    def update(self, dt: float, world_dx: float, world_dy: float, frame: int, rng: Rng) -> bool:
+        self.x += world_dx + self.vx
+        self.y += world_dy + self.vy
+        self.vx *= 0.95
+        self.vy *= 0.95
+        if self.t < self._switch_t:
+            self.c = self._c1
+        else:
+            self.c = self._c0
+        if self.t < self._fade_t:
+            self.r /= 1.08
+        self.t -= 1.0 + rng.uniform(0.0, 1.0) * 0.65
+        if self.r < 1.0:
+            return True
+        return False
+
+    def draw(self) -> None:
+        if self.ty >= 0.0:
+            circ(int(self.x), int(self.y), int(self.r), self.c)
+        else:
+            circb(int(self.x), int(self.y), int(self.r), 0)
+
+
 class _DustDownColorParticle(_VandParticle):
     """Dust, который стелется вниз (+Y) и остаётся в заданном цвете."""
 
@@ -319,6 +412,76 @@ class _DustDownColorParticle(_VandParticle):
 
     def draw(self) -> None:
         # Для цветного дыма/пыли нам важна читаемость цвета. Поэтому рисуем всегда filled.
+        circ(int(self.x), int(self.y), int(self.r), self.c)
+
+
+class _GrowPuffColorParticle(_VandParticle):
+    """Пуф, который растёт со временем (для выхлопа/пара)."""
+
+    def __init__(
+        self,
+        x: float,
+        y: float,
+        r0: float,
+        r1: float,
+        c: int,
+        life_frames: int,
+        world_follow: float,
+        rng: Rng
+    ) -> None:
+        self.x = x
+        self.y = y
+        self.c = int(c)
+        self._wf = float(world_follow)
+
+        lf = int(life_frames)
+        if lf <= 1:
+            lf = 1
+        self._t0 = float(lf)
+        self.t = float(lf)
+
+        self.r = float(r0)
+        self._rv = (float(r1) - float(r0)) / float(lf)
+
+        # Небольшое дрожание, чтобы пуфы не были идеальной колонной.
+        # Для выхлопа хотим тонкую струйку: меньше бокового разлёта.
+        self.vx = (rng.uniform(0.0, 1.0) - 0.5) * 0.18
+        self.vy = rng.uniform(0.0, 1.0) * 0.12
+
+    def update(self, dt: float, world_dx: float, world_dy: float, frame: int, rng: Rng) -> bool:
+        # Дым/выхлоп "не такой тяжёлый", как следы шин: пусть слегка отстаёт от world-shift,
+        # чтобы хвост читался на экране (иначе на высокой скорости всё улетает за низ).
+        self.x += world_dx * self._wf + self.vx
+        self.y += world_dy * self._wf + self.vy
+
+        # Чем старше пуф, тем больше он расползается: у трубы будет тонкая струйка,
+        # а дальше по хвосту — более "клубастый" дым.
+        p = 1.0
+        if self._t0 > 0.0:
+            p = 1.0 - self.t / self._t0
+            if p < 0.0:
+                p = 0.0
+            if p > 1.0:
+                p = 1.0
+
+        self.vx += (rng.uniform(0.0, 1.0) - 0.5) * 0.05 * p
+        self.vy += (rng.uniform(0.0, 1.0) - 0.5) * 0.03 * p
+
+        damp = 0.92 + 0.05 * p
+        self.vx *= damp
+        self.vy *= damp
+
+        self.r += self._rv
+        if self.t < 6.0:
+            # В конце слегка схлопываем, чтобы не оставались "вечные шарики".
+            self.r *= 0.92
+
+        self.t -= 1.0 + rng.uniform(0.0, 1.0) * 0.35
+        if self.t < 0.0 or self.r < 0.7:
+            return True
+        return False
+
+    def draw(self) -> None:
         circ(int(self.x), int(self.y), int(self.r), self.c)
 
 
@@ -506,6 +669,36 @@ class VandParticles(FxSystem):
             self._particles[i].draw()
             i += 1
 
+    def rotate_around(self, cx: float, cy: float, cos_t: float, sin_t: float) -> None:
+        """Компенсация вращения камеры: поворачивает все частицы вокруг точки.
+
+        В DRIVE top-down камера поворачивается так, чтобы машина всегда “смотрела вверх”.
+        Для хвостов (выхлоп/дым) иногда хочется, чтобы они оставались в мире и не
+        “поворачивали вместе с машиной”. Тогда мы поворачиваем частицы на -dtheta
+        (где dtheta = изменение heading между кадрами).
+        """
+        i = 0
+        while i < len(self._particles):
+            p = self._particles[i]
+            x = getattr(p, "x", None)
+            y = getattr(p, "y", None)
+            if x is not None and y is not None:
+                dx = float(x) - cx
+                dy = float(y) - cy
+                rx = dx * cos_t - dy * sin_t
+                ry = dx * sin_t + dy * cos_t
+                setattr(p, "x", cx + rx)
+                setattr(p, "y", cy + ry)
+
+            vx = getattr(p, "vx", None)
+            vy = getattr(p, "vy", None)
+            if vx is not None and vy is not None:
+                rvx = float(vx) * cos_t - float(vy) * sin_t
+                rvy = float(vx) * sin_t + float(vy) * cos_t
+                setattr(p, "vx", rvx)
+                setattr(p, "vy", rvy)
+            i += 1
+
     def spawn_tri(self, x: float, y: float, r: float) -> None:
         self._particles.append(_TriParticle(x, y, r, self._rng))
 
@@ -524,8 +717,26 @@ class VandParticles(FxSystem):
     def spawn_dust_down(self, x: float, y: float, r: float) -> None:
         self._particles.append(_DustDownParticle(x, y, r, self._rng))
 
+    def spawn_dust_down_life(self, x: float, y: float, r: float, life_frames: int) -> None:
+        self._particles.append(_DustDownLongParticle(x, y, r, int(life_frames), self._rng))
+
+    def spawn_dust_down_two_tone_life(self, x: float, y: float, r: float, c0: int, c1: int, life_frames: int) -> None:
+        self._particles.append(_DustDownTwoToneLongParticle(x, y, r, int(c0), int(c1), int(life_frames), self._rng))
+
     def spawn_dust_down_color(self, x: float, y: float, r: float, c: int) -> None:
         self._particles.append(_DustDownColorParticle(x, y, r, c, self._rng))
+
+    def spawn_puff_grow_color(
+        self,
+        x: float,
+        y: float,
+        r0: float,
+        r1: float,
+        c: int,
+        life_frames: int,
+        world_follow: float = 1.0
+    ) -> None:
+        self._particles.append(_GrowPuffColorParticle(x, y, r0, r1, c, life_frames, world_follow, self._rng))
 
     def spawn_fire(self, x: float, y: float, r: float, c: int) -> None:
         self._particles.append(_FireParticle(x, y, r, c, self._rng))

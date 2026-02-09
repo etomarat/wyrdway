@@ -174,7 +174,16 @@ class DriveTuning:
         "fx_speedlines_back_y0",
         "fx_speedlines_back_y1",
         "fx_speedlines_color_a",
-        "fx_speedlines_color_b"
+        "fx_speedlines_color_b",
+        "fx_exhaust_min_speed_factor",
+        "fx_exhaust_ramp_speed_factor",
+        "fx_exhaust_rate",
+        "fx_exhaust_dx_px",
+        "fx_exhaust_dy_px",
+        "fx_exhaust_r_min",
+        "fx_exhaust_r_max",
+        "fx_exhaust_color_a",
+        "fx_exhaust_color_b"
     )
 
     def __init__(self) -> None:
@@ -309,6 +318,15 @@ class DriveTuning:
         self.fx_speedlines_back_y1 = 0.0
         self.fx_speedlines_color_a: ColorId = 0
         self.fx_speedlines_color_b: ColorId = 0
+        self.fx_exhaust_min_speed_factor = 0.0
+        self.fx_exhaust_ramp_speed_factor = 0.0
+        self.fx_exhaust_rate = 0.0
+        self.fx_exhaust_dx_px = 0.0
+        self.fx_exhaust_dy_px = 0.0
+        self.fx_exhaust_r_min = 0.0
+        self.fx_exhaust_r_max = 0.0
+        self.fx_exhaust_color_a: ColorId = 0
+        self.fx_exhaust_color_b: ColorId = 0
 
 
 class PoiTuning:

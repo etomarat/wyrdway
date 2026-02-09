@@ -81,7 +81,8 @@ TUNING.DRIVE.fx_dust_spread_vx = 80.0
 TUNING.DRIVE.fx_dust_spread_vy = 40.0
 
 TUNING.DRIVE.fx_speedlines_min_speed_factor = 1.05
-TUNING.DRIVE.fx_speedlines_rate = 35.0
+# Speed-lines временно выключены: мешают читаемости (сливаются со следами и пылью).
+TUNING.DRIVE.fx_speedlines_rate = 0.0
 TUNING.DRIVE.fx_speedlines_life_frames = 18
 TUNING.DRIVE.fx_speedlines_len_px = 6.0
 TUNING.DRIVE.fx_speedlines_vy = 180.0
@@ -92,3 +93,16 @@ TUNING.DRIVE.fx_speedlines_back_y0 = 0.0
 TUNING.DRIVE.fx_speedlines_back_y1 = 20.0
 TUNING.DRIVE.fx_speedlines_color_a = Color.WHITE
 TUNING.DRIVE.fx_speedlines_color_b = Color.LIGHT_BLUE
+
+# “Выхлоп” на высокой скорости: легкий дымок снизу машины, чуть левее центра.
+TUNING.DRIVE.fx_exhaust_min_speed_factor = 1.0
+TUNING.DRIVE.fx_exhaust_ramp_speed_factor = 0.25
+TUNING.DRIVE.fx_exhaust_rate = 48.0
+TUNING.DRIVE.fx_exhaust_dx_px = -3.0
+TUNING.DRIVE.fx_exhaust_dy_px = 14.0
+TUNING.DRIVE.fx_exhaust_r_min = 1.0
+TUNING.DRIVE.fx_exhaust_r_max = 4.0
+# Делаем выхлоп темнее, ближе к пыли/следам (и чтобы не спорил с дорогой).
+# Бело-серый: лучше читается на дороге и не путается с пылью оффроуда.
+TUNING.DRIVE.fx_exhaust_color_a = Color.LIGHT_GREY
+TUNING.DRIVE.fx_exhaust_color_b = Color.DARK_GREY

@@ -32,6 +32,9 @@ class DriveTopdownRenderer:
         self._fx_transition = Particles2D(40)
         self._drive_fx = DriveFx(TUNING)
         self._offroad_smoke = VandParticles(1337)
+        self._exhaust_smoke = VandParticles(2469)
+        self._prev_fwd_x = 0.0
+        self._prev_fwd_y = 1.0
         self._prev_speed = 0.0
         self._prev_offroad = False
         self._offroad_side_sign = 1
@@ -40,9 +43,10 @@ class DriveTopdownRenderer:
         self._fx_spawn_accum_off = 0.0
         self._fx_spawn_accum_speed = 0.0
         self._fx_spawn_accum_off_smoke = 0.0
+        self._fx_spawn_accum_exhaust = 0.0
         self._fx_seed = 1
         self._hit_events: list[tuple[float, float, float, float, float,
-                                     float]] = []
+                                      float]] = []
 
     def notify_obstacle_hit(
         self,
@@ -146,6 +150,7 @@ class DriveTopdownRenderer:
         # Следы шин должны быть ПОД пылью/дымом.
         self._fx.draw()
         self._offroad_smoke.draw()
+        self._exhaust_smoke.draw()
         self._fx_transition.draw()
         # Стартовый дым/пыль рисуем ВЫШЕ skid marks, но НИЖЕ кузова.
         self._drive_fx.draw(0)
@@ -700,6 +705,43 @@ class DriveTopdownRenderer:
         self._fx_transition.update(dt, 0.0, 0.0)
         self._drive_fx.update(dt, world_dx, world_dy)
         self._offroad_smoke.update(dt, world_dx, world_dy)
+        # Выхлоп хотим как "хвост" в мире, а не в кадре машины: компенсируем вращение камеры.
+        # Камера в top-down использует fwd машины как ось Y, поэтому при поворотах весь мир
+        # (и screen-space) “крутится”. Частицы в screen-space без компенсации крутятся вместе с машиной.
+        pfx = float(self._prev_fwd_x)
+        pfy = float(self._prev_fwd_y)
+        pl2 = pfx * pfx + pfy * pfy
+        if pl2 > 0.0001:
+            inv = 1.0 / (pl2 ** 0.5)
+            pfx *= inv
+            pfy *= inv
+        else:
+            pfx = 0.0
+            pfy = 1.0
+
+        cur_fx = float(logic.fwd_x)
+        cur_fy = float(logic.fwd_y)
+        cl2 = cur_fx * cur_fx + cur_fy * cur_fy
+        if cl2 > 0.0001:
+            inv = 1.0 / (cl2 ** 0.5)
+            cur_fx *= inv
+            cur_fy *= inv
+        else:
+            cur_fx = 0.0
+            cur_fy = 1.0
+
+        dot = pfx * cur_fx + pfy * cur_fy
+        if dot > 1.0:
+            dot = 1.0
+        if dot < -1.0:
+            dot = -1.0
+        cross = pfx * cur_fy - pfy * cur_fx
+        if abs(cross) > 0.0001 or abs(dot - 1.0) > 0.0001:
+            # Поворот на -dtheta: cos = dot, sin = -cross.
+            self._exhaust_smoke.rotate_around(float(cx), float(cy), dot, -cross)
+        self._prev_fwd_x = cur_fx
+        self._prev_fwd_y = cur_fy
+        self._exhaust_smoke.update(dt, world_dx, world_dy)
 
         if self._offroad_transition_cooldown > 0.0:
             self._offroad_transition_cooldown -= dt
@@ -752,7 +794,25 @@ class DriveTopdownRenderer:
         speed_factor = 0.0
         if d.max_speed > 0.0:
             speed_factor = spd / d.max_speed
-        if speed_factor > d.fx_speedlines_min_speed_factor:
+        if d.fx_exhaust_rate > 0.0:
+            over = speed_factor - d.fx_exhaust_min_speed_factor
+            ramp = float(d.fx_exhaust_ramp_speed_factor)
+            if ramp < 0.01:
+                ramp = 0.01
+            strength = over / ramp
+            if strength < 0.0:
+                strength = 0.0
+            if strength > 1.0:
+                strength = 1.0
+            # Более плавное нарастание, чтобы не было "рубильника".
+            strength = strength * strength
+            if strength > 0.0:
+                rate = d.fx_exhaust_rate * strength
+                self._fx_spawn_accum_exhaust += rate * dt
+                self._emit_exhaust_smoke_vand(self._fx_spawn_accum_exhaust, cx, cy, strength)
+                self._fx_spawn_accum_exhaust -= int(self._fx_spawn_accum_exhaust)
+
+        if d.fx_speedlines_rate > 0.0 and speed_factor > d.fx_speedlines_min_speed_factor:
             self._fx_spawn_accum_speed += d.fx_speedlines_rate * dt
             self._emit_speedlines(self._fx_spawn_accum_speed, logic, cx, cy)
             self._fx_spawn_accum_speed -= int(self._fx_spawn_accum_speed)
@@ -861,6 +921,79 @@ class DriveTopdownRenderer:
             side = 2.0 + ((r1 % 1000) / 1000.0) * 4.0
             self._offroad_smoke.spawn_dust_down_color(float(x_l - side), float(y_l), float(r2), int(c2))
             self._offroad_smoke.spawn_dust_down_color(float(x_r + side), float(y_r), float(r2), int(c2))
+            i += 1
+
+    def _emit_exhaust_smoke_vand(self, count_accum: float, cx: int, cy: int, strength: float) -> None:
+        n = int(count_accum)
+        if n <= 0:
+            return
+
+        d = TUNING.DRIVE
+        s = float(strength)
+        if s < 0.0:
+            s = 0.0
+        if s > 1.0:
+            s = 1.0
+        x0 = float(cx) + float(d.fx_exhaust_dx_px)
+        y0 = float(cy) + float(d.fx_exhaust_dy_px)
+        r0 = float(d.fx_exhaust_r_min)
+        r1 = float(d.fx_exhaust_r_max)
+        if r1 < r0:
+            t = r0
+            r0 = r1
+            r1 = t
+
+        # 2 цвета из тюнинга: светлый/тёмный.
+        c0 = int(d.fx_exhaust_color_a)
+        c1 = int(d.fx_exhaust_color_b)
+
+        i = 0
+        while i < n:
+            self._fx_seed = (self._fx_seed * 1103515245 + 12345) & 0x7fffffff
+            r = self._fx_seed
+            t = (r % 1000) / 1000.0
+            u = ((r // 1000) % 1000) / 1000.0
+
+            # Выхлоп пробуем тем же типом частиц, что и стартовый "дым из-под колёс":
+            # vand `dust_down` (кружки, которые “стелются” в +Y и постепенно темнеют).
+            #
+            # Схема:
+            # - у трубы: тонкая струйка из маленьких кружков
+            # - ближе к хвосту: больше размер и больше плотность, чтобы читалось как клубы
+
+            # Струйка (2 маленьких кружка).
+            s_jx = (t - 0.5) * 0.8
+            s_jy = (u - 0.5) * 0.35
+            sr = r0 * (0.70 + t * 0.40) * (0.85 + 0.35 * s)
+            if sr < 1.2:
+                sr = 1.2
+            self._exhaust_smoke.spawn_dust_down_two_tone_life(x0 + s_jx, y0 + s_jy, sr, c0, c1, 18)
+            self._exhaust_smoke.spawn_dust_down_two_tone_life(x0 - s_jx * 0.55, y0 + s_jy * 0.55, sr * 0.85, c0, c1, 16)
+
+            # Средний слой (2 штуки).
+            my = y0 + 3.0 + u * 4.0
+            mr = (r0 + (r1 - r0) * (0.25 + t * 0.20)) * (0.80 + 0.55 * s)
+            if mr < sr:
+                mr = sr
+            mid_life = 26 + int(s * 18.0)
+            self._exhaust_smoke.spawn_dust_down_two_tone_life(x0 + (u - 0.5) * 1.6, my, mr, c0, c1, mid_life)
+            self._exhaust_smoke.spawn_dust_down_two_tone_life(x0 - (u - 0.5) * 1.2, my + 1.2, mr * 0.95, c0, c1, mid_life - 2)
+
+            # Хвост (клубы): плотный кластер ближе к машине.
+            tail_y = y0 + 5.0 + u * 6.0
+            if tail_y > 128.0:
+                tail_y = 128.0
+            tail_r = r1 * (0.85 + t * 0.35) * (0.70 + 0.70 * s)
+            if tail_r < mr:
+                tail_r = mr
+            tail_life = 34 + int(s * 26.0)
+            self._exhaust_smoke.spawn_dust_down_two_tone_life(x0 + (t - 0.5) * 2.8, tail_y, tail_r, c0, c1, tail_life)
+            self._exhaust_smoke.spawn_dust_down_two_tone_life(x0 + (u - 0.5) * 2.2 + 1.2, tail_y + 1.6, tail_r * 0.92, c0, c1, tail_life - 2)
+            self._exhaust_smoke.spawn_dust_down_two_tone_life(x0 - (u - 0.5) * 2.0 - 1.0, tail_y + 2.6, tail_r * 0.88, c0, c1, tail_life - 4)
+            self._exhaust_smoke.spawn_dust_down_two_tone_life(x0 + (t - 0.5) * 2.0 - 1.4, tail_y + 3.6, tail_r * 0.84, c0, c1, tail_life - 6)
+            self._exhaust_smoke.spawn_dust_down_two_tone_life(x0 + (t - 0.5) * 2.4 + 0.8, tail_y + 4.6, tail_r * 0.78, c0, c1, tail_life - 8)
+            if (r & 1) == 0:
+                self._exhaust_smoke.spawn_dust_down_two_tone_life(x0 + (u - 0.5) * 2.8, tail_y + 5.4, tail_r * 0.72, c0, c1, tail_life - 10)
             i += 1
 
     def _emit_offroad_transition_sparks(
