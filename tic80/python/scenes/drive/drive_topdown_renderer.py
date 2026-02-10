@@ -27,6 +27,11 @@ class DriveTopdownRenderer:
     _CAR_SPRITE_BASE_ID = 320
     _CAR_SPRITE_PIXEL_SIZE = 32.0
     _CAR_CHROMAKEY = 12
+    # Trim one empty 8px column on the left side of the 32x32 source block.
+    _CAR_SRC_X0 = 8.0
+    _CAR_SRC_Y0 = 0.0
+    _CAR_SRC_X1 = 32.0
+    _CAR_SRC_Y1 = 32.0
     # Low-speed anti-jerk yaw cap (cam-v3.1):
     # - _LOW_SPEED_CAP_BLEND_MAX: до какого speed_blend действует ограничение (0..1).
     # - _LOW_SPEED_YAW_RATE_MIN_DEG: минимальная скорость поворота цели камеры при почти нулевой скорости.
@@ -254,16 +259,21 @@ class DriveTopdownRenderer:
         return target_angle
 
     def _draw_car_ttri(self, pose: CarPose2D) -> None:
-        size = self._CAR_SPRITE_PIXEL_SIZE
-        rx0, ry0 = self._sprite_px_to_screen(pose, 0.0, 0.0)
-        rx1, ry1 = self._sprite_px_to_screen(pose, size, 0.0)
-        rx2, ry2 = self._sprite_px_to_screen(pose, size, size)
-        rx3, ry3 = self._sprite_px_to_screen(pose, 0.0, size)
+        sx0 = self._CAR_SRC_X0
+        sy0 = self._CAR_SRC_Y0
+        sx1 = self._CAR_SRC_X1
+        sy1 = self._CAR_SRC_Y1
+        rx0, ry0 = self._sprite_px_to_screen(pose, sx0, sy0)
+        rx1, ry1 = self._sprite_px_to_screen(pose, sx1, sy0)
+        rx2, ry2 = self._sprite_px_to_screen(pose, sx1, sy1)
+        rx3, ry3 = self._sprite_px_to_screen(pose, sx0, sy1)
 
-        u0 = float((self._CAR_SPRITE_BASE_ID % 16) * 8)
-        v0 = float((self._CAR_SPRITE_BASE_ID // 16) * 8)
-        u1 = u0 + size
-        v1 = v0 + size
+        base_u = float((self._CAR_SPRITE_BASE_ID % 16) * 8)
+        base_v = float((self._CAR_SPRITE_BASE_ID // 16) * 8)
+        u0 = base_u + sx0
+        v0 = base_v + sy0
+        u1 = base_u + sx1
+        v1 = base_v + sy1
 
         ttri(
             rx0, ry0,
