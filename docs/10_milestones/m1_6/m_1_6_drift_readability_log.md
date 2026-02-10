@@ -12,8 +12,8 @@
 | fx-v1 | `drift/fx-v1-worldspace-coherence` | TBD | pending | align skid/particles with new camera frame | verify FX coherence |
 | cam-v2 | `drift/cam-v2-spring` | done locally | iterate | заметно сгладили камеру, но остались скачки в момент резкого торможения в повороте и ощущение "ватности" | перейти к непрерывному blend |
 | cam-v3 | `drift/cam-v3-spring-blend` | TBD | keep (minor iterate) | стало значительно лучше; остаточный редкий jerk в кейсе "дрифт -> почти стоп -> отпускание ручника" | сделать микрофикс `cam-v3.1` |
-| cam-v3.1 | `drift/cam-v3-spring-blend` | TBD | in_progress | implemented low-speed anti-jerk yaw cap for camera target (before spring) | validate that control feel stays responsive |
-| cam-v4 | `drift/cam-v4-speed-framing` | TBD | in_progress | implemented speed-based camera framing (dynamic center_y offset by speed) | verify readability gain vs comfort |
+| cam-v3.1 | `drift/cam-v3-spring-blend` | done locally | keep | low-speed anti-jerk yaw cap улучшил стабильность; остаются редкие микрорезкости, но комфортно для игры | использовать как рабочую базу |
+| cam-v4 | `drift/cam-v4-speed-framing` | done locally | reject | forward framing дал неприятное "плавание" кадра; reverse framing оказался забавным, но ухудшает читаемость трассы | не использовать в текущем baseline |
 
 ## Fill-in Rules (after each playtest)
 
@@ -28,4 +28,5 @@
 2. `ttri` полезен как носитель угла машины, но в отрыве от новой камеры легко ухудшает UX.
 3. Основной оставшийся риск после cam-v1: низкоскоростной jitter из-за перехода между `heading` и `velocity` направлением камеры.
 4. `cam-v3` признан рабочим базовым вариантом для M1.6 (keep), но с небольшим остаточным low-speed jerk.
-5. Следующий практический шаг: прогнать `cam-v4` и оценить, дает ли speed-framing больше читаемости трассы без укачивания.
+5. `cam-v4` (forward + reverse) протестирован и отклонен для текущей цели читаемости/комфорта.
+6. Текущая рабочая база M1.6: `cam-v3.1`.
