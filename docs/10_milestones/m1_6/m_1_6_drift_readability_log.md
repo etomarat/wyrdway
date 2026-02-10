@@ -10,7 +10,7 @@
 | vis-v1 | `drift/vis-v1-ttri-tilt` | done locally | reject | ttri сам по себе работает, но с камерой по heading управление и восприятие оказались хуже; визуальный tilt конфликтовал с текущей камерой | перейти к camera-first эксперименту |
 | cam-v1 | `drift/cam-v1-velocity-frame` | done locally | keep (iterate) | Читаемость траектории заметно выросла; связка velocity-frame + heading-only ttri дает понятный угол между носом и движением; остается резкое дерганье камеры на низкой скорости | сделать cam-v2 сглаживание (hysteresis/spring) |
 | fx-v1 | `drift/fx-v1-worldspace-coherence` | TBD | pending | align skid/particles with new camera frame | verify FX coherence |
-| cam-v2 | `drift/cam-v2-lookahead` | TBD | pending | velocity look-ahead with smoothing | evaluate control/readability tradeoff |
+| cam-v2 | `drift/cam-v2-spring` | TBD | in_progress | hysteresis + spring smoothing + velocity-direction prefilter to remove low-speed camera jerk | evaluate comfort vs readability |
 | cam-v3 | `drift/cam-v3-spring` | TBD | conditional | optional spring/lag follow | do only if V2 feels harsh |
 
 ## Fill-in Rules (after each playtest)

@@ -36,6 +36,11 @@ class DriveTopdownRenderer:
         self._cam_fwd_x = 1.0
         self._cam_fwd_y = 0.0
         self._cam_inited = False
+        self._cam_angle = 0.0
+        self._cam_ang_vel = 0.0
+        self._cam_use_velocity = False
+        self._cam_vel_x = 1.0
+        self._cam_vel_y = 0.0
 
     def notify_obstacle_hit(
         self,
@@ -131,26 +136,81 @@ class DriveTopdownRenderer:
         heading_x = logic.fwd_x
         heading_y = logic.fwd_y
 
-        speed_blend = self._speed_blend(logic.speed)
-        target_x = heading_x
-        target_y = heading_y
-        if speed_blend > 0.0:
-            vel_x, vel_y = self._normalize_or_fallback(logic.vx, logic.vy, heading_x, heading_y)
-            target_x = heading_x * (1.0 - speed_blend) + vel_x * speed_blend
-            target_y = heading_y * (1.0 - speed_blend) + vel_y * speed_blend
-            target_x, target_y = self._normalize_or_fallback(target_x, target_y, heading_x, heading_y)
-
         if not self._cam_inited:
-            self._cam_fwd_x = target_x
-            self._cam_fwd_y = target_y
+            self._cam_fwd_x = heading_x
+            self._cam_fwd_y = heading_y
+            self._cam_vel_x = heading_x
+            self._cam_vel_y = heading_y
+            self._cam_angle = math.atan2(self._cam_fwd_y, self._cam_fwd_x)
+            self._cam_ang_vel = 0.0
+            self._cam_use_velocity = False
             self._cam_inited = True
             return (self._cam_fwd_x, self._cam_fwd_y)
 
-        lerp = self._clamp(float(TUNING.DRIVE.cam_vel_dir_lerp), 0.0, 1.0)
-        sx = self._cam_fwd_x * (1.0 - lerp) + target_x * lerp
-        sy = self._cam_fwd_y * (1.0 - lerp) + target_y * lerp
-        self._cam_fwd_x, self._cam_fwd_y = self._normalize_or_fallback(sx, sy, target_x, target_y)
+        vel_speed = (logic.vx * logic.vx + logic.vy * logic.vy) ** 0.5
+        self._update_velocity_mode(vel_speed)
+
+        target_x = heading_x
+        target_y = heading_y
+        if self._cam_use_velocity:
+            raw_x, raw_y = self._normalize_or_fallback(
+                logic.vx, logic.vy, self._cam_vel_x, self._cam_vel_y
+            )
+            vel_lerp = self._clamp(float(TUNING.DRIVE.cam_vel_dir_lerp), 0.0, 1.0)
+            self._cam_vel_x += (raw_x - self._cam_vel_x) * vel_lerp
+            self._cam_vel_y += (raw_y - self._cam_vel_y) * vel_lerp
+            self._cam_vel_x, self._cam_vel_y = self._normalize_or_fallback(
+                self._cam_vel_x, self._cam_vel_y, heading_x, heading_y
+            )
+            target_x = self._cam_vel_x
+            target_y = self._cam_vel_y
+        else:
+            self._cam_vel_x = heading_x
+            self._cam_vel_y = heading_y
+
+        target_angle = math.atan2(target_y, target_x)
+        self._step_camera_spring(target_angle, float(TUNING.CORE.dt))
+        self._cam_fwd_x = math.cos(self._cam_angle)
+        self._cam_fwd_y = math.sin(self._cam_angle)
         return (self._cam_fwd_x, self._cam_fwd_y)
+
+    def _update_velocity_mode(self, speed: float) -> None:
+        enter_speed = float(TUNING.DRIVE.cam_vel_enter_speed)
+        exit_speed = float(TUNING.DRIVE.cam_vel_exit_speed)
+        if enter_speed < 0.0:
+            enter_speed = 0.0
+        if exit_speed < 0.0:
+            exit_speed = 0.0
+        if exit_speed > enter_speed:
+            exit_speed = enter_speed
+
+        if self._cam_use_velocity:
+            if speed < exit_speed:
+                self._cam_use_velocity = False
+            return
+        if speed > enter_speed:
+            self._cam_use_velocity = True
+
+    def _step_camera_spring(self, target_angle: float, dt: float) -> None:
+        if dt <= 0.0:
+            self._cam_angle = target_angle
+            self._cam_ang_vel = 0.0
+            return
+
+        freq_hz = float(TUNING.DRIVE.cam_spring_freq_hz)
+        damping = float(TUNING.DRIVE.cam_spring_damping)
+        if freq_hz <= 0.0:
+            self._cam_angle = target_angle
+            self._cam_ang_vel = 0.0
+            return
+        if damping < 0.0:
+            damping = 0.0
+
+        omega = 2.0 * math.pi * freq_hz
+        delta = self._wrap_angle(target_angle - self._cam_angle)
+        accel = (omega * omega) * delta - (2.0 * damping * omega) * self._cam_ang_vel
+        self._cam_ang_vel += accel * dt
+        self._cam_angle = self._wrap_angle(self._cam_angle + self._cam_ang_vel * dt)
 
     def _draw_car_ttri_heading(
         self,
@@ -169,7 +229,8 @@ class DriveTopdownRenderer:
         x1 = x0 + size
         y1 = y0 + size
 
-        heading_angle = self._car_heading_screen_angle(logic.fwd_x, logic.fwd_y, cam_fwd_x, cam_fwd_y)
+        heading_angle = self._car_heading_screen_angle(logic.fwd_x,
+                                                       logic.fwd_y, cam_fwd_x, cam_fwd_y)
         cos_t = math.cos(heading_angle)
         sin_t = math.sin(heading_angle)
         px = float(center_x)
@@ -205,16 +266,6 @@ class DriveTopdownRenderer:
             0,
             self._CAR_CHROMAKEY
         )
-
-    def _speed_blend(self, speed: float) -> float:
-        min_speed = float(TUNING.DRIVE.cam_vel_min_speed)
-        full_speed = float(TUNING.DRIVE.cam_vel_full_speed)
-        if speed <= min_speed:
-            return 0.0
-        denom = full_speed - min_speed
-        if denom <= 0.0:
-            return 1.0
-        return self._clamp((speed - min_speed) / denom, 0.0, 1.0)
 
     @staticmethod
     def _car_heading_screen_angle(
@@ -264,3 +315,13 @@ class DriveTopdownRenderer:
         if value > max_value:
             return max_value
         return value
+
+    @staticmethod
+    def _wrap_angle(angle: float) -> float:
+        pi = math.pi
+        two_pi = 2.0 * pi
+        while angle > pi:
+            angle -= two_pi
+        while angle < -pi:
+            angle += two_pi
+        return angle
