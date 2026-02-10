@@ -23,7 +23,7 @@
 5. `drift/cam-v2-lookahead`
 6. `drift/cam-v3-spring-blend` (опционально: если V2/пружина дают скачки или ватность)
 7. `drift/cam-v3-spring-blend` (`cam-v3.1` микро-шаг: low-speed anti-jerk, если остается редкий рывок)
-8. `drift/cam-v4-speed-framing` (опционально: если нужно больше дороги на высокой скорости)
+8. `drift/cam-v4-speed-framing` (архивный эксперимент, сейчас исключен из baseline)
 
 ## Спека по итерациям
 
@@ -91,7 +91,7 @@
 1. `DriveLogic`: read-only доступ к world velocity (`vx`, `vy`) для камеры/рендера.
 2. `TopdownProjector`: разделение `camera pose` и `car pose`.
 3. `DriveTuning` + `data/tuning/drive/*`: параметры camera-by-velocity/lookahead/spring.
-4. `core/sprites.py`: legacy turn-sprites остаются как наследие и не используются в M1.6 runtime-пути.
+4. `core/sprites.py`: файл оставляем как библиотеку спрайт-описаний, но в M1.6 runtime-путь не подключаем.
 
 ## Тест-кейсы для каждого варианта
 
@@ -113,5 +113,5 @@
 
 - План может уточняться по результатам каждого плейтеста.
 - Изменения из следующих итераций не смешивать в текущую ветку.
-- По итогам тестов `cam-v4-speed-framing` (forward/reverse) временно исключен из рабочего baseline M1.6.
+- По итогам тестов `cam-v4-speed-framing` (forward/reverse) исключен из рабочего baseline M1.6.
 - Текущая рабочая камера для baseline: `cam-v3.1`.
