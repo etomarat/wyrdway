@@ -67,7 +67,8 @@ _NIVA_TILE_H = 4
 _NIVA_COLORKEY = 12  # white
 
 NIVA_TOPDOWN = TopdownVehicleSprites(
-    SpriteSpec(320, _NIVA_TILE_W, _NIVA_TILE_H, _NIVA_COLORKEY),
-    SpriteSpec(324, _NIVA_TILE_W, _NIVA_TILE_H, _NIVA_COLORKEY),
-    SpriteSpec(328, _NIVA_TILE_W, _NIVA_TILE_H, _NIVA_COLORKEY)
+    SpriteSpec(256, _NIVA_TILE_W, _NIVA_TILE_H, _NIVA_COLORKEY),
+    # Legacy API compatibility: single runtime frame, no separate turn sprites.
+    SpriteSpec(256, _NIVA_TILE_W, _NIVA_TILE_H, _NIVA_COLORKEY),
+    SpriteSpec(256, _NIVA_TILE_W, _NIVA_TILE_H, _NIVA_COLORKEY)
 )

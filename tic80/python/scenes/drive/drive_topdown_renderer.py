@@ -24,14 +24,17 @@ class DriveTopdownRenderer:
     Задача класса: только рисовать. Никаких изменений состояния RunState/DriveLogic.
     """
 
-    _CAR_SPRITE_BASE_ID = 320
+    _CAR_SPRITE_BASE_ID = 256
     _CAR_SPRITE_PIXEL_SIZE = 32.0
     _CAR_CHROMAKEY = 12
-    # Trim one empty 8px column on the left side of the 32x32 source block.
-    _CAR_SRC_X0 = 8.0
+    # Crop empty right column (8px) from repacked #256 block.
+    _CAR_SRC_X0 = 0.0
     _CAR_SRC_Y0 = 0.0
-    _CAR_SRC_X1 = 32.0
+    _CAR_SRC_X1 = 24.0
     _CAR_SRC_Y1 = 32.0
+    # Костыль, чтобы не переписывать остальные цифры из TUNING. Раньше у спрайта было смещение слева
+    # и все цифры подогнаны под это
+    _CAR_DRAW_OFFSET_X = 8.0
     # Low-speed anti-jerk yaw cap (cam-v3.1):
     # - _LOW_SPEED_CAP_BLEND_MAX: до какого speed_blend действует ограничение (0..1).
     # - _LOW_SPEED_YAW_RATE_MIN_DEG: минимальная скорость поворота цели камеры при почти нулевой скорости.
@@ -300,7 +303,7 @@ class DriveTopdownRenderer:
     def _sprite_px_to_screen(pose: CarPose2D, sprite_x: float, sprite_y: float) -> tuple[float, float]:
         anchor_x = float(TUNING.DRIVE.car_sprite_anchor_x)
         anchor_y = float(TUNING.DRIVE.car_sprite_anchor_y)
-        local_x = sprite_x - anchor_x
+        local_x = sprite_x - anchor_x + DriveTopdownRenderer._CAR_DRAW_OFFSET_X
         local_back = sprite_y - anchor_y
         return pose.local_to_screen(local_x, local_back)
 
