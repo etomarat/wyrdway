@@ -12,7 +12,7 @@
 | fx-v1 | `drift/fx-v1-worldspace-coherence` | TBD | pending | align skid/particles with new camera frame | verify FX coherence |
 | cam-v2 | `drift/cam-v2-spring` | done locally | iterate | заметно сгладили камеру, но остались скачки в момент резкого торможения в повороте и ощущение "ватности" | перейти к непрерывному blend |
 | cam-v3 | `drift/cam-v3-spring-blend` | TBD | keep (minor iterate) | стало значительно лучше; остаточный редкий jerk в кейсе "дрифт -> почти стоп -> отпускание ручника" | сделать микрофикс `cam-v3.1` |
-| cam-v3.1 | `drift/cam-v3-spring-blend` | TBD | in_progress | low-speed anti-jerk: ограничить резкий разворот цели камеры около нулевой скорости | validate that control feel stays responsive |
+| cam-v3.1 | `drift/cam-v3-spring-blend` | TBD | in_progress | implemented low-speed anti-jerk yaw cap for camera target (before spring) | validate that control feel stays responsive |
 | cam-v4 | `drift/cam-v4-speed-framing` | TBD | pending | speed-based forward framing (show more road at high speed) | run only after cam-v3 verdict |
 
 ## Fill-in Rules (after each playtest)

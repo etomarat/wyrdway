@@ -26,6 +26,22 @@ class DriveTopdownRenderer:
     _CAR_SPRITE_BASE_ID = 320
     _CAR_SPRITE_PIXEL_SIZE = 32.0
     _CAR_CHROMAKEY = 12
+    # Low-speed anti-jerk yaw cap (cam-v3.1):
+    # - _LOW_SPEED_CAP_BLEND_MAX: до какого speed_blend действует ограничение (0..1).
+    # - _LOW_SPEED_YAW_RATE_MIN_DEG: минимальная скорость поворота цели камеры при почти нулевой скорости.
+    # - _LOW_SPEED_YAW_RATE_MAX_DEG: ограничение near-перехода к средней скорости.
+    _LOW_SPEED_CAP_BLEND_MAX = 0.45
+    _LOW_SPEED_YAW_RATE_MIN_DEG = 260.0
+    _LOW_SPEED_YAW_RATE_MAX_DEG = 720.0
+    # PRESET A (закомментированный): сильнее режет резкий поворот цели на very-low-speed.
+    # _LOW_SPEED_CAP_BLEND_MAX = 0.60
+    # _LOW_SPEED_YAW_RATE_MIN_DEG = 220.0
+    # _LOW_SPEED_YAW_RATE_MAX_DEG = 720.0
+    # PRESET B (закомментированный): более отзывчивый выход, меньше "ватности",
+    # но рывки на very-low-speed могут быть чуть заметнее.
+    # _LOW_SPEED_CAP_BLEND_MAX = 0.35
+    # _LOW_SPEED_YAW_RATE_MIN_DEG = 300.0
+    # _LOW_SPEED_YAW_RATE_MAX_DEG = 900.0
 
     def __init__(self) -> None:
         self._road_draw = TopdownRoadDraw()
@@ -167,7 +183,9 @@ class DriveTopdownRenderer:
         target_x, target_y = self._normalize_or_fallback(target_x, target_y, heading_x, heading_y)
 
         target_angle = math.atan2(target_y, target_x)
-        self._step_camera_spring(target_angle, float(TUNING.CORE.dt))
+        dt = float(TUNING.CORE.dt)
+        target_angle = self._cap_low_speed_target_angle(target_angle, speed_blend, dt)
+        self._step_camera_spring(target_angle, dt)
         self._cam_fwd_x = math.cos(self._cam_angle)
         self._cam_fwd_y = math.sin(self._cam_angle)
         return (self._cam_fwd_x, self._cam_fwd_y)
@@ -203,6 +221,32 @@ class DriveTopdownRenderer:
         accel = (omega * omega) * delta - (2.0 * damping * omega) * self._cam_ang_vel
         self._cam_ang_vel += accel * dt
         self._cam_angle = self._wrap_angle(self._cam_angle + self._cam_ang_vel * dt)
+
+    def _cap_low_speed_target_angle(
+        self,
+        target_angle: float,
+        speed_blend: float,
+        dt: float
+    ) -> float:
+        if dt <= 0.0:
+            return target_angle
+        cap_blend_max = self._LOW_SPEED_CAP_BLEND_MAX
+        if cap_blend_max <= 0.0:
+            return target_angle
+        if speed_blend >= cap_blend_max:
+            return target_angle
+
+        t = self._clamp(speed_blend / cap_blend_max, 0.0, 1.0)
+        max_rate_deg = self._LOW_SPEED_YAW_RATE_MIN_DEG + (
+            self._LOW_SPEED_YAW_RATE_MAX_DEG - self._LOW_SPEED_YAW_RATE_MIN_DEG
+        ) * t
+        max_step = math.radians(max_rate_deg) * dt
+        delta = self._wrap_angle(target_angle - self._cam_angle)
+        if delta > max_step:
+            return self._wrap_angle(self._cam_angle + max_step)
+        if delta < -max_step:
+            return self._wrap_angle(self._cam_angle - max_step)
+        return target_angle
 
     def _draw_car_ttri_heading(
         self,

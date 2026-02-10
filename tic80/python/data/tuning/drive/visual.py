@@ -26,6 +26,10 @@ TUNING.DRIVE.view_center_y_max = 128.0
 #
 # При низкой скорости доверяем heading машины, чтобы избежать дрожи.
 # Между min..full делаем плавный blend heading -> velocity direction.
+# Пояснения:
+# - cam_vel_min_speed: ниже этого порога velocity почти не влияет на направление камеры.
+# - cam_vel_full_speed: выше этого порога направление камеры почти полностью от velocity.
+# - cam_vel_dir_lerp: сглаживание направления velocity (меньше = стабильнее, но "тяжелее").
 TUNING.DRIVE.cam_vel_min_speed = 3.0
 TUNING.DRIVE.cam_vel_full_speed = 11.0
 # Низкочастотное сглаживание velocity-направления (0..1 за кадр).
@@ -44,8 +48,28 @@ TUNING.DRIVE.cam_vel_exit_speed = 4.0
 # Пружинное сглаживание угла камеры:
 # - freq_hz: частота реакции,
 # - damping: демпфирование (около 1.0 = около критического).
+# Пояснения:
+# - cam_spring_freq_hz: больше = камера резче догоняет цель, меньше "ватности".
+# - cam_spring_damping: больше = меньше перерегулирования, но больше "тупости".
 TUNING.DRIVE.cam_spring_freq_hz = 4.8
 TUNING.DRIVE.cam_spring_damping = 1.1
+
+# PRESET A (закомментированный): меньше jerk на выходе из дрифта, но без лишней ватности.
+# Включать целиком (заменить активные значения выше).
+#
+# TUNING.DRIVE.cam_vel_min_speed = 3.5
+# TUNING.DRIVE.cam_vel_full_speed = 11.0
+# TUNING.DRIVE.cam_vel_dir_lerp = 0.16
+# TUNING.DRIVE.cam_spring_freq_hz = 5.2
+# TUNING.DRIVE.cam_spring_damping = 1.1
+#
+# PRESET B (закомментированный): максимум отзывчивости, меньше "ватности",
+# но может вернуть немного резкости на выходе из дрифта.
+# TUNING.DRIVE.cam_vel_min_speed = 3.0
+# TUNING.DRIVE.cam_vel_full_speed = 10.0
+# TUNING.DRIVE.cam_vel_dir_lerp = 0.18
+# TUNING.DRIVE.cam_spring_freq_hz = 5.6
+# TUNING.DRIVE.cam_spring_damping = 1.0
 
 # Где у машины “опорная точка” физики на спрайте (top-down).
 #
