@@ -75,21 +75,13 @@ class DriveObjects:
         return len(self._zones)
 
     def obstacles_items(self) -> list[DriveObstacle]:
-        """Копия списка препятствий."""
-        return list(self._obstacles)
-
-    def zones_items(self) -> list[DriveZone]:
-        """Копия списка зон."""
-        return list(self._zones)
-
-    def obstacles_items_view(self) -> list[DriveObstacle]:
         """Ссылка на внутренний список препятствий (без копии).
 
         Важно: не мутировать список извне. Используйте только для чтения.
         """
         return self._obstacles
 
-    def zones_items_view(self) -> list[DriveZone]:
+    def zones_items(self) -> list[DriveZone]:
         """Ссылка на внутренний список зон (без копии).
 
         Важно: не мутировать список извне. Используйте только для чтения.

@@ -104,7 +104,7 @@ class DriveTopdownRenderer:
         pose = CarPose2D(logic, proj, center_x, center_y)
 
         start_idx, end_idx = self._road_draw.visible_index_range(road, p_s)
-        zones = objects.zones_items_view()
+        zones = objects.zones_items()
         self._road_draw.draw_road_edges_and_zones(
             road,
             zones,
@@ -130,7 +130,7 @@ class DriveTopdownRenderer:
                 )
                 i += 1
 
-        obstacles = objects.obstacles_items_view()
+        obstacles = objects.obstacles_items()
         self._obstacles_draw.draw(
             obstacles,
             road,

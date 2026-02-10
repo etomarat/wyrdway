@@ -81,7 +81,7 @@ class DriveScene:
         if self._state.playtest_enabled:
             self._state.playtest_add_time(dt)
 
-        zones = self._objects.zones_items_view()
+        zones = self._objects.zones_items()
         z_before = zone_at_hitboxes(self._logic, zones)
         apply_zone_effects(self._logic, z_before, TUNING)
 
