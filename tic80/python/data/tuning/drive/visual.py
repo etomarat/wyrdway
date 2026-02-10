@@ -26,24 +26,25 @@ TUNING.DRIVE.view_center_y_max = 128.0
 #
 # При низкой скорости доверяем heading машины, чтобы избежать дрожи.
 # Между min..full делаем плавный blend heading -> velocity direction.
-TUNING.DRIVE.cam_vel_min_speed = 2.0
-TUNING.DRIVE.cam_vel_full_speed = 10.0
+TUNING.DRIVE.cam_vel_min_speed = 3.0
+TUNING.DRIVE.cam_vel_full_speed = 11.0
 # Низкочастотное сглаживание velocity-направления (0..1 за кадр).
-# Используется как предфильтр цели камеры (в т.ч. в cam-v2 spring).
-TUNING.DRIVE.cam_vel_dir_lerp = 0.18
+# Используется как предфильтр цели камеры перед blend/spring.
+TUNING.DRIVE.cam_vel_dir_lerp = 0.16
 
 # cam-v2 spring: подавление рывков на низкой скорости.
 #
 # Гистерезис режима velocity:
 # - enter: выше этого порога камера начинает ориентироваться по velocity;
 # - exit: ниже этого порога камера возвращается к heading.
+# В cam-v3 blend эти пороги не используются, оставлены для обратной совместимости.
 TUNING.DRIVE.cam_vel_enter_speed = 7.0
 TUNING.DRIVE.cam_vel_exit_speed = 4.0
 #
 # Пружинное сглаживание угла камеры:
 # - freq_hz: частота реакции,
 # - damping: демпфирование (около 1.0 = около критического).
-TUNING.DRIVE.cam_spring_freq_hz = 3.2
+TUNING.DRIVE.cam_spring_freq_hz = 4.8
 TUNING.DRIVE.cam_spring_damping = 1.1
 
 # Где у машины “опорная точка” физики на спрайте (top-down).

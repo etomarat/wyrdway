@@ -38,7 +38,6 @@ class DriveTopdownRenderer:
         self._cam_inited = False
         self._cam_angle = 0.0
         self._cam_ang_vel = 0.0
-        self._cam_use_velocity = False
         self._cam_vel_x = 1.0
         self._cam_vel_y = 0.0
 
@@ -143,16 +142,16 @@ class DriveTopdownRenderer:
             self._cam_vel_y = heading_y
             self._cam_angle = math.atan2(self._cam_fwd_y, self._cam_fwd_x)
             self._cam_ang_vel = 0.0
-            self._cam_use_velocity = False
             self._cam_inited = True
             return (self._cam_fwd_x, self._cam_fwd_y)
 
         vel_speed = (logic.vx * logic.vx + logic.vy * logic.vy) ** 0.5
-        self._update_velocity_mode(vel_speed)
 
-        target_x = heading_x
-        target_y = heading_y
-        if self._cam_use_velocity:
+        speed_blend = self._speed_blend(vel_speed)
+        if speed_blend <= 0.0:
+            self._cam_vel_x = heading_x
+            self._cam_vel_y = heading_y
+        else:
             raw_x, raw_y = self._normalize_or_fallback(
                 logic.vx, logic.vy, self._cam_vel_x, self._cam_vel_y
             )
@@ -162,11 +161,10 @@ class DriveTopdownRenderer:
             self._cam_vel_x, self._cam_vel_y = self._normalize_or_fallback(
                 self._cam_vel_x, self._cam_vel_y, heading_x, heading_y
             )
-            target_x = self._cam_vel_x
-            target_y = self._cam_vel_y
-        else:
-            self._cam_vel_x = heading_x
-            self._cam_vel_y = heading_y
+
+        target_x = heading_x * (1.0 - speed_blend) + self._cam_vel_x * speed_blend
+        target_y = heading_y * (1.0 - speed_blend) + self._cam_vel_y * speed_blend
+        target_x, target_y = self._normalize_or_fallback(target_x, target_y, heading_x, heading_y)
 
         target_angle = math.atan2(target_y, target_x)
         self._step_camera_spring(target_angle, float(TUNING.CORE.dt))
@@ -174,22 +172,16 @@ class DriveTopdownRenderer:
         self._cam_fwd_y = math.sin(self._cam_angle)
         return (self._cam_fwd_x, self._cam_fwd_y)
 
-    def _update_velocity_mode(self, speed: float) -> None:
-        enter_speed = float(TUNING.DRIVE.cam_vel_enter_speed)
-        exit_speed = float(TUNING.DRIVE.cam_vel_exit_speed)
-        if enter_speed < 0.0:
-            enter_speed = 0.0
-        if exit_speed < 0.0:
-            exit_speed = 0.0
-        if exit_speed > enter_speed:
-            exit_speed = enter_speed
-
-        if self._cam_use_velocity:
-            if speed < exit_speed:
-                self._cam_use_velocity = False
-            return
-        if speed > enter_speed:
-            self._cam_use_velocity = True
+    def _speed_blend(self, speed: float) -> float:
+        min_speed = float(TUNING.DRIVE.cam_vel_min_speed)
+        full_speed = float(TUNING.DRIVE.cam_vel_full_speed)
+        if speed <= min_speed:
+            return 0.0
+        denom = full_speed - min_speed
+        if denom <= 0.0:
+            return 1.0
+        t = self._clamp((speed - min_speed) / denom, 0.0, 1.0)
+        return t * t * (3.0 - 2.0 * t)
 
     def _step_camera_spring(self, target_angle: float, dt: float) -> None:
         if dt <= 0.0:
