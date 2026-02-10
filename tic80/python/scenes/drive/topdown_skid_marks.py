@@ -5,6 +5,7 @@ if TYPE_CHECKING:
 
     from ...core.palette import Color
     from ...data.tuning import TUNING
+    from ...systems.drive.drive_fx import TopdownProjector
     from ...systems.drive.drive_logic_core import DriveLogic
 
 
@@ -18,7 +19,13 @@ class TopdownSkidMarks:
         if t > self._start_skid_t:
             self._start_skid_t = t
 
-    def update_and_draw(self, logic: DriveLogic, cx: int, cy: int) -> None:
+    def update_and_draw(
+        self,
+        logic: DriveLogic,
+        cx: int,
+        cy: int,
+        proj: TopdownProjector
+    ) -> None:
         # slip = abs(v_side) / (abs(v_forward) + eps)
         denom = abs(logic.v_forward) + TUNING.DRIVE.slip_eps_speed
         slip = abs(logic.v_side) / denom
@@ -40,9 +47,8 @@ class TopdownSkidMarks:
             if not active and logic.speed > TUNING.DRIVE.skid_min_speed:
                 active = True
 
-        # Важно: следы “живут” в мире, а камера привязана к машине.
-        dx = -logic.v_side * dt
-        dy = logic.v_forward * dt
+        # Важно: следы “живут” в мире, поэтому мировой сдвиг берём в camera-space.
+        dx, dy = proj.world_vec_to_screen(-logic.vx * dt, -logic.vy * dt)
 
         i = 0
         while i < len(self._skids):

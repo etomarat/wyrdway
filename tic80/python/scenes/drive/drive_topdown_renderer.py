@@ -133,7 +133,7 @@ class DriveTopdownRenderer:
         start_move = self._fx_overlay.update(road, logic, center_x, center_y, proj)
         if start_move:
             self._skid_marks.trigger_start(float(TUNING.DRIVE.start_skid_seconds))
-        self._skid_marks.update_and_draw(logic, center_x, center_y)
+        self._skid_marks.update_and_draw(logic, center_x, center_y, proj)
 
         # Следы шин должны быть ПОД пылью/дымом.
         self._fx_overlay.draw_world()

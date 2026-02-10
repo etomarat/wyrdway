@@ -56,8 +56,7 @@ class TopdownFxOverlay:
 
         start_move = False
 
-        world_dx = -logic.v_side * dt
-        world_dy = logic.v_forward * dt
+        world_dx, world_dy = proj.world_vec_to_screen(-logic.vx * dt, -logic.vy * dt)
 
         # Искры перехода должны читаться как “локальный” эффект у колёс,
         # а не как частицы, остающиеся в мире. Поэтому не применяем world-shift,
@@ -95,7 +94,7 @@ class TopdownFxOverlay:
 
         if offroad != self._prev_offroad:
             if spd > d.fx_dust_min_speed and self._offroad_transition_cooldown <= 0.0:
-                self._emit_offroad_transition_sparks(offroad, road, logic, cx, cy)
+                self._emit_offroad_transition_sparks(offroad, road, logic, proj, cx, cy)
                 self._offroad_transition_cooldown = 0.20
             self._prev_offroad = offroad
 
@@ -314,6 +313,7 @@ class TopdownFxOverlay:
         entering_offroad: bool,
         road: RoadModel,
         logic: DriveLogic,
+        proj: TopdownProjector,
         cx: int,
         cy: int
     ) -> None:
@@ -326,7 +326,9 @@ class TopdownFxOverlay:
             spawn_sign = boundary_sign
             dir_sign = boundary_sign
 
-        dir_x, dir_y, cross = self._edge_spark_dir(road, logic, dir_sign, entering_offroad)
+        dir_x, dir_y, cross = self._edge_spark_dir(
+            road, logic, proj, dir_sign, entering_offroad
+        )
 
         spd = logic.speed
         min_spd = float(d.fx_transition_sparks_min_speed)
@@ -389,6 +391,7 @@ class TopdownFxOverlay:
         self,
         road: RoadModel,
         logic: DriveLogic,
+        proj: TopdownProjector,
         dir_sign: int,
         entering_offroad: bool
     ) -> tuple[float, float, float]:
@@ -411,8 +414,7 @@ class TopdownFxOverlay:
         sx = (sx / d0) * float(dir_sign)
         sy = (sy / d0) * float(dir_sign)
 
-        mx = -logic.v_side
-        my = logic.v_forward
+        mx, my = proj.world_vec_to_screen(logic.vx, logic.vy)
         d1 = abs(mx) + abs(my)
         if d1 < 0.001:
             d1 = 1.0
