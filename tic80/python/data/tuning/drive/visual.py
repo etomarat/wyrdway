@@ -54,6 +54,18 @@ TUNING.DRIVE.cam_vel_exit_speed = 4.0
 TUNING.DRIVE.cam_spring_freq_hz = 4.8
 TUNING.DRIVE.cam_spring_damping = 1.1
 
+# cam-v4 speed framing: на скорости показываем больше дороги впереди.
+# Пояснения:
+# - cam_frame_min_speed: ниже этого порога дополнительного смещения почти нет.
+# - cam_frame_full_speed: выше этого порога применяется максимальное смещение.
+# - cam_frame_max_px: насколько опускаем машину вниз экрана (в пикселях).
+# - cam_frame_lerp: сглаживание смещения кадра (0..1 за кадр).
+# Для текущего теста: стартуем от `max_speed` и наращиваем framing выше максималки.
+TUNING.DRIVE.cam_frame_min_speed = 95.0
+TUNING.DRIVE.cam_frame_full_speed = 130.0
+TUNING.DRIVE.cam_frame_max_px = 14.0
+TUNING.DRIVE.cam_frame_lerp = 0.08
+
 # PRESET A (закомментированный): меньше jerk на выходе из дрифта, но без лишней ватности.
 # Включать целиком (заменить активные значения выше).
 #

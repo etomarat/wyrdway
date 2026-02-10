@@ -102,6 +102,10 @@ class DriveTuning:
         "cam_vel_exit_speed",
         "cam_spring_freq_hz",
         "cam_spring_damping",
+        "cam_frame_min_speed",
+        "cam_frame_full_speed",
+        "cam_frame_max_px",
+        "cam_frame_lerp",
         "car_sprite_anchor_x",
         "car_sprite_anchor_y",
         "debug_vectors_enabled",
@@ -242,6 +246,10 @@ class DriveTuning:
         self.cam_vel_exit_speed = 0.0
         self.cam_spring_freq_hz = 0.0
         self.cam_spring_damping = 0.0
+        self.cam_frame_min_speed = 0.0
+        self.cam_frame_full_speed = 0.0
+        self.cam_frame_max_px = 0.0
+        self.cam_frame_lerp = 0.0
         self.car_sprite_anchor_x = 0.0
         self.car_sprite_anchor_y = 0.0
         self.debug_vectors_enabled = False
