@@ -7,6 +7,7 @@ if TYPE_CHECKING:
     from ...data.tuning import TUNING
     from ...systems.drive.drive_fx import TopdownProjector
     from ...systems.drive.drive_logic_core import DriveLogic
+    from .car_pose2d import CarPose2D
 
 
 class TopdownSkidMarks:
@@ -20,7 +21,7 @@ class TopdownSkidMarks:
         if t > self._start_skid_t:
             self._start_skid_t = t
 
-    def update_and_draw(self, logic: DriveLogic, proj: TopdownProjector) -> None:
+    def update_and_draw(self, logic: DriveLogic, proj: TopdownProjector, pose: CarPose2D) -> None:
         # slip = abs(v_side) / (abs(v_forward) + eps)
         denom = abs(logic.v_forward) + TUNING.DRIVE.slip_eps_speed
         slip = abs(logic.v_side) / denom
@@ -75,10 +76,7 @@ class TopdownSkidMarks:
         if not active:
             return
 
-        anchor_x = float(TUNING.DRIVE.car_sprite_anchor_x)
-        anchor_y = float(TUNING.DRIVE.car_sprite_anchor_y)
-        shift_x = 16.0 - anchor_x
-        shift_back = 16.0 - anchor_y
+        shift_x, shift_back = pose.legacy_center_shift()
 
         back = float(TUNING.DRIVE.skid_back_px) + shift_back
         wheel_dx = float(TUNING.DRIVE.skid_wheel_dx_px) + shift_x
@@ -92,24 +90,12 @@ class TopdownSkidMarks:
         if slant < -slant_max:
             slant = -slant_max
 
-        fwd_x = float(logic.fwd_x)
-        fwd_y = float(logic.fwd_y)
-        right_x = -fwd_y
-        right_y = fwd_x
-
-        rear_x = float(logic.x) - fwd_x * back
-        rear_y = float(logic.y) - fwd_y * back
-
         life = int(TUNING.DRIVE.skid_life_frames)
 
-        left_wx = rear_x - right_x * wheel_dx
-        left_wy = rear_y - right_y * wheel_dx
-        left_ex = left_wx - fwd_x * seg + right_x * float(slant)
-        left_ey = left_wy - fwd_y * seg + right_y * float(slant)
+        left_wx, left_wy = pose.local_to_world(-wheel_dx, back)
+        left_ex, left_ey = pose.local_to_world(-wheel_dx + float(slant), back + seg)
         self._skids.append((left_wx, left_wy, left_ex, left_ey, life))
 
-        right_wx = rear_x + right_x * wheel_dx
-        right_wy = rear_y + right_y * wheel_dx
-        right_ex = right_wx - fwd_x * seg + right_x * float(slant)
-        right_ey = right_wy - fwd_y * seg + right_y * float(slant)
+        right_wx, right_wy = pose.local_to_world(wheel_dx, back)
+        right_ex, right_ey = pose.local_to_world(wheel_dx + float(slant), back + seg)
         self._skids.append((right_wx, right_wy, right_ex, right_ey, life))

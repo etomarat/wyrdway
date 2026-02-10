@@ -10,6 +10,7 @@ if TYPE_CHECKING:
     from ...systems.drive.drive_logic_core import DriveLogic
     from ...systems.drive.drive_objects import DriveObjects, DriveZone
     from ...systems.drive.road_model import RoadModel
+    from .car_pose2d import CarPose2D
     from .topdown_debug_draw import TopdownDebugDraw
     from .topdown_fx_overlay import TopdownFxOverlay
     from .topdown_obstacles_draw import TopdownObstaclesDraw
@@ -92,6 +93,7 @@ class DriveTopdownRenderer:
         car_y = logic.y
         cam_fwd_x, cam_fwd_y = self._camera_forward(logic)
         proj = TopdownProjector(car_x, car_y, cam_fwd_x, cam_fwd_y, center_x, center_y)
+        pose = CarPose2D(logic, proj, center_x, center_y)
 
         start_idx, end_idx = self._road_draw.visible_index_range(road, p_s)
         zones = objects.zones_items_view()
@@ -129,17 +131,17 @@ class DriveTopdownRenderer:
         )
 
         # FX/следы лучше рисовать ДО машины, чтобы кузов перекрывал их.
-        start_move = self._fx_overlay.update(road, logic, center_x, center_y, proj)
+        start_move = self._fx_overlay.update(road, logic, proj, pose)
         if start_move:
             self._skid_marks.trigger_start(float(TUNING.DRIVE.start_skid_seconds))
-        self._skid_marks.update_and_draw(logic, proj)
+        self._skid_marks.update_and_draw(logic, proj, pose)
 
         # Следы шин должны быть ПОД пылью/дымом.
         self._fx_overlay.draw_world()
 
         # Стартовый дым/пыль рисуем ВЫШЕ skid marks, но НИЖЕ кузова.
         self._fx_overlay.draw_under_car()
-        self._draw_car_ttri_heading(logic, center_x, center_y, cam_fwd_x, cam_fwd_y)
+        self._draw_car_ttri(pose)
         self._fx_overlay.draw_over_car()
 
         if TUNING.DRIVE.debug_vectors_enabled:
@@ -251,34 +253,12 @@ class DriveTopdownRenderer:
             return self._wrap_angle(self._cam_angle - max_step)
         return target_angle
 
-    def _draw_car_ttri_heading(
-        self,
-        logic: DriveLogic,
-        center_x: int,
-        center_y: int,
-        cam_fwd_x: float,
-        cam_fwd_y: float
-    ) -> None:
-        ax = float(TUNING.DRIVE.car_sprite_anchor_x)
-        ay = float(TUNING.DRIVE.car_sprite_anchor_y)
+    def _draw_car_ttri(self, pose: CarPose2D) -> None:
         size = self._CAR_SPRITE_PIXEL_SIZE
-
-        x0 = float(center_x) - ax
-        y0 = float(center_y) - ay
-        x1 = x0 + size
-        y1 = y0 + size
-
-        heading_angle = self._car_heading_screen_angle(logic.fwd_x,
-                                                       logic.fwd_y, cam_fwd_x, cam_fwd_y)
-        cos_t = math.cos(heading_angle)
-        sin_t = math.sin(heading_angle)
-        px = float(center_x)
-        py = float(center_y)
-
-        rx0, ry0 = self._rotated_point(x0, y0, px, py, cos_t, sin_t)
-        rx1, ry1 = self._rotated_point(x1, y0, px, py, cos_t, sin_t)
-        rx2, ry2 = self._rotated_point(x1, y1, px, py, cos_t, sin_t)
-        rx3, ry3 = self._rotated_point(x0, y1, px, py, cos_t, sin_t)
+        rx0, ry0 = self._sprite_px_to_screen(pose, 0.0, 0.0)
+        rx1, ry1 = self._sprite_px_to_screen(pose, size, 0.0)
+        rx2, ry2 = self._sprite_px_to_screen(pose, size, size)
+        rx3, ry3 = self._sprite_px_to_screen(pose, 0.0, size)
 
         u0 = float((self._CAR_SPRITE_BASE_ID % 16) * 8)
         v0 = float((self._CAR_SPRITE_BASE_ID // 16) * 8)
@@ -307,17 +287,12 @@ class DriveTopdownRenderer:
         )
 
     @staticmethod
-    def _car_heading_screen_angle(
-        car_fwd_x: float,
-        car_fwd_y: float,
-        cam_fwd_x: float,
-        cam_fwd_y: float
-    ) -> float:
-        cam_right_x = -cam_fwd_y
-        cam_right_y = cam_fwd_x
-        local_fwd = car_fwd_x * cam_fwd_x + car_fwd_y * cam_fwd_y
-        local_right = car_fwd_x * cam_right_x + car_fwd_y * cam_right_y
-        return math.atan2(local_right, local_fwd)
+    def _sprite_px_to_screen(pose: CarPose2D, sprite_x: float, sprite_y: float) -> tuple[float, float]:
+        anchor_x = float(TUNING.DRIVE.car_sprite_anchor_x)
+        anchor_y = float(TUNING.DRIVE.car_sprite_anchor_y)
+        local_x = sprite_x - anchor_x
+        local_back = sprite_y - anchor_y
+        return pose.local_to_screen(local_x, local_back)
 
     @staticmethod
     def _normalize_or_fallback(
@@ -331,21 +306,6 @@ class DriveTopdownRenderer:
             inv = 1.0 / (l2 ** 0.5)
             return (x * inv, y * inv)
         return (fallback_x, fallback_y)
-
-    @staticmethod
-    def _rotated_point(
-        x: float,
-        y: float,
-        px: float,
-        py: float,
-        cos_t: float,
-        sin_t: float
-    ) -> tuple[float, float]:
-        dx = x - px
-        dy = y - py
-        rx = dx * cos_t - dy * sin_t
-        ry = dx * sin_t + dy * cos_t
-        return (px + rx, py + ry)
 
     @staticmethod
     def _clamp(value: float, min_value: float, max_value: float) -> float:
