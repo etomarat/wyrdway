@@ -145,7 +145,7 @@ class DriveTopdownRenderer:
         if TUNING.DRIVE.debug_vectors_enabled:
             self._debug_draw.draw_vectors(logic, center_x, center_y)
         if TUNING.DRIVE.debug_hitboxes_enabled:
-            self._debug_draw.draw_hitboxes(logic.steer_input, center_x, center_y)
+            self._debug_draw.draw_hitboxes(logic, proj)
 
     def _camera_forward(self, logic: DriveLogic) -> tuple[float, float]:
         heading_x = logic.fwd_x
