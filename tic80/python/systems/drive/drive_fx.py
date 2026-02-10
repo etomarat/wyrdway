@@ -24,25 +24,25 @@ class DriveFxProjector:
 class TopdownProjector(DriveFxProjector):
     def __init__(
         self,
-        car_x: float,
-        car_y: float,
-        fwd_x: float,
-        fwd_y: float,
+        cam_x: float,
+        cam_y: float,
+        cam_fwd_x: float,
+        cam_fwd_y: float,
         center_x: int,
         center_y: int
     ) -> None:
-        self._car_x = car_x
-        self._car_y = car_y
-        self._fwd_x = fwd_x
-        self._fwd_y = fwd_y
-        self._right_x = -fwd_y
-        self._right_y = fwd_x
+        self._cam_x = cam_x
+        self._cam_y = cam_y
+        self._fwd_x = cam_fwd_x
+        self._fwd_y = cam_fwd_y
+        self._right_x = -cam_fwd_y
+        self._right_y = cam_fwd_x
         self._cx = center_x
         self._cy = center_y
 
     def world_to_screen(self, wx: float, wy: float) -> tuple[float, float]:
-        vx = wx - self._car_x
-        vy = wy - self._car_y
+        vx = wx - self._cam_x
+        vy = wy - self._cam_y
         local_fwd = vx * self._fwd_x + vy * self._fwd_y
         local_right = vx * self._right_x + vy * self._right_y
         sx = self._cx + local_right
@@ -137,8 +137,10 @@ class _StartDustFx(FxSystem):
             return
         self._acc -= n
 
-        wheel_dx = float(d.fx_dust_wheel_dx_px)
-        back = float(d.fx_dust_back_px)
+        anchor_shift_x = 16.0 - float(d.car_sprite_anchor_x)
+        anchor_shift_back = 16.0 - float(d.car_sprite_anchor_y)
+        wheel_dx = float(d.fx_dust_wheel_dx_px) + anchor_shift_x
+        back = float(d.fx_dust_back_px) + anchor_shift_back
         jitter_x = float(d.fx_dust_jitter_x_px)
         jitter_y = float(d.fx_dust_jitter_y_px)
         life = int(d.fx_dust_life_frames)
@@ -205,8 +207,10 @@ class _StartVandDustFx(FxSystem):
             return
         self._acc -= n
 
-        wheel_dx = float(d.fx_dust_wheel_dx_px)
-        back = float(d.fx_dust_back_px)
+        anchor_shift_x = 16.0 - float(d.car_sprite_anchor_x)
+        anchor_shift_back = 16.0 - float(d.car_sprite_anchor_y)
+        wheel_dx = float(d.fx_dust_wheel_dx_px) + anchor_shift_x
+        back = float(d.fx_dust_back_px) + anchor_shift_back
         jitter_x = float(d.fx_dust_jitter_x_px)
         jitter_y = float(d.fx_dust_jitter_y_px)
 

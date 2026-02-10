@@ -5,11 +5,14 @@ if TYPE_CHECKING:
 
     from ...core.palette import Color
     from ...data.tuning import TUNING
+    from ...systems.drive.drive_fx import TopdownProjector
     from ...systems.drive.drive_logic_core import DriveLogic
+    from .car_pose2d import CarPose2D
 
 
 class TopdownSkidMarks:
     def __init__(self) -> None:
+        # Храним отрезки в world-space: так следы корректно живут при любом повороте камеры.
         self._skids: list[tuple[float, float, float, float, int]] = []
         self._start_skid_t = 0.0
 
@@ -18,7 +21,7 @@ class TopdownSkidMarks:
         if t > self._start_skid_t:
             self._start_skid_t = t
 
-    def update_and_draw(self, logic: DriveLogic, cx: int, cy: int) -> None:
+    def update_and_draw(self, logic: DriveLogic, proj: TopdownProjector, pose: CarPose2D) -> None:
         # slip = abs(v_side) / (abs(v_forward) + eps)
         denom = abs(logic.v_forward) + TUNING.DRIVE.slip_eps_speed
         slip = abs(logic.v_side) / denom
@@ -40,30 +43,24 @@ class TopdownSkidMarks:
             if not active and logic.speed > TUNING.DRIVE.skid_min_speed:
                 active = True
 
-        # Важно: следы “живут” в мире, а камера привязана к машине.
-        dx = -logic.v_side * dt
-        dy = logic.v_forward * dt
-
         i = 0
         while i < len(self._skids):
-            x0, y0, x1, y1, life = self._skids[i]
+            wx0, wy0, wx1, wy1, life = self._skids[i]
             if life > 0:
                 color = Color.DARK_GREY
                 if life < TUNING.DRIVE.skid_light_after_frames:
                     color = Color.GREY
 
-                x0 += dx
-                y0 += dy
-                x1 += dx
-                y1 += dy
+                sx0, sy0 = proj.world_to_screen(wx0, wy0)
+                sx1, sy1 = proj.world_to_screen(wx1, wy1)
 
-                x0i = int(x0)
-                y0i = int(y0)
-                x1i = int(x1)
-                y1i = int(y1)
+                x0i = int(sx0)
+                y0i = int(sy0)
+                x1i = int(sx1)
+                y1i = int(sy1)
 
                 # Делаем след шириной 2 пикселя: две параллельные линии.
-                if x0 < cx:
+                if sx0 < sx1:
                     line(x0i, y0i, x1i, y1i, color)
                     line(x0i + 1, y0i, x1i + 1, y1i, color)
                 else:
@@ -71,7 +68,7 @@ class TopdownSkidMarks:
                     line(x0i, y0i, x1i, y1i, color)
 
                 life -= 1
-                self._skids[i] = (x0, y0, x1, y1, life)
+                self._skids[i] = (wx0, wy0, wx1, wy1, life)
                 i += 1
             else:
                 self._skids.pop(i)
@@ -79,9 +76,11 @@ class TopdownSkidMarks:
         if not active:
             return
 
-        back = int(TUNING.DRIVE.skid_back_px)
-        wheel_dx = int(TUNING.DRIVE.skid_wheel_dx_px)
-        seg = int(TUNING.DRIVE.skid_seg_len_px)
+        shift_x, shift_back = pose.legacy_center_shift()
+
+        back = float(TUNING.DRIVE.skid_back_px) + shift_back
+        wheel_dx = float(TUNING.DRIVE.skid_wheel_dx_px) + shift_x
+        seg = float(TUNING.DRIVE.skid_seg_len_px)
 
         # Небольшое смещение в сторону заноса, чтобы след “наклонялся”.
         slant = -int(TUNING.DRIVE.skid_slant_scale * (logic.v_side / denom))
@@ -91,11 +90,12 @@ class TopdownSkidMarks:
         if slant < -slant_max:
             slant = -slant_max
 
-        left_x = cx - wheel_dx
-        right_x = cx + wheel_dx
-        y0 = cy + back
-        y1 = y0 + seg
-
         life = int(TUNING.DRIVE.skid_life_frames)
-        self._skids.append((left_x, y0, left_x + slant, y1, life))
-        self._skids.append((right_x, y0, right_x + slant, y1, life))
+
+        left_wx, left_wy = pose.local_to_world(-wheel_dx, back)
+        left_ex, left_ey = pose.local_to_world(-wheel_dx + float(slant), back + seg)
+        self._skids.append((left_wx, left_wy, left_ex, left_ey, life))
+
+        right_wx, right_wy = pose.local_to_world(wheel_dx, back)
+        right_ex, right_ey = pose.local_to_world(wheel_dx + float(slant), back + seg)
+        self._skids.append((right_wx, right_wy, right_ex, right_ey, life))

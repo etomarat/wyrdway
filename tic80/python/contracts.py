@@ -95,6 +95,11 @@ class DriveTuning:
         "view_center_y",
         "view_center_y_min",
         "view_center_y_max",
+        "cam_vel_min_speed",
+        "cam_vel_full_speed",
+        "cam_vel_dir_lerp",
+        "cam_spring_freq_hz",
+        "cam_spring_damping",
         "car_sprite_anchor_x",
         "car_sprite_anchor_y",
         "debug_vectors_enabled",
@@ -228,6 +233,11 @@ class DriveTuning:
         self.view_center_y = 0.0
         self.view_center_y_min = 0.0
         self.view_center_y_max = 0.0
+        self.cam_vel_min_speed = 0.0
+        self.cam_vel_full_speed = 0.0
+        self.cam_vel_dir_lerp = 0.0
+        self.cam_spring_freq_hz = 0.0
+        self.cam_spring_damping = 0.0
         self.car_sprite_anchor_x = 0.0
         self.car_sprite_anchor_y = 0.0
         self.debug_vectors_enabled = False

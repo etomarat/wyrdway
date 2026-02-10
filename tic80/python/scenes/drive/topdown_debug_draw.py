@@ -5,6 +5,7 @@ if TYPE_CHECKING:
 
     from ...core.palette import Color
     from ...data.tuning import TUNING
+    from ...systems.drive.drive_fx import TopdownProjector
     from ...systems.drive.drive_logic_core import DriveLogic
 
 
@@ -41,31 +42,13 @@ class TopdownDebugDraw:
             ax = -60.0
         line(cx, cy, int(cx + ax), cy, Color.GREY)
 
-    def draw_hitboxes(self, steer_input: int, center_x: int, center_y: int) -> None:
-        d = TUNING.DRIVE
-        steer_input = 0
+    def draw_hitboxes(self, logic: DriveLogic, proj: TopdownProjector) -> None:
+        rear_x, rear_y, rear_r, front_x, front_y, front_r = logic.hitbox_world_circles()
+        rear_sx, rear_sy = proj.world_to_screen(rear_x, rear_y)
+        front_sx, front_sy = proj.world_to_screen(front_x, front_y)
 
-        ax = d.car_sprite_anchor_x
-        ay = d.car_sprite_anchor_y
-
-        rear_px = d.hitbox_rear_px
-        rear_py = d.hitbox_rear_py
-        front_px = d.hitbox_front_px
-        front_py = d.hitbox_front_py
-
-        rear_r = d.hitbox_rear_radius
-        front_r = d.hitbox_front_radius
-        if rear_r < 0.0:
-            rear_r = 0.0
-        if front_r < 0.0:
-            front_r = 0.0
-
-        rear_x = center_x + (rear_px - ax)
-        rear_y = center_y + (rear_py - ay)
-        front_x = center_x + (front_px - ax)
-        front_y = center_y + (front_py - ay)
-
+        line(int(rear_sx), int(rear_sy), int(front_sx), int(front_sy), Color.GREY)
         if rear_r > 0.0:
-            circb(int(rear_x), int(rear_y), int(rear_r), Color.CYAN)
+            circb(int(rear_sx), int(rear_sy), int(rear_r), Color.CYAN)
         if front_r > 0.0:
-            circb(int(front_x), int(front_y), int(front_r), Color.WHITE)
+            circb(int(front_sx), int(front_sy), int(front_r), Color.WHITE)

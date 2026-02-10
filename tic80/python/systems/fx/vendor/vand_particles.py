@@ -337,7 +337,8 @@ class _DustDownLongParticle(_VandParticle):
 class _DustDownTwoToneLongParticle(_VandParticle):
     """Dust_down с 2 цветами (светлый -> тёмный) и длинной жизнью."""
 
-    def __init__(self, x: float, y: float, r: float, c0: int, c1: int, life_frames: int, rng: Rng) -> None:
+    def __init__(self, x: float, y: float, r: float, c0: int, c1: int, life_frames: int, rng: Rng
+                 ) -> None:
         ang = rng.uniform(0.0, math.pi)
         self.x = x
         self.y = y
@@ -585,7 +586,8 @@ class _ExplosionParticle(_VandParticle):
 
 
 class _ExplosionDirParticle(_VandParticle):
-    def __init__(self, x: float, y: float, r: float, ang0: float, ang_range: float, rng: Rng) -> None:
+    def __init__(self, x: float, y: float, r: float, ang0: float, ang_range: float, rng: Rng
+                 ) -> None:
         ang = ang0 + rng.uniform(-ang_range * 0.5, ang_range * 0.5)
         self.x = x
         self.y = y
@@ -723,8 +725,14 @@ class VandParticles(FxSystem):
     def spawn_dust_down_life(self, x: float, y: float, r: float, life_frames: int) -> None:
         self._particles.append(_DustDownLongParticle(x, y, r, int(life_frames), self._rng))
 
-    def spawn_dust_down_two_tone_life(self, x: float, y: float, r: float, c0: int, c1: int, life_frames: int) -> None:
-        self._particles.append(_DustDownTwoToneLongParticle(x, y, r, int(c0), int(c1), int(life_frames), self._rng))
+    def spawn_dust_down_two_tone_life(self,
+                                      x: float, y: float,
+                                      r: float, c0: int, c1: int, life_frames: int) -> None:
+        self._particles.append(
+            _DustDownTwoToneLongParticle(
+                x, y, r, int(c0), int(c1), int(life_frames), self._rng
+            )
+        )
 
     def spawn_dust_down_color(self, x: float, y: float, r: float, c: int) -> None:
         self._particles.append(_DustDownColorParticle(x, y, r, c, self._rng))
@@ -739,7 +747,11 @@ class VandParticles(FxSystem):
         life_frames: int,
         world_follow: float = 1.0
     ) -> None:
-        self._particles.append(_GrowPuffColorParticle(x, y, r0, r1, c, life_frames, world_follow, self._rng))
+        self._particles.append(
+            _GrowPuffColorParticle(
+                x, y, r0, r1, c, life_frames, world_follow, self._rng
+            )
+        )
 
     def spawn_fire(self, x: float, y: float, r: float, c: int) -> None:
         self._particles.append(_FireParticle(x, y, r, c, self._rng))

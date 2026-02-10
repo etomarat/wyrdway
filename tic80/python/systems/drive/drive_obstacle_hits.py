@@ -40,7 +40,7 @@ def apply_obstacle_hits(
         max_ds = 0.0
     p_s = logic.road_s
 
-    obstacles = objects.obstacles_items_view()
+    obstacles = objects.obstacles_items()
     i = 0
     while i < len(obstacles):
         o = obstacles[i]

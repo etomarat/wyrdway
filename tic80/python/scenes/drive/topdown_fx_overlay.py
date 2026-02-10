@@ -8,6 +8,7 @@ if TYPE_CHECKING:
     from ...systems.drive.fx_particles import Particles2D
     from ...systems.drive.road_model import RoadModel
     from ...systems.fx.vendor.vand_particles import VandParticles
+    from .car_pose2d import CarPose2D
 
 
 class TopdownFxOverlay:
@@ -18,8 +19,6 @@ class TopdownFxOverlay:
         self._offroad_smoke = VandParticles(1337)
         self._exhaust_smoke = VandParticles(2469)
 
-        self._prev_fwd_x = 0.0
-        self._prev_fwd_y = 1.0
         self._prev_speed = 0.0
         self._prev_offroad = False
 
@@ -47,86 +46,120 @@ class TopdownFxOverlay:
         self,
         road: RoadModel,
         logic: DriveLogic,
-        cx: int,
-        cy: int,
-        proj: TopdownProjector
+        proj: TopdownProjector,
+        pose: CarPose2D
     ) -> bool:
-        d = TUNING.DRIVE
         dt = TUNING.CORE.dt
 
-        start_move = False
+        world_dx, world_dy = proj.world_vec_to_screen(-logic.vx * dt, -logic.vy * dt)
+        self._update_world_particles(dt, world_dx, world_dy)
+        self._update_transition_cooldown(dt)
+        self._flush_hit_events(proj)
+        start_move = self._maybe_start_move(logic, pose)
+        self._update_offroad_side_sign(logic)
+        self._maybe_emit_transition_sparks(road, logic, proj, pose)
+        self._maybe_emit_offroad_dust(logic, dt, pose)
+        self._maybe_emit_exhaust_smoke(logic, dt, pose)
+        return start_move
 
-        world_dx = -logic.v_side * dt
-        world_dy = logic.v_forward * dt
-
+    def _update_world_particles(self, dt: float, world_dx: float, world_dy: float) -> None:
         # Искры перехода должны читаться как “локальный” эффект у колёс,
         # а не как частицы, остающиеся в мире. Поэтому не применяем world-shift,
         # иначе при сильном боковом движении машины направление визуально “едет”.
         self._fx_transition.update(dt, 0.0, 0.0)
         self._drive_fx.update(dt, world_dx, world_dy)
         self._offroad_smoke.update(dt, world_dx, world_dy)
-
-        self._update_exhaust_rotation(logic, cx, cy)
         self._exhaust_smoke.update(dt, world_dx, world_dy)
 
-        if self._offroad_transition_cooldown > 0.0:
-            self._offroad_transition_cooldown -= dt
-            if self._offroad_transition_cooldown < 0.0:
-                self._offroad_transition_cooldown = 0.0
+    def _update_transition_cooldown(self, dt: float) -> None:
+        if self._offroad_transition_cooldown <= 0.0:
+            return
+        self._offroad_transition_cooldown -= dt
+        if self._offroad_transition_cooldown < 0.0:
+            self._offroad_transition_cooldown = 0.0
 
-        self._flush_hit_events(proj)
-
+    def _maybe_start_move(self, logic: DriveLogic, pose: CarPose2D) -> bool:
         spd = logic.speed
+        start_move = False
         if self._prev_speed <= 0.5 and spd > 0.5:
             # Букс/дым на старте имеет смысл только на дороге.
             # На оффроуде пусть будет просто “постоянная пыль”, без старта как на асфальте.
             if not logic.offroad:
                 start_move = True
-                self._drive_fx.start_move(cx, cy, self._next_fx_seed())
+                fx_cx, fx_cy = pose.screen_center()
+                self._drive_fx.start_move(int(fx_cx), int(fx_cy), self._next_fx_seed())
         self._prev_speed = spd
-
-        offroad = logic.offroad
-        if offroad:
-            rd = logic.road_d
-            if rd > 0.0:
-                self._offroad_side_sign = 1
-            elif rd < 0.0:
-                self._offroad_side_sign = -1
-
-        if offroad != self._prev_offroad:
-            if spd > d.fx_dust_min_speed and self._offroad_transition_cooldown <= 0.0:
-                self._emit_offroad_transition_sparks(offroad, road, logic, cx, cy)
-                self._offroad_transition_cooldown = 0.20
-            self._prev_offroad = offroad
-
-        if offroad and spd > d.fx_dust_min_speed:
-            # Небольшой жёлто-оранжевый "дым" (vand dust) из-под колёс.
-            # Только пыль на оффроуде (искры — только при переходе туда/обратно).
-            self._fx_spawn_accum_off_smoke += (d.fx_dust_rate_offroad * 0.65) * dt
-            self._emit_offroad_smoke_vand(self._fx_spawn_accum_off_smoke, cx, cy)
-            self._fx_spawn_accum_off_smoke -= int(self._fx_spawn_accum_off_smoke)
-
-        speed_factor = 0.0
-        if d.max_speed > 0.0:
-            speed_factor = spd / d.max_speed
-        if d.fx_exhaust_rate > 0.0:
-            over = speed_factor - d.fx_exhaust_min_speed_factor
-            ramp = float(d.fx_exhaust_ramp_speed_factor)
-            if ramp < 0.01:
-                ramp = 0.01
-            strength = over / ramp
-            if strength < 0.0:
-                strength = 0.0
-            if strength > 1.0:
-                strength = 1.0
-            strength = strength * strength
-            if strength > 0.0:
-                rate = d.fx_exhaust_rate * strength
-                self._fx_spawn_accum_exhaust += rate * dt
-                self._emit_exhaust_smoke_vand(self._fx_spawn_accum_exhaust, cx, cy, strength)
-                self._fx_spawn_accum_exhaust -= int(self._fx_spawn_accum_exhaust)
-
         return start_move
+
+    def _update_offroad_side_sign(self, logic: DriveLogic) -> None:
+        if not logic.offroad:
+            return
+        rd = logic.road_d
+        if rd > 0.0:
+            self._offroad_side_sign = 1
+        elif rd < 0.0:
+            self._offroad_side_sign = -1
+
+    def _maybe_emit_transition_sparks(
+        self,
+        road: RoadModel,
+        logic: DriveLogic,
+        proj: TopdownProjector,
+        pose: CarPose2D
+    ) -> None:
+        if logic.offroad == self._prev_offroad:
+            return
+        d = TUNING.DRIVE
+        spd = logic.speed
+        if spd > d.fx_dust_min_speed and self._offroad_transition_cooldown <= 0.0:
+            self._emit_offroad_transition_sparks(
+                logic.offroad,
+                road,
+                logic,
+                proj,
+                pose
+            )
+            self._offroad_transition_cooldown = 0.20
+        self._prev_offroad = logic.offroad
+
+    def _maybe_emit_offroad_dust(self, logic: DriveLogic, dt: float, pose: CarPose2D) -> None:
+        d = TUNING.DRIVE
+        if not logic.offroad or logic.speed <= d.fx_dust_min_speed:
+            return
+        # Небольшой жёлто-оранжевый "дым" (vand dust) из-под колёс.
+        # Только пыль на оффроуде (искры — только при переходе туда/обратно).
+        self._fx_spawn_accum_off_smoke += (d.fx_dust_rate_offroad * 0.65) * dt
+        self._emit_offroad_smoke_vand(
+            self._fx_spawn_accum_off_smoke,
+            pose
+        )
+        self._fx_spawn_accum_off_smoke -= int(self._fx_spawn_accum_off_smoke)
+
+    def _maybe_emit_exhaust_smoke(self, logic: DriveLogic, dt: float, pose: CarPose2D) -> None:
+        d = TUNING.DRIVE
+        if d.max_speed <= 0.0 or d.fx_exhaust_rate <= 0.0:
+            return
+        speed_factor = logic.speed / d.max_speed
+        over = speed_factor - d.fx_exhaust_min_speed_factor
+        ramp = float(d.fx_exhaust_ramp_speed_factor)
+        if ramp < 0.01:
+            ramp = 0.01
+        strength = over / ramp
+        if strength < 0.0:
+            strength = 0.0
+        if strength > 1.0:
+            strength = 1.0
+        strength = strength * strength
+        if strength <= 0.0:
+            return
+        rate = d.fx_exhaust_rate * strength
+        self._fx_spawn_accum_exhaust += rate * dt
+        self._emit_exhaust_smoke_vand(
+            self._fx_spawn_accum_exhaust,
+            strength,
+            pose
+        )
+        self._fx_spawn_accum_exhaust -= int(self._fx_spawn_accum_exhaust)
 
     def draw_world(self) -> None:
         self._offroad_smoke.draw()
@@ -155,48 +188,19 @@ class TopdownFxOverlay:
         self._fx_seed = (self._fx_seed * 1103515245 + 12345) & 0x7fffffff
         return self._fx_seed
 
-    def _update_exhaust_rotation(self, logic: DriveLogic, cx: int, cy: int) -> None:
-        pfx = float(self._prev_fwd_x)
-        pfy = float(self._prev_fwd_y)
-        pl2 = pfx * pfx + pfy * pfy
-        if pl2 > 0.0001:
-            inv = 1.0 / (pl2 ** 0.5)
-            pfx *= inv
-            pfy *= inv
-        else:
-            pfx = 0.0
-            pfy = 1.0
-
-        cur_fx = float(logic.fwd_x)
-        cur_fy = float(logic.fwd_y)
-        cl2 = cur_fx * cur_fx + cur_fy * cur_fy
-        if cl2 > 0.0001:
-            inv = 1.0 / (cl2 ** 0.5)
-            cur_fx *= inv
-            cur_fy *= inv
-        else:
-            cur_fx = 0.0
-            cur_fy = 1.0
-
-        dot = pfx * cur_fx + pfy * cur_fy
-        if dot > 1.0:
-            dot = 1.0
-        if dot < -1.0:
-            dot = -1.0
-        cross = pfx * cur_fy - pfy * cur_fx
-        if abs(cross) > 0.0001 or abs(dot - 1.0) > 0.0001:
-            self._exhaust_smoke.rotate_around(float(cx), float(cy), dot, -cross)
-        self._prev_fwd_x = cur_fx
-        self._prev_fwd_y = cur_fy
-
-    def _emit_offroad_smoke_vand(self, count_accum: float, cx: int, cy: int) -> None:
+    def _emit_offroad_smoke_vand(
+        self,
+        count_accum: float,
+        pose: CarPose2D
+    ) -> None:
         n = int(count_accum)
         if n <= 0:
             return
 
         d = TUNING.DRIVE
-        wheel_dx = float(d.fx_dust_wheel_dx_px)
-        back = float(d.fx_dust_back_px)
+        shift_x, shift_back = pose.legacy_center_shift()
+        wheel_dx = float(d.fx_dust_wheel_dx_px) + shift_x
+        back = float(d.fx_dust_back_px) + shift_back
         jitter_x = float(d.fx_dust_jitter_x_px)
         jitter_y = float(d.fx_dust_jitter_y_px)
         c0 = int(d.fx_offroad_dust_color_a)
@@ -212,10 +216,8 @@ class TopdownFxOverlay:
             jx = ((r1 % 1000) / 1000.0 - 0.5) * jitter_x
             jy = ((r0 % 1000) / 1000.0) * jitter_y
 
-            x_l = (cx - wheel_dx) + jx
-            y_l = (cy + back) + jy
-            x_r = (cx + wheel_dx) - jx
-            y_r = (cy + back) + jy
+            x_l, y_l = pose.local_to_screen(-wheel_dx + jx, back + jy)
+            x_r, y_r = pose.local_to_screen(wheel_dx - jx, back + jy)
 
             # Мелкие частые пуфы читаются как "пыль/туман", а не как редкие круги.
             t = (r0 % 1000) / 1000.0
@@ -232,11 +234,18 @@ class TopdownFxOverlay:
             c2 = c1 if c == c0 else c0
             # Немного "по бокам" из-под колёс: разнос влево/вправо, чтобы пыль не была строго за машиной.
             side = 2.0 + ((r1 % 1000) / 1000.0) * 4.0
-            self._offroad_smoke.spawn_dust_down_color(float(x_l - side), float(y_l), float(r2), int(c2))
-            self._offroad_smoke.spawn_dust_down_color(float(x_r + side), float(y_r), float(r2), int(c2))
+            x_l2, y_l2 = pose.local_to_screen(-wheel_dx + jx - side, back + jy)
+            x_r2, y_r2 = pose.local_to_screen(wheel_dx - jx + side, back + jy)
+            self._offroad_smoke.spawn_dust_down_color(float(x_l2), float(y_l2), float(r2), int(c2))
+            self._offroad_smoke.spawn_dust_down_color(float(x_r2), float(y_r2), float(r2), int(c2))
             i += 1
 
-    def _emit_exhaust_smoke_vand(self, count_accum: float, cx: int, cy: int, strength: float) -> None:
+    def _emit_exhaust_smoke_vand(
+        self,
+        count_accum: float,
+        strength: float,
+        pose: CarPose2D
+    ) -> None:
         n = int(count_accum)
         if n <= 0:
             return
@@ -248,8 +257,9 @@ class TopdownFxOverlay:
         if s > 1.0:
             s = 1.0
 
-        x0 = float(cx) + float(d.fx_exhaust_dx_px)
-        y0 = float(cy) + float(d.fx_exhaust_dy_px)
+        shift_x, shift_back = pose.legacy_center_shift()
+        base_x = float(d.fx_exhaust_dx_px) + shift_x
+        base_back = float(d.fx_exhaust_dy_px) + shift_back
         r0 = float(d.fx_exhaust_r_min)
         r1 = float(d.fx_exhaust_r_max)
         if r1 < r0:
@@ -279,33 +289,41 @@ class TopdownFxOverlay:
             sr = r0 * (0.70 + t * 0.40) * (0.85 + 0.35 * s)
             if sr < 1.2:
                 sr = 1.2
-            self._exhaust_smoke.spawn_dust_down_two_tone_life(x0 + s_jx, y0 + s_jy, sr, c0, c1, 18)
-            self._exhaust_smoke.spawn_dust_down_two_tone_life(x0 - s_jx * 0.55, y0 + s_jy * 0.55, sr * 0.85, c0, c1, 16)
+            x1, y1 = pose.local_to_screen(base_x + s_jx, base_back + s_jy)
+            x2, y2 = pose.local_to_screen(base_x - s_jx * 0.55, base_back + s_jy * 0.55)
+            self._exhaust_smoke.spawn_dust_down_two_tone_life(x1, y1, sr, c0, c1, 18)
+            self._exhaust_smoke.spawn_dust_down_two_tone_life(x2, y2, sr * 0.85, c0, c1, 16)
 
             # Средний слой (2 штуки).
-            my = y0 + 3.0 + u * 4.0
+            m_back = base_back + 3.0 + u * 4.0
             mr = (r0 + (r1 - r0) * (0.25 + t * 0.20)) * (0.80 + 0.55 * s)
             if mr < sr:
                 mr = sr
             mid_life = 26 + int(s * 18.0)
-            self._exhaust_smoke.spawn_dust_down_two_tone_life(x0 + (u - 0.5) * 1.6, my, mr, c0, c1, mid_life)
-            self._exhaust_smoke.spawn_dust_down_two_tone_life(x0 - (u - 0.5) * 1.2, my + 1.2, mr * 0.95, c0, c1, mid_life - 2)
+            x3, y3 = pose.local_to_screen(base_x + (u - 0.5) * 1.6, m_back)
+            x4, y4 = pose.local_to_screen(base_x - (u - 0.5) * 1.2, m_back + 1.2)
+            self._exhaust_smoke.spawn_dust_down_two_tone_life(x3, y3, mr, c0, c1, mid_life)
+            self._exhaust_smoke.spawn_dust_down_two_tone_life(x4, y4, mr * 0.95, c0, c1, mid_life - 2)
 
             # Хвост (клубы): плотный кластер ближе к машине.
-            tail_y = y0 + 5.0 + u * 6.0
-            if tail_y > 128.0:
-                tail_y = 128.0
+            tail_back = base_back + 5.0 + u * 6.0
             tail_r = r1 * (0.85 + t * 0.35) * (0.70 + 0.70 * s)
             if tail_r < mr:
                 tail_r = mr
             tail_life = 34 + int(s * 26.0)
-            self._exhaust_smoke.spawn_dust_down_two_tone_life(x0 + (t - 0.5) * 2.8, tail_y, tail_r, c0, c1, tail_life)
-            self._exhaust_smoke.spawn_dust_down_two_tone_life(x0 + (u - 0.5) * 2.2 + 1.2, tail_y + 1.6, tail_r * 0.92, c0, c1, tail_life - 2)
-            self._exhaust_smoke.spawn_dust_down_two_tone_life(x0 - (u - 0.5) * 2.0 - 1.0, tail_y + 2.6, tail_r * 0.88, c0, c1, tail_life - 4)
-            self._exhaust_smoke.spawn_dust_down_two_tone_life(x0 + (t - 0.5) * 2.0 - 1.4, tail_y + 3.6, tail_r * 0.84, c0, c1, tail_life - 6)
-            self._exhaust_smoke.spawn_dust_down_two_tone_life(x0 + (t - 0.5) * 2.4 + 0.8, tail_y + 4.6, tail_r * 0.78, c0, c1, tail_life - 8)
+            x5, y5 = pose.local_to_screen(base_x + (t - 0.5) * 2.8, tail_back)
+            x6, y6 = pose.local_to_screen(base_x + (u - 0.5) * 2.2 + 1.2, tail_back + 1.6)
+            x7, y7 = pose.local_to_screen(base_x - (u - 0.5) * 2.0 - 1.0, tail_back + 2.6)
+            x8, y8 = pose.local_to_screen(base_x + (t - 0.5) * 2.0 - 1.4, tail_back + 3.6)
+            x9, y9 = pose.local_to_screen(base_x + (t - 0.5) * 2.4 + 0.8, tail_back + 4.6)
+            self._exhaust_smoke.spawn_dust_down_two_tone_life(x5, y5, tail_r, c0, c1, tail_life)
+            self._exhaust_smoke.spawn_dust_down_two_tone_life(x6, y6, tail_r * 0.92, c0, c1, tail_life - 2)
+            self._exhaust_smoke.spawn_dust_down_two_tone_life(x7, y7, tail_r * 0.88, c0, c1, tail_life - 4)
+            self._exhaust_smoke.spawn_dust_down_two_tone_life(x8, y8, tail_r * 0.84, c0, c1, tail_life - 6)
+            self._exhaust_smoke.spawn_dust_down_two_tone_life(x9, y9, tail_r * 0.78, c0, c1, tail_life - 8)
             if (r & 1) == 0:
-                self._exhaust_smoke.spawn_dust_down_two_tone_life(x0 + (u - 0.5) * 2.8, tail_y + 5.4, tail_r * 0.72, c0, c1, tail_life - 10)
+                x10, y10 = pose.local_to_screen(base_x + (u - 0.5) * 2.8, tail_back + 5.4)
+                self._exhaust_smoke.spawn_dust_down_two_tone_life(x10, y10, tail_r * 0.72, c0, c1, tail_life - 10)
 
             i += 1
 
@@ -314,8 +332,8 @@ class TopdownFxOverlay:
         entering_offroad: bool,
         road: RoadModel,
         logic: DriveLogic,
-        cx: int,
-        cy: int
+        proj: TopdownProjector,
+        pose: CarPose2D
     ) -> None:
         d = TUNING.DRIVE
 
@@ -326,7 +344,9 @@ class TopdownFxOverlay:
             spawn_sign = boundary_sign
             dir_sign = boundary_sign
 
-        dir_x, dir_y, cross = self._edge_spark_dir(road, logic, dir_sign, entering_offroad)
+        dir_x, dir_y, cross = self._edge_spark_dir(
+            road, logic, proj, dir_sign, entering_offroad
+        )
 
         spd = logic.speed
         min_spd = float(d.fx_transition_sparks_min_speed)
@@ -365,14 +385,16 @@ class TopdownFxOverlay:
         if life > 26:
             life = 26
 
-        wheel_dx = float(d.fx_transition_sparks_wheel_dx_px)
-        back = float(d.fx_transition_sparks_back_px)
+        shift_x, shift_back = pose.legacy_center_shift()
+        wheel_dx = float(d.fx_transition_sparks_wheel_dx_px) + shift_x
+        back = float(d.fx_transition_sparks_back_px) + shift_back
         wheelbase = float(d.fx_transition_sparks_wheelbase_px)
 
-        rear_x = float(cx) + float(spawn_sign) * wheel_dx
-        rear_y = float(cy) + back
-        front_x = float(cx) + float(spawn_sign) * (wheel_dx * 0.72)
-        front_y = rear_y - wheelbase + 3.0
+        rear_x, rear_y = pose.local_to_screen(float(spawn_sign) * wheel_dx, back)
+        front_x, front_y = pose.local_to_screen(
+            float(spawn_sign) * (wheel_dx * 0.72),
+            back - wheelbase + 3.0
+        )
 
         n_front = int(n * 0.6)
         if n_front < 3:
@@ -389,6 +411,7 @@ class TopdownFxOverlay:
         self,
         road: RoadModel,
         logic: DriveLogic,
+        proj: TopdownProjector,
         dir_sign: int,
         entering_offroad: bool
     ) -> tuple[float, float, float]:
@@ -411,8 +434,7 @@ class TopdownFxOverlay:
         sx = (sx / d0) * float(dir_sign)
         sy = (sy / d0) * float(dir_sign)
 
-        mx = -logic.v_side
-        my = logic.v_forward
+        mx, my = proj.world_vec_to_screen(logic.vx, logic.vy)
         d1 = abs(mx) + abs(my)
         if d1 < 0.001:
             d1 = 1.0
