@@ -56,7 +56,6 @@ class DriveTopdownRenderer:
         self._cam_ang_vel = 0.0
         self._cam_vel_x = 1.0
         self._cam_vel_y = 0.0
-        self._cam_frame_offset_y = 0.0
 
     def notify_obstacle_hit(
         self,
@@ -86,12 +85,12 @@ class DriveTopdownRenderer:
         active_zone: DriveZone | None
     ) -> None:
         center_x = 120
+        center_y = self._road_draw.clamp_center_y(int(TUNING.DRIVE.view_center_y))
 
         p_s = logic.road_s
         car_x = logic.x
         car_y = logic.y
         cam_fwd_x, cam_fwd_y = self._camera_forward(logic)
-        center_y = self._camera_center_y(logic)
         proj = TopdownProjector(car_x, car_y, cam_fwd_x, cam_fwd_y, center_x, center_y)
 
         start_idx, end_idx = self._road_draw.visible_index_range(road, p_s)
@@ -133,7 +132,7 @@ class DriveTopdownRenderer:
         start_move = self._fx_overlay.update(road, logic, center_x, center_y, proj)
         if start_move:
             self._skid_marks.trigger_start(float(TUNING.DRIVE.start_skid_seconds))
-        self._skid_marks.update_and_draw(logic, center_x, center_y, proj)
+        self._skid_marks.update_and_draw(logic, proj)
 
         # Следы шин должны быть ПОД пылью/дымом.
         self._fx_overlay.draw_world()
@@ -196,11 +195,6 @@ class DriveTopdownRenderer:
         full_speed = float(TUNING.DRIVE.cam_vel_full_speed)
         return self._speed_blend_range(speed, min_speed, full_speed)
 
-    def _frame_blend(self, speed: float) -> float:
-        min_speed = float(TUNING.DRIVE.cam_frame_min_speed)
-        full_speed = float(TUNING.DRIVE.cam_frame_full_speed)
-        return self._speed_blend_range(speed, min_speed, full_speed)
-
     def _speed_blend_range(self, speed: float, min_speed: float, full_speed: float) -> float:
         if speed <= min_speed:
             return 0.0
@@ -209,19 +203,6 @@ class DriveTopdownRenderer:
             return 1.0
         t = self._clamp((speed - min_speed) / denom, 0.0, 1.0)
         return t * t * (3.0 - 2.0 * t)
-
-    def _camera_center_y(self, logic: DriveLogic) -> int:
-        speed = (logic.vx * logic.vx + logic.vy * logic.vy) ** 0.5
-        frame_t = self._frame_blend(speed)
-        max_shift = float(TUNING.DRIVE.cam_frame_max_px)
-        if max_shift < 0.0:
-            max_shift = 0.0
-        target_shift = max_shift * frame_t
-        frame_lerp = self._clamp(float(TUNING.DRIVE.cam_frame_lerp), 0.0, 1.0)
-        self._cam_frame_offset_y += (target_shift - self._cam_frame_offset_y) * frame_lerp
-        base_y = float(TUNING.DRIVE.view_center_y)
-        center_y = int(base_y + self._cam_frame_offset_y)
-        return self._road_draw.clamp_center_y(center_y)
 
     def _step_camera_spring(self, target_angle: float, dt: float) -> None:
         if dt <= 0.0:
