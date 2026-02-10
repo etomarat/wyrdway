@@ -137,8 +137,10 @@ class _StartDustFx(FxSystem):
             return
         self._acc -= n
 
-        wheel_dx = float(d.fx_dust_wheel_dx_px)
-        back = float(d.fx_dust_back_px)
+        anchor_shift_x = 16.0 - float(d.car_sprite_anchor_x)
+        anchor_shift_back = 16.0 - float(d.car_sprite_anchor_y)
+        wheel_dx = float(d.fx_dust_wheel_dx_px) + anchor_shift_x
+        back = float(d.fx_dust_back_px) + anchor_shift_back
         jitter_x = float(d.fx_dust_jitter_x_px)
         jitter_y = float(d.fx_dust_jitter_y_px)
         life = int(d.fx_dust_life_frames)
@@ -205,8 +207,10 @@ class _StartVandDustFx(FxSystem):
             return
         self._acc -= n
 
-        wheel_dx = float(d.fx_dust_wheel_dx_px)
-        back = float(d.fx_dust_back_px)
+        anchor_shift_x = 16.0 - float(d.car_sprite_anchor_x)
+        anchor_shift_back = 16.0 - float(d.car_sprite_anchor_y)
+        wheel_dx = float(d.fx_dust_wheel_dx_px) + anchor_shift_x
+        back = float(d.fx_dust_back_px) + anchor_shift_back
         jitter_x = float(d.fx_dust_jitter_x_px)
         jitter_y = float(d.fx_dust_jitter_y_px)
 

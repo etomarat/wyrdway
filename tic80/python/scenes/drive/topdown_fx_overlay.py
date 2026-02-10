@@ -194,8 +194,9 @@ class TopdownFxOverlay:
             return
 
         d = TUNING.DRIVE
-        wheel_dx = float(d.fx_dust_wheel_dx_px)
-        back = float(d.fx_dust_back_px)
+        shift_x, shift_back = self._legacy_center_shift()
+        wheel_dx = float(d.fx_dust_wheel_dx_px) + shift_x
+        back = float(d.fx_dust_back_px) + shift_back
         jitter_x = float(d.fx_dust_jitter_x_px)
         jitter_y = float(d.fx_dust_jitter_y_px)
         c0 = int(d.fx_offroad_dust_color_a)
@@ -265,8 +266,9 @@ class TopdownFxOverlay:
         if s > 1.0:
             s = 1.0
 
-        base_x = float(d.fx_exhaust_dx_px)
-        base_back = float(d.fx_exhaust_dy_px)
+        shift_x, shift_back = self._legacy_center_shift()
+        base_x = float(d.fx_exhaust_dx_px) + shift_x
+        base_back = float(d.fx_exhaust_dy_px) + shift_back
         r0 = float(d.fx_exhaust_r_min)
         r1 = float(d.fx_exhaust_r_max)
         if r1 < r0:
@@ -417,8 +419,9 @@ class TopdownFxOverlay:
         if life > 26:
             life = 26
 
-        wheel_dx = float(d.fx_transition_sparks_wheel_dx_px)
-        back = float(d.fx_transition_sparks_back_px)
+        shift_x, shift_back = self._legacy_center_shift()
+        wheel_dx = float(d.fx_transition_sparks_wheel_dx_px) + shift_x
+        back = float(d.fx_transition_sparks_back_px) + shift_back
         wheelbase = float(d.fx_transition_sparks_wheelbase_px)
 
         rear_x, rear_y = self._car_local_to_screen(
@@ -522,6 +525,13 @@ class TopdownFxOverlay:
         sx = float(cx) + right_x * local_x - fwd_x * local_back
         sy = float(cy) + right_y * local_x - fwd_y * local_back
         return sx, sy
+
+    @staticmethod
+    def _legacy_center_shift() -> tuple[float, float]:
+        """Shift from legacy center-based offsets (16,16) to current anchor."""
+        anchor_x = float(TUNING.DRIVE.car_sprite_anchor_x)
+        anchor_y = float(TUNING.DRIVE.car_sprite_anchor_y)
+        return 16.0 - anchor_x, 16.0 - anchor_y
 
     def _edge_spark_burst(
         self,

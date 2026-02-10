@@ -75,9 +75,14 @@ class TopdownSkidMarks:
         if not active:
             return
 
-        back = int(TUNING.DRIVE.skid_back_px)
-        wheel_dx = int(TUNING.DRIVE.skid_wheel_dx_px)
-        seg = int(TUNING.DRIVE.skid_seg_len_px)
+        anchor_x = float(TUNING.DRIVE.car_sprite_anchor_x)
+        anchor_y = float(TUNING.DRIVE.car_sprite_anchor_y)
+        shift_x = 16.0 - anchor_x
+        shift_back = 16.0 - anchor_y
+
+        back = float(TUNING.DRIVE.skid_back_px) + shift_back
+        wheel_dx = float(TUNING.DRIVE.skid_wheel_dx_px) + shift_x
+        seg = float(TUNING.DRIVE.skid_seg_len_px)
 
         # Небольшое смещение в сторону заноса, чтобы след “наклонялся”.
         slant = -int(TUNING.DRIVE.skid_slant_scale * (logic.v_side / denom))
@@ -92,19 +97,19 @@ class TopdownSkidMarks:
         right_x = -fwd_y
         right_y = fwd_x
 
-        rear_x = float(logic.x) - fwd_x * float(back)
-        rear_y = float(logic.y) - fwd_y * float(back)
+        rear_x = float(logic.x) - fwd_x * back
+        rear_y = float(logic.y) - fwd_y * back
 
         life = int(TUNING.DRIVE.skid_life_frames)
 
-        left_wx = rear_x - right_x * float(wheel_dx)
-        left_wy = rear_y - right_y * float(wheel_dx)
-        left_ex = left_wx - fwd_x * float(seg) + right_x * float(slant)
-        left_ey = left_wy - fwd_y * float(seg) + right_y * float(slant)
+        left_wx = rear_x - right_x * wheel_dx
+        left_wy = rear_y - right_y * wheel_dx
+        left_ex = left_wx - fwd_x * seg + right_x * float(slant)
+        left_ey = left_wy - fwd_y * seg + right_y * float(slant)
         self._skids.append((left_wx, left_wy, left_ex, left_ey, life))
 
-        right_wx = rear_x + right_x * float(wheel_dx)
-        right_wy = rear_y + right_y * float(wheel_dx)
-        right_ex = right_wx - fwd_x * float(seg) + right_x * float(slant)
-        right_ey = right_wy - fwd_y * float(seg) + right_y * float(slant)
+        right_wx = rear_x + right_x * wheel_dx
+        right_wy = rear_y + right_y * wheel_dx
+        right_ex = right_wx - fwd_x * seg + right_x * float(slant)
+        right_ey = right_wy - fwd_y * seg + right_y * float(slant)
         self._skids.append((right_wx, right_wy, right_ex, right_ey, life))
