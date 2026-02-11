@@ -9,7 +9,7 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from tic80 import include
+    from tic80 import include, keyp
 
     from .contracts import DriveEnterParams
     from .core.debug import DebugOverlay
@@ -106,6 +106,15 @@ def TIC() -> None:
 
     PERF.handle_input()
     PERF.begin_frame()
+
+    if keyp(4):
+        debug_enabled = (
+            TUNING.DRIVE.debug_vectors_enabled
+            or TUNING.DRIVE.debug_hitboxes_enabled
+        )
+        new_state = not debug_enabled
+        TUNING.DRIVE.debug_vectors_enabled = new_state
+        TUNING.DRIVE.debug_hitboxes_enabled = new_state
 
     SCENE_MANAGER.state.clear_debug_lines()
     if not IS_DRIVE_PLAYTEST:
