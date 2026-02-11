@@ -179,7 +179,7 @@ class DriveLogic:
     @property
     def speed(self) -> float:
         v2 = self._vx * self._vx + self._vy * self._vy
-        return v2 ** 0.5
+        return float(v2 ** 0.5)
 
     @property
     def v_forward(self) -> float:

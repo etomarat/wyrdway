@@ -1,14 +1,15 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from ...contracts import DriveTuning, Tuning
-    from ...core.palette import Color, ColorId
+    from ...core.palette import Color
     from ..fx.fx_ids import FxId
     from ..fx.fx_manager import FxLayer, FxManager, FxSystem
-    from ..fx.fx_registry import FxRegistry
     from ..fx.vendor.vand_particles import VandParticles
     from ..fx.vendor.viza_presets import make_explosion_fx, make_smoke_fx
-    from ..fx.vendor.viza_pslib import ParticleSystem, PslibFx
+    from ..fx.vendor.viza_pslib import PslibFx
     from .fx_particles import Particles2D
     from .rng import Rng
 
@@ -270,7 +271,8 @@ class DriveFx:
     def __init__(self, tuning: "Tuning") -> None:
         self._tuning = tuning
         self._mgr = FxManager()
-        self._reg = FxRegistry()
+        self._start_factories: dict[int, Callable[[_FxStartParams], FxSystem]] = {}
+        self._hit_factories: dict[int, Callable[[_FxHitParams], FxSystem]] = {}
         self._register_defaults()
 
     def update(self, dt: float, world_dx: float, world_dy: float) -> None:
@@ -284,7 +286,7 @@ class DriveFx:
         fx_id = int(d.fx_start_id)
         params = _FxStartParams(float(cx), float(
             cy), seed, float(d.fx_start_dust_seconds))
-        fx = self._reg.spawn(fx_id, params)
+        fx = self._spawn_start_fx(fx_id, params)
         if fx is not None:
             self._mgr.add(FxLayer.UNDER_CAR, fx)
 
@@ -304,8 +306,8 @@ class DriveFx:
         if fx_id == FxId.DRIVE_HIT_EXPLOSION_PSLIB_PLUS_SPARKS:
             params = _FxHitParams(contact_wx, contact_wy,
                                   normal_x, normal_y, impact, seed, hit_r, proj)
-            a = self._reg.spawn(FxId.DRIVE_HIT_EXPLOSION_PSLIB, params)
-            b = self._reg.spawn(FxId.DRIVE_HIT_SPARKS_CURRENT, params)
+            a = self._spawn_hit_fx(FxId.DRIVE_HIT_EXPLOSION_PSLIB, params)
+            b = self._spawn_hit_fx(FxId.DRIVE_HIT_SPARKS_CURRENT, params)
             if a is not None:
                 self._mgr.add(FxLayer.OVER_CAR, a)
             if b is not None:
@@ -314,8 +316,8 @@ class DriveFx:
         if fx_id == FxId.DRIVE_HIT_VAND_EXPLOSION_PLUS_SPARKS:
             params = _FxHitParams(contact_wx, contact_wy,
                                   normal_x, normal_y, impact, seed, hit_r, proj)
-            sparks = self._reg.spawn(FxId.DRIVE_HIT_SPARKS_CURRENT, params)
-            expl = self._reg.spawn(FxId.DRIVE_HIT_VAND_EXPLOSION, params)
+            sparks = self._spawn_hit_fx(FxId.DRIVE_HIT_SPARKS_CURRENT, params)
+            expl = self._spawn_hit_fx(FxId.DRIVE_HIT_VAND_EXPLOSION, params)
             if sparks is not None:
                 self._mgr.add(FxLayer.OVER_CAR, sparks)
             if expl is not None:
@@ -324,43 +326,51 @@ class DriveFx:
 
         params = _FxHitParams(contact_wx, contact_wy,
                               normal_x, normal_y, impact, seed, hit_r, proj)
-        fx = self._reg.spawn(fx_id, params)
+        fx = self._spawn_hit_fx(fx_id, params)
         if fx is not None:
             self._mgr.add(FxLayer.OVER_CAR, fx)
 
     def _register_defaults(self) -> None:
-        self._reg.register(FxId.DRIVE_START_DUST_CURRENT,
-                           self._make_start_dust_current, "start: dust (current)")
-        self._reg.register(FxId.DRIVE_START_SMOKE_PSLIB,
-                           self._make_start_smoke_pslib, "start: smoke (pslib)")
-        self._reg.register(FxId.DRIVE_START_SMOKE_VAND_DUST,
-                           self._make_start_smoke_vand_dust, "start: smoke (vand dust)")
-        self._reg.register(FxId.DRIVE_HIT_SPARKS_CURRENT,
-                           self._make_hit_sparks_current, "hit: sparks (current)")
-        self._reg.register(FxId.DRIVE_HIT_EXPLOSION_PSLIB,
-                           self._make_hit_explosion_pslib, "hit: explosion (pslib)")
-        self._reg.register(FxId.DRIVE_HIT_VAND_EXPLOSION,
-                           self._make_hit_explosion_vand, "hit: explosion (vand)")
-        self._reg.register(
+        self._register_start_fx(FxId.DRIVE_START_DUST_CURRENT, self._make_start_dust_current)
+        self._register_start_fx(FxId.DRIVE_START_SMOKE_PSLIB, self._make_start_smoke_pslib)
+        self._register_start_fx(FxId.DRIVE_START_SMOKE_VAND_DUST, self._make_start_smoke_vand_dust)
+        self._register_hit_fx(FxId.DRIVE_HIT_SPARKS_CURRENT, self._make_hit_sparks_current)
+        self._register_hit_fx(FxId.DRIVE_HIT_EXPLOSION_PSLIB, self._make_hit_explosion_pslib)
+        self._register_hit_fx(FxId.DRIVE_HIT_VAND_EXPLOSION, self._make_hit_explosion_vand)
+        self._register_hit_fx(
             FxId.DRIVE_HIT_EXPLOSION_PSLIB_PLUS_SPARKS,
-            self._make_hit_explosion_pslib,
-            "hit: explosion+sparks (pslib+current)"
+            self._make_hit_explosion_pslib
         )
-        self._reg.register(
+        self._register_hit_fx(
             FxId.DRIVE_HIT_VAND_EXPLOSION_PLUS_SPARKS,
-            self._make_hit_explosion_vand,
-            "hit: explosion+sparks (vand+current)"
+            self._make_hit_explosion_vand
         )
 
-    def _make_start_dust_current(self, params: object) -> FxSystem:
-        p: _FxStartParams = params  # type: ignore[assignment]
+    def _register_start_fx(self, fx_id: int, factory: Callable[[_FxStartParams], FxSystem]) -> None:
+        self._start_factories[fx_id] = factory
+
+    def _register_hit_fx(self, fx_id: int, factory: Callable[[_FxHitParams], FxSystem]) -> None:
+        self._hit_factories[fx_id] = factory
+
+    def _spawn_start_fx(self, fx_id: int, params: _FxStartParams) -> FxSystem | None:
+        f = self._start_factories.get(fx_id)
+        if f is None:
+            return None
+        return f(params)
+
+    def _spawn_hit_fx(self, fx_id: int, params: _FxHitParams) -> FxSystem | None:
+        f = self._hit_factories.get(fx_id)
+        if f is None:
+            return None
+        return f(params)
+
+    def _make_start_dust_current(self, p: _FxStartParams) -> FxSystem:
         d = self._tuning.DRIVE
         rng = Rng(int(p.seed))
         fx = Particles2D(int(d.fx_particles_max))
         return _StartDustFx(d, rng, fx, float(p.cx), float(p.cy), float(p.seconds))
 
-    def _make_start_smoke_pslib(self, params: object) -> FxSystem:
-        p: _FxStartParams = params  # type: ignore[assignment]
+    def _make_start_smoke_pslib(self, p: _FxStartParams) -> FxSystem:
         d = self._tuning.DRIVE
         wheel_dx = float(d.fx_dust_wheel_dx_px)
         back = float(d.fx_dust_back_px)
@@ -401,15 +411,13 @@ class DriveFx:
         # Smoke preset is continuous, so we stop emission after `seconds`.
         return _TimedPslibFx(combo, float(p.seconds))
 
-    def _make_start_smoke_vand_dust(self, params: object) -> FxSystem:
-        p: _FxStartParams = params  # type: ignore[assignment]
+    def _make_start_smoke_vand_dust(self, p: _FxStartParams) -> FxSystem:
         d = self._tuning.DRIVE
         v = VandParticles(int(p.seed))
         rng = Rng(int(p.seed) ^ 0xA5A5A5A5)
         return _StartVandDustFx(d, v, rng, float(p.cx), float(p.cy), float(p.seconds))
 
-    def _make_hit_sparks_current(self, params: object) -> FxSystem:
-        p: _FxHitParams = params  # type: ignore[assignment]
+    def _make_hit_sparks_current(self, p: _FxHitParams) -> FxSystem:
         d = self._tuning.DRIVE
         rng = Rng(int(p.seed))
         fx = Particles2D(max(16, int(d.fx_particles_max / 2)))
@@ -487,15 +495,13 @@ class DriveFx:
 
         return _Particles2DFx(fx)
 
-    def _make_hit_explosion_pslib(self, params: object) -> FxSystem:
-        p: _FxHitParams = params  # type: ignore[assignment]
+    def _make_hit_explosion_pslib(self, p: _FxHitParams) -> FxSystem:
         rng = Rng(int(p.seed))
         sx, sy = p.proj.world_to_screen(p.wx, p.wy)
         expl = make_explosion_fx(rng, float(sx), float(sy))
         return expl
 
-    def _make_hit_explosion_vand(self, params: object) -> FxSystem:
-        p: _FxHitParams = params  # type: ignore[assignment]
+    def _make_hit_explosion_vand(self, p: _FxHitParams) -> FxSystem:
         sx, sy = p.proj.world_to_screen(p.wx, p.wy)
         v = VandParticles(int(p.seed))
         # В оригинальном демо (#4) радиус был rnd()*8. Здесь делаем мягкую зависимость от impact,

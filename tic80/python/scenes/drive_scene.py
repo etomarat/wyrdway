@@ -1,15 +1,14 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from tic80 import btn, btnp, cls, print
+    from tic80 import cls, print
 
     from ..contracts import DriveEnterParams, ResultEnterParams, SceneNavigator
-    from ..core.input_buttons import Button
     from ..core.palette import Color
     from ..core.run_state import RunState
     from ..core.scene_ids import SceneId
     from ..data.tuning import TUNING
-    from ..systems.drive.drive_input import DriveInput, read_drive_input
+    from ..systems.drive.drive_input import read_drive_input
     from ..systems.drive.drive_logic_core import DriveLogic
     from ..systems.drive.drive_obstacle_hits import apply_obstacle_hits
     from ..systems.drive.drive_objects import DriveObjects, DriveZone

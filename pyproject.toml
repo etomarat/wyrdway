@@ -1,16 +1,26 @@
 [tool.ruff]
 line-length = 100
-extend-exclude = ["tic80/python/game.py", "tic80/python/build.py"]
+extend-exclude = [
+  "tic80/python/game.py",
+  "tic80/python/build.py",
+  "tic80/python/build.min.py",
+  "tic80/python/stubs",
+]
 
 [tool.ruff.lint]
 select = [
   "E", "F",
   "B",
+  "ANN401",
   "ISC",
   "UP",
 ]
 
-ignore = ["UP035"]
+ignore = [
+  "UP035",
+  "E501",
+  "F403",
+]
 
 [tool.ruff.lint.flake8-implicit-str-concat]
 allow-multiline = false

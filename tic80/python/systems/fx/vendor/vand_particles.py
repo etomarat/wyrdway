@@ -16,6 +16,12 @@ import math
 
 
 class _VandParticle:
+    # Base protocol-like fields used by VandParticles.rotate_around().
+    x: float
+    y: float
+    vx: float
+    vy: float
+
     def update(self, dt: float, world_dx: float, world_dy: float, frame: int, rng: Rng) -> bool:
         return True
 
@@ -692,16 +698,16 @@ class VandParticles(FxSystem):
                 dy = float(y) - cy
                 rx = dx * cos_t - dy * sin_t
                 ry = dx * sin_t + dy * cos_t
-                setattr(p, "x", cx + rx)
-                setattr(p, "y", cy + ry)
+                p.x = cx + rx
+                p.y = cy + ry
 
             vx = getattr(p, "vx", None)
             vy = getattr(p, "vy", None)
             if vx is not None and vy is not None:
                 rvx = float(vx) * cos_t - float(vy) * sin_t
                 rvy = float(vx) * sin_t + float(vy) * cos_t
-                setattr(p, "vx", rvx)
-                setattr(p, "vy", rvy)
+                p.vx = rvx
+                p.vy = rvy
             i += 1
 
     def spawn_tri(self, x: float, y: float, r: float) -> None:

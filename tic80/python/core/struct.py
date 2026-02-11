@@ -72,7 +72,7 @@ class Struct:
                 setattr(cls, name, struct_field(i))
 
     @classmethod
-    def from_dict(cls, data: dict):
+    def from_dict(cls, data: dict[str, object]):
         cls._ensure_index()
         idx = cls.__index__
         if idx is None:
@@ -80,7 +80,7 @@ class Struct:
 
         fields = getattr(cls, "__fields__", ())
         n = len(fields)
-        vals = [None] * n
+        vals: list[object] = [None] * n
 
         defaults = getattr(cls, "__defaults__", ())
         if defaults:
@@ -110,7 +110,7 @@ class Struct:
 
         fields = getattr(cls, "__fields__", ())
         n = len(fields)
-        vals = [None] * n
+        vals: list[object] = [None] * n
 
         defaults = getattr(cls, "__defaults__", ())
         if defaults:
