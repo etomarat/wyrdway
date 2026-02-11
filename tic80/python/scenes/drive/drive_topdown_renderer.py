@@ -266,10 +266,10 @@ class DriveTopdownRenderer:
         sy0 = self._CAR_SRC_Y0
         sx1 = self._CAR_SRC_X1
         sy1 = self._CAR_SRC_Y1
-        rx0, ry0 = self._sprite_px_to_screen(pose, sx0, sy0)
-        rx1, ry1 = self._sprite_px_to_screen(pose, sx1, sy0)
-        rx2, ry2 = self._sprite_px_to_screen(pose, sx1, sy1)
-        rx3, ry3 = self._sprite_px_to_screen(pose, sx0, sy1)
+        rx0, ry0 = pose.sprite_px_to_screen(sx0, sy0, self._CAR_DRAW_OFFSET_X)
+        rx1, ry1 = pose.sprite_px_to_screen(sx1, sy0, self._CAR_DRAW_OFFSET_X)
+        rx2, ry2 = pose.sprite_px_to_screen(sx1, sy1, self._CAR_DRAW_OFFSET_X)
+        rx3, ry3 = pose.sprite_px_to_screen(sx0, sy1, self._CAR_DRAW_OFFSET_X)
 
         base_u = float((self._CAR_SPRITE_BASE_ID % 16) * 8)
         base_v = float((self._CAR_SPRITE_BASE_ID // 16) * 8)
@@ -298,14 +298,6 @@ class DriveTopdownRenderer:
             0,
             self._CAR_CHROMAKEY
         )
-
-    @staticmethod
-    def _sprite_px_to_screen(pose: CarPose2D, sprite_x: float, sprite_y: float) -> tuple[float, float]:
-        anchor_x = float(TUNING.DRIVE.car_sprite_anchor_x)
-        anchor_y = float(TUNING.DRIVE.car_sprite_anchor_y)
-        local_x = sprite_x - anchor_x + DriveTopdownRenderer._CAR_DRAW_OFFSET_X
-        local_back = sprite_y - anchor_y
-        return pose.local_to_screen(local_x, local_back)
 
     @staticmethod
     def _normalize_or_fallback(

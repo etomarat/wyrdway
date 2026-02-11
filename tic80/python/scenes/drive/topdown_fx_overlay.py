@@ -198,9 +198,10 @@ class TopdownFxOverlay:
             return
 
         d = TUNING.DRIVE
-        shift_x, shift_back = pose.legacy_center_shift()
-        wheel_dx = float(d.fx_dust_wheel_dx_px) + shift_x
-        back = float(d.fx_dust_back_px) + shift_back
+        wheel_dx, back = pose.local_from_legacy_center(
+            float(d.fx_dust_wheel_dx_px),
+            float(d.fx_dust_back_px)
+        )
         jitter_x = float(d.fx_dust_jitter_x_px)
         jitter_y = float(d.fx_dust_jitter_y_px)
         c0 = int(d.fx_offroad_dust_color_a)
@@ -257,9 +258,10 @@ class TopdownFxOverlay:
         if s > 1.0:
             s = 1.0
 
-        shift_x, shift_back = pose.legacy_center_shift()
-        base_x = float(d.fx_exhaust_dx_px) + shift_x
-        base_back = float(d.fx_exhaust_dy_px) + shift_back
+        base_x, base_back = pose.local_from_legacy_center(
+            float(d.fx_exhaust_dx_px),
+            float(d.fx_exhaust_dy_px)
+        )
         r0 = float(d.fx_exhaust_r_min)
         r1 = float(d.fx_exhaust_r_max)
         if r1 < r0:
@@ -385,9 +387,10 @@ class TopdownFxOverlay:
         if life > 26:
             life = 26
 
-        shift_x, shift_back = pose.legacy_center_shift()
-        wheel_dx = float(d.fx_transition_sparks_wheel_dx_px) + shift_x
-        back = float(d.fx_transition_sparks_back_px) + shift_back
+        wheel_dx, back = pose.local_from_legacy_center(
+            float(d.fx_transition_sparks_wheel_dx_px),
+            float(d.fx_transition_sparks_back_px)
+        )
         wheelbase = float(d.fx_transition_sparks_wheelbase_px)
 
         rear_x, rear_y = pose.local_to_screen(float(spawn_sign) * wheel_dx, back)

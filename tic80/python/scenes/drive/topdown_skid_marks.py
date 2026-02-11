@@ -76,10 +76,10 @@ class TopdownSkidMarks:
         if not active:
             return
 
-        shift_x, shift_back = pose.legacy_center_shift()
-
-        back = float(TUNING.DRIVE.skid_back_px) + shift_back
-        wheel_dx = float(TUNING.DRIVE.skid_wheel_dx_px) + shift_x
+        wheel_dx, back = pose.local_from_legacy_center(
+            float(TUNING.DRIVE.skid_wheel_dx_px),
+            float(TUNING.DRIVE.skid_back_px)
+        )
         seg = float(TUNING.DRIVE.skid_seg_len_px)
 
         # Небольшое смещение в сторону заноса, чтобы след “наклонялся”.

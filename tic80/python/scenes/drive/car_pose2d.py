@@ -58,8 +58,39 @@ class CarPose2D:
         return wx, wy
 
     @staticmethod
-    def legacy_center_shift() -> tuple[float, float]:
-        """Shift from legacy center-based offsets (16,16) to current anchor."""
+    def _legacy_center_shift() -> tuple[float, float]:
         anchor_x = float(TUNING.DRIVE.car_sprite_anchor_x)
         anchor_y = float(TUNING.DRIVE.car_sprite_anchor_y)
         return 16.0 - anchor_x, 16.0 - anchor_y
+
+    def local_from_legacy_center(self, local_x: float, local_back: float) -> tuple[float, float]:
+        """Converts local coords defined against legacy center (16,16) to current anchor space."""
+        shift_x, shift_back = self._legacy_center_shift()
+        return local_x + shift_x, local_back + shift_back
+
+    def local_from_sprite_px(
+        self,
+        sprite_x: float,
+        sprite_y: float,
+        draw_offset_x: float = 0.0
+    ) -> tuple[float, float]:
+        """Converts sprite pixel coords to local coords against current anchor."""
+        anchor_x = float(TUNING.DRIVE.car_sprite_anchor_x)
+        anchor_y = float(TUNING.DRIVE.car_sprite_anchor_y)
+        local_x = sprite_x - anchor_x + draw_offset_x
+        local_back = sprite_y - anchor_y
+        return local_x, local_back
+
+    def sprite_px_to_screen(
+        self,
+        sprite_x: float,
+        sprite_y: float,
+        draw_offset_x: float = 0.0
+    ) -> tuple[float, float]:
+        local_x, local_back = self.local_from_sprite_px(sprite_x, sprite_y, draw_offset_x)
+        return self.local_to_screen(local_x, local_back)
+
+    @staticmethod
+    def legacy_center_shift() -> tuple[float, float]:
+        """Shift from legacy center-based offsets (16,16) to current anchor."""
+        return CarPose2D._legacy_center_shift()
