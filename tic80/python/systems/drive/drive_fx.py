@@ -1,12 +1,11 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
-
     from ...contracts import DriveTuning, Tuning
     from ...core.palette import Color
     from ..fx.fx_ids import FxId
     from ..fx.fx_manager import FxLayer, FxManager, FxSystem
+    from ..fx.fx_registry import FxRegistry
     from ..fx.vendor.vand_particles import VandParticles
     from ..fx.vendor.viza_presets import make_explosion_fx, make_smoke_fx
     from ..fx.vendor.viza_pslib import PslibFx
@@ -271,8 +270,8 @@ class DriveFx:
     def __init__(self, tuning: "Tuning") -> None:
         self._tuning = tuning
         self._mgr = FxManager()
-        self._start_factories: dict[int, Callable[[_FxStartParams], FxSystem]] = {}
-        self._hit_factories: dict[int, Callable[[_FxHitParams], FxSystem]] = {}
+        self._start_reg = FxRegistry[_FxStartParams]()
+        self._hit_reg = FxRegistry[_FxHitParams]()
         self._register_defaults()
 
     def update(self, dt: float, world_dx: float, world_dy: float) -> None:
@@ -286,7 +285,7 @@ class DriveFx:
         fx_id = int(d.fx_start_id)
         params = _FxStartParams(float(cx), float(
             cy), seed, float(d.fx_start_dust_seconds))
-        fx = self._spawn_start_fx(fx_id, params)
+        fx = self._start_reg.spawn(fx_id, params)
         if fx is not None:
             self._mgr.add(FxLayer.UNDER_CAR, fx)
 
@@ -306,8 +305,8 @@ class DriveFx:
         if fx_id == FxId.DRIVE_HIT_EXPLOSION_PSLIB_PLUS_SPARKS:
             params = _FxHitParams(contact_wx, contact_wy,
                                   normal_x, normal_y, impact, seed, hit_r, proj)
-            a = self._spawn_hit_fx(FxId.DRIVE_HIT_EXPLOSION_PSLIB, params)
-            b = self._spawn_hit_fx(FxId.DRIVE_HIT_SPARKS_CURRENT, params)
+            a = self._hit_reg.spawn(FxId.DRIVE_HIT_EXPLOSION_PSLIB, params)
+            b = self._hit_reg.spawn(FxId.DRIVE_HIT_SPARKS_CURRENT, params)
             if a is not None:
                 self._mgr.add(FxLayer.OVER_CAR, a)
             if b is not None:
@@ -316,8 +315,8 @@ class DriveFx:
         if fx_id == FxId.DRIVE_HIT_VAND_EXPLOSION_PLUS_SPARKS:
             params = _FxHitParams(contact_wx, contact_wy,
                                   normal_x, normal_y, impact, seed, hit_r, proj)
-            sparks = self._spawn_hit_fx(FxId.DRIVE_HIT_SPARKS_CURRENT, params)
-            expl = self._spawn_hit_fx(FxId.DRIVE_HIT_VAND_EXPLOSION, params)
+            sparks = self._hit_reg.spawn(FxId.DRIVE_HIT_SPARKS_CURRENT, params)
+            expl = self._hit_reg.spawn(FxId.DRIVE_HIT_VAND_EXPLOSION, params)
             if sparks is not None:
                 self._mgr.add(FxLayer.OVER_CAR, sparks)
             if expl is not None:
@@ -326,43 +325,51 @@ class DriveFx:
 
         params = _FxHitParams(contact_wx, contact_wy,
                               normal_x, normal_y, impact, seed, hit_r, proj)
-        fx = self._spawn_hit_fx(fx_id, params)
+        fx = self._hit_reg.spawn(fx_id, params)
         if fx is not None:
             self._mgr.add(FxLayer.OVER_CAR, fx)
 
     def _register_defaults(self) -> None:
-        self._register_start_fx(FxId.DRIVE_START_DUST_CURRENT, self._make_start_dust_current)
-        self._register_start_fx(FxId.DRIVE_START_SMOKE_PSLIB, self._make_start_smoke_pslib)
-        self._register_start_fx(FxId.DRIVE_START_SMOKE_VAND_DUST, self._make_start_smoke_vand_dust)
-        self._register_hit_fx(FxId.DRIVE_HIT_SPARKS_CURRENT, self._make_hit_sparks_current)
-        self._register_hit_fx(FxId.DRIVE_HIT_EXPLOSION_PSLIB, self._make_hit_explosion_pslib)
-        self._register_hit_fx(FxId.DRIVE_HIT_VAND_EXPLOSION, self._make_hit_explosion_vand)
-        self._register_hit_fx(
+        self._start_reg.register(
+            FxId.DRIVE_START_DUST_CURRENT,
+            self._make_start_dust_current,
+            "start: dust (current)"
+        )
+        self._start_reg.register(
+            FxId.DRIVE_START_SMOKE_PSLIB,
+            self._make_start_smoke_pslib,
+            "start: smoke (pslib)"
+        )
+        self._start_reg.register(
+            FxId.DRIVE_START_SMOKE_VAND_DUST,
+            self._make_start_smoke_vand_dust,
+            "start: smoke (vand dust)"
+        )
+        self._hit_reg.register(
+            FxId.DRIVE_HIT_SPARKS_CURRENT,
+            self._make_hit_sparks_current,
+            "hit: sparks (current)"
+        )
+        self._hit_reg.register(
+            FxId.DRIVE_HIT_EXPLOSION_PSLIB,
+            self._make_hit_explosion_pslib,
+            "hit: explosion (pslib)"
+        )
+        self._hit_reg.register(
+            FxId.DRIVE_HIT_VAND_EXPLOSION,
+            self._make_hit_explosion_vand,
+            "hit: explosion (vand)"
+        )
+        self._hit_reg.register(
             FxId.DRIVE_HIT_EXPLOSION_PSLIB_PLUS_SPARKS,
-            self._make_hit_explosion_pslib
+            self._make_hit_explosion_pslib,
+            "hit: explosion+sparks (pslib+current)"
         )
-        self._register_hit_fx(
+        self._hit_reg.register(
             FxId.DRIVE_HIT_VAND_EXPLOSION_PLUS_SPARKS,
-            self._make_hit_explosion_vand
+            self._make_hit_explosion_vand,
+            "hit: explosion+sparks (vand+current)"
         )
-
-    def _register_start_fx(self, fx_id: int, factory: Callable[[_FxStartParams], FxSystem]) -> None:
-        self._start_factories[fx_id] = factory
-
-    def _register_hit_fx(self, fx_id: int, factory: Callable[[_FxHitParams], FxSystem]) -> None:
-        self._hit_factories[fx_id] = factory
-
-    def _spawn_start_fx(self, fx_id: int, params: _FxStartParams) -> FxSystem | None:
-        f = self._start_factories.get(fx_id)
-        if f is None:
-            return None
-        return f(params)
-
-    def _spawn_hit_fx(self, fx_id: int, params: _FxHitParams) -> FxSystem | None:
-        f = self._hit_factories.get(fx_id)
-        if f is None:
-            return None
-        return f(params)
 
     def _make_start_dust_current(self, p: _FxStartParams) -> FxSystem:
         d = self._tuning.DRIVE
