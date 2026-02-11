@@ -73,7 +73,6 @@ class DriveTopdownRenderer:
         normal_x: float,
         normal_y: float,
         impact: float,
-        damage: float,
         hitbox_radius: float
     ) -> None:
         self._fx_overlay.notify_obstacle_hit(
@@ -82,7 +81,6 @@ class DriveTopdownRenderer:
             normal_x,
             normal_y,
             impact,
-            damage,
             hitbox_radius
         )
 

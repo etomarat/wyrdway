@@ -36,7 +36,6 @@ class TopdownFxOverlay:
         normal_x: float,
         normal_y: float,
         impact: float,
-        damage: float,
         hitbox_radius: float
     ) -> None:
         # Ударные эффекты обрабатываем в draw(), когда у нас есть актуальная проекция world->screen.

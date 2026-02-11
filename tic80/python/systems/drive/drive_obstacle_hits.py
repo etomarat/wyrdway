@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     from .drive_objects import DriveObjects
     from .road_model import RoadModel
 
-    ObstacleHitNotify = Callable[[float, float, float, float, float, float, float], None]
+    ObstacleHitNotify = Callable[[float, float, float, float, float, float], None]
 
 
 def apply_obstacle_hits(
@@ -156,7 +156,6 @@ def apply_obstacle_hits(
                 nx,
                 ny,
                 impact,
-                dmg,
                 hit_r
             )
 
