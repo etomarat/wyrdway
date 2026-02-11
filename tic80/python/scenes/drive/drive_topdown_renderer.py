@@ -172,6 +172,8 @@ class DriveTopdownRenderer:
         vel_speed = (logic.vx * logic.vx + logic.vy * logic.vy) ** 0.5
 
         speed_blend = self._speed_blend(vel_speed)
+        if logic.v_forward < 0.0:
+            speed_blend = 0.0
         if speed_blend <= 0.0:
             self._cam_vel_x = heading_x
             self._cam_vel_y = heading_y

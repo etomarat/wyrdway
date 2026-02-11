@@ -27,6 +27,7 @@ class TopdownSkidMarks:
         slip = abs(logic.v_side) / denom
         if slip > 1.0:
             slip = 1.0
+        reverse = logic.v_forward < 0.0
 
         # Порог чуть выше нуля, чтобы не рисовать “дрожь” на прямой.
         active = slip > TUNING.DRIVE.skid_slip_threshold
@@ -34,13 +35,15 @@ class TopdownSkidMarks:
             # Ручник сам по себе тоже должен оставлять следы, если мы реально движемся.
             if logic.speed > TUNING.DRIVE.skid_min_speed and logic.dbg_handbrake_decel > 0.0:
                 active = True
+        if reverse:
+            active = False
 
         dt = TUNING.CORE.dt
         if self._start_skid_t > 0.0:
             self._start_skid_t -= dt
             if self._start_skid_t < 0.0:
                 self._start_skid_t = 0.0
-            if not active and logic.speed > TUNING.DRIVE.skid_min_speed:
+            if not reverse and (not active) and logic.speed > TUNING.DRIVE.skid_min_speed:
                 active = True
 
         i = 0
