@@ -11,12 +11,12 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from tic80 import include, keyp
 
-    from .contracts import DriveEnterParams
     from .core.debug import DebugOverlay
     from .core.perf_overlay import PerfOverlay
     from .core.scene_ids import SceneId
     from .core.scene_manager import SceneManager
     from .data.tuning import TUNING
+    from .scenes.drive_preset_scene import make_drive_preset_scene
     from .scenes.drive_scene import make_drive_scene
     from .scenes.garage_scene import make_garage_scene
     from .scenes.poi_scene import make_poi_scene
@@ -65,6 +65,7 @@ include("scenes.drive.topdown_fx_overlay")
 include("scenes.drive.drive_topdown_renderer")
 include("scenes.drive.drive_ui")
 include("scenes.drive_scene")
+include("scenes.drive_preset_scene")
 include("scenes.garage_scene")
 include("scenes.poi_scene")
 include("scenes.region_map_scene")
@@ -84,12 +85,13 @@ def BOOT() -> None:
         SCENE_MANAGER.state.profile.reset()
         SCENE_MANAGER.state.end_run()
         SCENE_MANAGER.state.playtest_begin()
+        SCENE_MANAGER.register(SceneId.DRIVE_PRESET, make_drive_preset_scene)
         SCENE_MANAGER.register(SceneId.DRIVE, make_drive_scene)
         SCENE_MANAGER.register(SceneId.RESULT, make_result_scene)
         # В плейтесте нам нужен “замкнутый” цикл DRIVE<->RESULT без POI/гаража.
         # Режим оставляем "travel" (без расширения Literal), а логику развилки держим
         # в DriveScene через state.playtest_enabled.
-        SCENE_MANAGER.go("DRIVE", DriveEnterParams("travel", "topdown"))
+        SCENE_MANAGER.go(SceneId.DRIVE_PRESET)
         return
 
     SCENE_MANAGER.state.load_profile()

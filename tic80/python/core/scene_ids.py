@@ -6,6 +6,7 @@ if TYPE_CHECKING:
 class SceneId:
     GARAGE: Final = "GARAGE"
     REGION_MAP: Final = "REGION_MAP"
+    DRIVE_PRESET: Final = "DRIVE_PRESET"
     DRIVE: Final = "DRIVE"
     POI: Final = "POI"
     RESULT: Final = "RESULT"
