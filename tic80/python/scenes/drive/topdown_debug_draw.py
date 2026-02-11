@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 
 
 class TopdownDebugDraw:
-    def draw_vectors(self, logic: DriveLogic, cx: int, cy: int) -> None:
+    def draw_vectors(self, logic: DriveLogic, proj: TopdownProjector, cx: int, cy: int) -> None:
         d = TUNING.DRIVE
         h = d.debug_vectors_heading_len
         if h < 0.0:
@@ -21,26 +21,27 @@ class TopdownDebugDraw:
         vel_scale = d.debug_vectors_vel_scale
         accel_scale = d.debug_vectors_accel_scale
 
-        line(cx, cy, cx, int(cy - h), Color.WHITE)
+        hx, hy = proj.world_vec_to_screen(logic.fwd_x, logic.fwd_y)
+        hx, hy = self._normalize_or_fallback(hx, hy, 0.0, -1.0)
+        line(cx, cy, int(cx + hx * h), int(cy + hy * h), Color.WHITE)
 
-        vx = logic.v_side * vel_scale
-        vy = -logic.v_forward * vel_scale
-        if vx > 60.0:
-            vx = 60.0
-        if vx < -60.0:
-            vx = -60.0
-        if vy > 60.0:
-            vy = 60.0
-        if vy < -60.0:
-            vy = -60.0
+        vx, vy = proj.world_vec_to_screen(logic.vx, logic.vy)
+        vx *= vel_scale
+        vy *= vel_scale
+        vx = self._clamp(vx, -60.0, 60.0)
+        vy = self._clamp(vy, -60.0, 60.0)
         line(cx, cy, int(cx + vx), int(cy + vy), Color.CYAN)
 
-        ax = logic.dbg_side_accel * accel_scale
-        if ax > 60.0:
-            ax = 60.0
-        if ax < -60.0:
-            ax = -60.0
-        line(cx, cy, int(cx + ax), cy, Color.GREY)
+        right_x = -logic.fwd_y
+        right_y = logic.fwd_x
+        acc_wx = right_x * logic.dbg_side_accel
+        acc_wy = right_y * logic.dbg_side_accel
+        ax, ay = proj.world_vec_to_screen(acc_wx, acc_wy)
+        ax *= accel_scale
+        ay *= accel_scale
+        ax = self._clamp(ax, -60.0, 60.0)
+        ay = self._clamp(ay, -60.0, 60.0)
+        line(cx, cy, int(cx + ax), int(cy + ay), Color.GREY)
 
     def draw_hitboxes(self, logic: DriveLogic, proj: TopdownProjector) -> None:
         rear_x, rear_y, rear_r, front_x, front_y, front_r = logic.hitbox_world_circles()
@@ -52,3 +53,24 @@ class TopdownDebugDraw:
             circb(int(rear_sx), int(rear_sy), int(rear_r), Color.CYAN)
         if front_r > 0.0:
             circb(int(front_sx), int(front_sy), int(front_r), Color.WHITE)
+
+    @staticmethod
+    def _normalize_or_fallback(
+        x: float,
+        y: float,
+        fallback_x: float,
+        fallback_y: float
+    ) -> tuple[float, float]:
+        l2 = x * x + y * y
+        if l2 > 0.000001:
+            inv = 1.0 / (l2 ** 0.5)
+            return x * inv, y * inv
+        return fallback_x, fallback_y
+
+    @staticmethod
+    def _clamp(value: float, min_value: float, max_value: float) -> float:
+        if value < min_value:
+            return min_value
+        if value > max_value:
+            return max_value
+        return value

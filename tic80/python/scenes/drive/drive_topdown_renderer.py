@@ -151,7 +151,7 @@ class DriveTopdownRenderer:
         self._fx_overlay.draw_over_car()
 
         if TUNING.DRIVE.debug_vectors_enabled:
-            self._debug_draw.draw_vectors(logic, center_x, center_y)
+            self._debug_draw.draw_vectors(logic, proj, center_x, center_y)
         if TUNING.DRIVE.debug_hitboxes_enabled:
             self._debug_draw.draw_hitboxes(logic, proj)
 
