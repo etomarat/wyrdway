@@ -31,7 +31,7 @@ Attribution + file mapping lives in `docs/80_misc/third_party_particles.md` (we 
 - `run_tic80_python.bat dev` — **development**: bundle and launch TIC-80 without minification (best for fast iteration / readable code / “live” tweaking).
 - `run_tic80_python.bat` — bundle + **minify** + launch TIC-80 using `build.min.py`.
 - `run_tic80_python.bat build` — bundle + minify only (no emulator).
-- `run_tic80_python.bat dist` — bundle + minify + export to `dist/` (`wyrdway.tic`, `wyrdway.exe`, `wyrdway.zip`).
+- `run_tic80_python.bat dist` — bundle + minify + export to `dist/` (`wyrdway.tic`, `wyrdway.exe`, `wyrdway.zip`, `wyrdway-linux.zip`, `wyrdway-mac.zip`).
 
 ---
 
@@ -57,7 +57,7 @@ Wyrdway — контент‑ориентированный road‑trip roguelit
 - `run_tic80_python.bat dev` — **разработка**: сборка и запуск TIC-80 без минификации (лучше для быстрой итерации / читаемого кода).
 - `run_tic80_python.bat` — сборка + **минификация** + запуск TIC-80 через `build.min.py`.
 - `run_tic80_python.bat build` — сборка + минификация (без эмулятора).
-- `run_tic80_python.bat dist` — сборка + минификация + экспорт в `dist/` (`wyrdway.tic`, `wyrdway.exe`, `wyrdway.zip`).
+- `run_tic80_python.bat dist` — сборка + минификация + экспорт в `dist/` (`wyrdway.tic`, `wyrdway.exe`, `wyrdway.zip`, `wyrdway-linux.zip`, `wyrdway-mac.zip`).
 
 ## Заметки по тюнингу
 - Тюнинг DRIVE FX — в `tic80/python/data/tuning/drive/fx.py`.

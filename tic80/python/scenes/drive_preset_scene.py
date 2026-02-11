@@ -136,8 +136,8 @@ class DrivePresetScene:
                 ]
             ),
             DrivePhysicsPreset(
-                "Boris",
-                "Boris (mid-speed steer+accel)",
+                "bfeen",
+                "bfeen (mid-speed steer+accel)",
                 [
                     ("accel", 65.0),
                     ("steer_rate", 1.45),

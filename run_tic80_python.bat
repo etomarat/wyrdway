@@ -202,10 +202,10 @@ if errorlevel 1 (
   popd >nul
   exit /b %EC%
 )
-echo [INFO] Exporting .tic/.exe/html to dist...
-echo        "%TIC80_EXE_PATH%" --cli --crt --fs "%FS_ROOT%" --cmd "load tic80/python/game.py & import code tic80/python/build.min.py & save dist/%OUT_BASE%.tic & export win dist/%OUT_BASE% alone=0 & export html dist/%OUT_BASE% alone=0 & exit"
+echo [INFO] Exporting .tic/.exe/html/linux/mac to dist...
+echo        "%TIC80_EXE_PATH%" --cli --crt --fs "%FS_ROOT%" --cmd "load tic80/python/game.py & import code tic80/python/build.min.py & save dist/%OUT_BASE%.tic & export win dist/%OUT_BASE% alone=0 & export linux dist/%OUT_BASE%-linux alone=0 & export mac dist/%OUT_BASE%-mac alone=0 & export html dist/%OUT_BASE% alone=0 & exit"
 echo.
-"%TIC80_EXE_PATH%" --cli --crt --fs "%FS_ROOT%" --cmd "load tic80/python/game.py & import code tic80/python/build.min.py & save dist/%OUT_BASE%.tic & export win dist/%OUT_BASE% alone=0 & export html dist/%OUT_BASE% alone=0 & exit"
+"%TIC80_EXE_PATH%" --cli --crt --fs "%FS_ROOT%" --cmd "load tic80/python/game.py & import code tic80/python/build.min.py & save dist/%OUT_BASE%.tic & export win dist/%OUT_BASE% alone=0 & export linux dist/%OUT_BASE%-linux alone=0 & export mac dist/%OUT_BASE%-mac alone=0 & export html dist/%OUT_BASE% alone=0 & exit"
 set "EC=%errorlevel%"
 popd >nul
 exit /b %EC%

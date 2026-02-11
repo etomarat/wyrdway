@@ -73,6 +73,10 @@ jobs:
           Expand-Archive -Path "dist/wyrdway.zip" -DestinationPath "site/game"
           New-Item -ItemType Directory -Path "site/downloads" | Out-Null
           Copy-Item -Path "dist/wyrdway.exe" -Destination "site/downloads/wyrdway.exe"
+          if (Test-Path "dist/wyrdway-linux") { Copy-Item -Path "dist/wyrdway-linux" -Destination "site/downloads/wyrdway-linux" }
+          if (Test-Path "dist/wyrdway-mac") { Copy-Item -Path "dist/wyrdway-mac" -Destination "site/downloads/wyrdway-mac" }
+          if (Test-Path "dist/wyrdway.tic") { Copy-Item -Path "dist/wyrdway.tic" -Destination "site/downloads/wyrdway.tic" }
+          if (Test-Path "poster.png") { Copy-Item -Path "poster.png" -Destination "site/poster.png" }
           $lines = @(
             '<!doctype html>',
             '<html lang="en">',
@@ -82,13 +86,21 @@ jobs:
             '    <title>Wyrdway</title>',
             '    <style>',
             '      body { font-family: Arial, sans-serif; margin: 2rem; }',
-            '      a { display: inline-block; margin-right: 1rem; }',
+            '      .links a { display: inline-block; margin-right: 1rem; }',
+            '      img { max-width: 100%; height: auto; width: 400px; display: block; margin: 1rem 0 2rem; }',
             '    </style>',
             '  </head>',
             '  <body>',
             '    <h1>Wyrdway</h1>',
+            '    <img src="poster.png" alt="Wyrdway poster">',
             '    <p><a href="game/index.html">Play in browser</a></p>',
-            '    <p><a href="downloads/wyrdway.exe">Download Windows exe</a></p>',
+            '    <div class="links">',
+            '      <a href="downloads/wyrdway.exe">Download Windows build (.exe)</a>',
+            '      <a href="downloads/wyrdway-linux">Download Linux build</a>',
+            '      <a href="downloads/wyrdway-mac">Download macOS build</a>',
+            '      <a href="downloads/wyrdway.tic">Download TIC-80 cartridge (.tic)</a>',
+            '    </div>',
+            '    <p>If the Linux or macOS build doesn&#39;t launch, try: <code>chmod +x ./wyrdway-linux</code> or <code>chmod +x ./wyrdway-mac</code></p>',
             '  </body>',
             '</html>'
           )
