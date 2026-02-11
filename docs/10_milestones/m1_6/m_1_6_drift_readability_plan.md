@@ -91,7 +91,7 @@
 1. `DriveLogic`: read-only доступ к world velocity (`vx`, `vy`) для камеры/рендера.
 2. `TopdownProjector`: разделение `camera pose` и `car pose`.
 3. `DriveTuning` + `data/tuning/drive/*`: параметры camera-by-velocity/lookahead/spring.
-4. `core/sprites.py`: файл оставляем как библиотеку спрайт-описаний, но в M1.6 runtime-путь не подключаем.
+4. `core/sprites.py`: legacy-модуль удалён, runtime-источник правды для машины — `drive_topdown_renderer.py`.
 
 ## Тест-кейсы для каждого варианта
 

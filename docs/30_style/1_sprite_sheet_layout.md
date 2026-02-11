@@ -27,7 +27,7 @@ spr(BASE_ID, x, y, colorkey, scale, flip, rotate, 4, 4)
 ```
 
 Примечание: в TIC-80 нет альфа‑канала, прозрачность задаётся `colorkey`.
-Текущее значение для машины: `colorkey = 12` (см. `tic80/python/core/sprites.py`).
+Текущее значение для машины в runtime: `colorkey = 12` (см. `drive_topdown_renderer.py`).
 
 ## Машина “Нива” (top-down, runtime M1.6)
 
