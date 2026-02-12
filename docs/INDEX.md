@@ -24,12 +24,14 @@ docs/
 - `10_milestones/m1_5/m_1_5_drive_physics_tuning_plan.md` — план улучшения управления/физики DRIVE.
 - `10_milestones/m1_6/m_1_6_drift_readability_plan.md` — план экспериментов по читаемости дрифта.
 - `10_milestones/m1_6/m_1_6_drift_readability_log.md` — журнал решений и результатов по веткам `drift/*`.
+- Если при запуске сразу попадаешь в `DRIVE_PRESET`, проверь `IS_DRIVE_PLAYTEST` в `tic80/python/main.py`.
 
 2) **Спека (источник правды по системам)**
 - `00_spec/0_gdd_v0.md` — GDD v0 (общая картина).
 - `00_spec/2_architecture.md` — сцены/поток/правила владения кадром.
 - `00_spec/3_runstate.md` — контракт данных (Profile/Run и т.п.).
 - `00_spec/8_drive_physics.md` — DRIVE (m1.5): world-space физика и связь с дорогой.
+- `00_spec/9_drive_playtest_camera.md` — DRIVE (m1.6): плейтест, камера и читаемость заноса.
 - `00_spec/5_tuning.md` — принципы TUNING (что вносить в тюнинг и как).
 - `00_spec/6_save_load.md` — политика сейвов/лоада и версионирование.
 

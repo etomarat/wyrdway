@@ -1,196 +1,123 @@
-# Wyrdway — RunState v0 (Contract)
+# Wyrdway — GameState / Profile / RunState (as-is)
 
-Этот документ фиксирует **контракт данных** между сценами (GARAGE/REGION_MAP/DRIVE/POI/RESULT) и правила их изменения.
-
-Цель: чтобы сцены не обменивались «случайными глобалками», а работали через один источник истины.
-
----
-
-## 0) Термины
-
-- **MetaState** — долгоживущие данные (между забегами, сохраняются в сейв).
-- **RunState** — данные текущего забега (сбрасываются при старте нового рана).
-- **Segment** — один «шаг» по региону: выбор узла → DRIVE(travel) → (POI → DRIVE(extract)) → RESULT.
-- **Secure / Loose** — «закреплённое» (в гараже) vs «незакреплённое» (в поездке) имущество.
+Этот документ фиксирует текущий “контракт данных” между сценами и правила мутаций.
+Цель: чтобы сцены общались через один источник истины, а не через случайные глобалки.
 
 ---
 
-## 1) Время жизни и ответственность
+## 1) Источник истины (что где живёт)
 
-### Кто создаёт и сбрасывает RunState
-- **GARAGE** создаёт новый RunState при `Start Run`.
-- **RESULT** завершает сегмент; при финале поездки/провале выполняет «возврат в гараж» и (при необходимости) сбрасывает RunState.
+### 1.1 GameState
+Файл: `tic80/python/core/game_state.py`
 
-### Источник истины
-- **RunState = истина** для забега.
-- `params` при переходе сцен — только контекст входа (например `mode="extract"`), не место хранения прогресса.
+`GameState` — это корневой контейнер состояния:
+- `profile: Profile` — долгоживущие данные между “ранами” (то, что мы сохраняем).
+- `run: RunState | None` — текущий ран (живёт только в памяти, сбрасывается при завершении).
+- отладочные линии кадра (для DebugOverlay).
+- режим DRIVE‑плейтеста (для тюнинга управления).
 
----
+### 1.2 Profile
+Файл: `tic80/python/core/profile.py`
 
-## 2) Схема MetaState (v0)
+`Profile` — текущий минимальный “мета‑прогресс”:
+- `scrap: int`
+- `garage_hp: float`
+- `garage_fuel: float`
+- `upgrades: list[str]` (пока не используется геймплейно, но поле уже есть)
 
-MetaState — то, что живёт в гараже и переживает провал.
+### 1.3 RunState
+Файл: `tic80/python/core/run_state.py`
 
-Минимальный набор на v0:
-- `meta.version` — версия формата (инкремент при изменениях)
-- `meta.profile_id` — идентификатор профиля
-- `meta.unlocked_upgrades` — set/list id чертежей/апгрейдов
-- `meta.resources_secure` — ресурсы в гараже (scrap/electronics/chem/fuel)
-- `meta.inventory_secure` — закреплённые предметы/детали (опционально v0)
-- `meta.car_garage` — состояние машины в гараже (что установлено / базовые статы)
+`RunState` — минимальные данные забега (M1):
+- `seed: int`
+- `node_id: int | None`
+- `car_hp: float`
+- `car_fuel: float`
+- `inventory: list[RunItem]` (сейчас это только `"scrap"`, см. `RunItemId`)
+- `delta: SegmentDelta | None`
 
-Примечание:
-- В v0 можно держать `inventory_secure` пустым, а сохранять только `resources_secure`.
+### 1.4 SegmentDelta
+Файл: `tic80/python/core/run_state.py`
 
----
-
-## 3) Схема RunState (v0)
-
-### 3.1 Общие поля забега
-- `run.version` — версия схемы RunState
-- `run.seed` — seed рана (для воспроизводимости и RNG)
-- `run.region_id` — текущий регион
-- `run.region_seed` — seed региона/графа узлов (можно = seed)
-- `run.node_id` — текущий выбранный узел (на который едем)
-- `run.threat_level` — уровень угрозы/напряжения (число)
-- `run.active_upgrade_id` — активка на кнопке B (или `None`)
-
-### 3.2 Route / граф узлов (минимум)
-- `run.route` — описание графа узлов (минимально: список узлов + связи)
-- `run.route_progress` — какие узлы уже пройдены/текущая позиция
-
-v0 допускает «плоский маршрут»:
-- `route.nodes = [{id,type,poi_id,risk,reward,next_ids...}, ...]`
-- `route.current_id`
-
-### 3.3 CarState (v0)
-Машина = персонаж, поэтому состояние хранится детально, но компактно.
-
-- `run.car.fuel` — топливо
-- `run.car.battery` — батарея/электрика
-- `run.car.heat` — перегрев
-- `run.car.parts` — HP по деталям (минимум 6):
-  - `body`, `engine`, `tires`, `battery`, `fuel_tank`, `suspension`
-- `run.car.statuses` — список статусов (v0 может быть пустым): `leak`, `short`, `wobble`, `overheat`...
-
-Примечание:
-- Панели/слоты/модули можно добавить позже (M2 CarState v1), но v0 уже держит структуру `parts`.
-
-### 3.4 Inventory (v0)
-В GDD целевой вариант — тетрис-инвентарь. На v0 фиксируем **универсальную модель предмета**, чтобы перейти к тетрису без ломки данных.
-
-- `run.inventory` — список предметов в поездке (пока простой список/стэки)
-
-Формат предмета (универсальный):
-- `id` — id предмета
-- `qty` — количество
-- `tags` — теги (опционально)
-- `size` — `{w,h}` (для будущего тетриса; на v0 можно держать `1x1`)
-- `meta` — произвольные данные (например прочность)
-
-### 3.5 Secure / Loose / Insured
-Чтобы поддержать модель провала из GDD:
-
-- `run.loot_loose` — «незакреплённое», рискует потеряться при провале
-- `run.loot_secure` — то, что уже «закреплено» (обычно только после возврата в гараж)
-- `run.insured_slot` — один «застрахованный» слот (предмет/пакет ресурсов), не теряется при провале
-- `run.recovery_beacon_used` — флаг/кол-во, влияющее на сохранение части добычи при провале
-
-В v0 можно упростить:
-- держать всё в `run.inventory`, а `loot_loose/secure` использовать только на уровне RESULT (как расчёт)
-
-### 3.6 Контекст текущего сегмента
-Чтобы RESULT мог честно показать итоги, не вытаскивая их из «внутренностей сцены»:
-
-- `run.segment.index` — номер сегмента
-- `run.segment.kind` — `"travel" | "poi" | "extract" | "hazard" | "exit"`
-- `run.segment.node_id` — к какому узлу относится
-- `run.segment.poi_id` — если это POI
-
-- `run.segment.delta` — структура итогов (см. ниже)
+`SegmentDelta` — итоговые данные сегмента, которые RESULT показывает и по которым
+`GameState.apply_run_results()` решает “успех/провал”:
+- `node_id: int | None` (для какого узла формировалась дельта)
+- `poi_action: "loot" | "leave" | "timeout" | None`
+- `escape_outcome: "ok" | "fail" | None`
+- `items_gained: list[RunItem]` (сейчас используется только счётчик)
 
 ---
 
-## 4) SegmentDelta (итоги сегмента)
+## 2) Жизненный цикл (as-is)
 
-`run.segment.delta` — это данные, которые RESULT показывает и применяет.
+Точка входа: `BOOT()` в `tic80/python/main.py`.
 
-Минимальный формат:
-- `delta.resources_gained` — `{scrap: +2, fuel: +10, ...}`
-- `delta.resources_spent` — `{fuel: -5, ...}`
-- `delta.items_gained` — список предметов
-- `delta.items_lost` — список предметов (если было)
-- `delta.damage` — какие детали/поля пострадали (для UI)
-- `delta.flags` — `success`, `evac`, `fail`, `extracted`
+### 2.1 Обычная игра (вертикальная петля M1)
+Включается при `IS_DRIVE_PLAYTEST = False`:
+- `BOOT()` вызывает `GameState.load_profile()`.
+- `GarageScene` по `A` делает `save_profile()` и `start_run()`.
+- `RegionMapScene` выбирает `node_id` и вызывает `run.ensure_delta(node_id)`.
+- `DriveScene` обновляет вождение и меняет `run.car_hp/run.car_fuel`.
+- `PoiScene` выставляет `delta.poi_action`, добавляет лут в ран, при тайм‑ауте ставит `escape_outcome="fail"`.
+- `ResultScene` по `A` вызывает `GameState.apply_run_results()` и возвращает в `GarageScene`.
 
-Правило:
-- **Сцены (DRIVE/POI)** собирают «дельту», но RESULT — место, где она финализируется, отображается и (при необходимости) переносится в MetaState.
-
----
-
-## 5) Правила мутаций (кто что имеет право менять)
-
-### GARAGE
-- создаёт новый `RunState` (seed, region, базовая машина)
-- применяет апгрейды/ремонт к `MetaState` и/или `meta.car_garage`
-
-### REGION_MAP
-- выбирает следующий `run.node_id`
-- может повышать/понижать `run.threat_level` по правилам региона
-- не трогает инвентарь и HP напрямую
-
-### DRIVE (mode="travel" / "extract")
-- меняет `run.car.*` (fuel/battery/heat/parts/statuses)
-- меняет `run.threat_level` (рост напряжения)
-- заполняет `run.segment.delta.damage/resources_spent` и флаги success/fail
-- в конце:
-  - travel: либо отправляет в POI, либо формирует дельту и идёт в RESULT
-  - extract: всегда формирует дельту (успех/провал) и идёт в RESULT
-
-### POI_V0
-- меняет `run.inventory` и/или `run.segment.delta.items_gained/resources_gained`
-- может тратить ресурсы/расходники (через delta.spent)
-- по выходу **всегда** готовит `run.segment.delta` и отправляет в DRIVE(mode="extract")
-
-### RESULT
-- показывает `run.segment.delta`
-- применяет последствия сегмента к RunState (если сцены копили дельту, но не меняли run напрямую)
-- при провале/эвакуации:
-  - применяет правила потери/сохранения `loose` и insured
-  - добавляет штрафы (fuel/scrap) и «поломки после эвакуации» (в терминах delta + car.parts)
-- при возврате в гараж:
-  - переносит «secure» в `meta.resources_secure` / `meta.inventory_secure`
-  - очищает `run.segment.delta`
+### 2.2 DRIVE плейтест
+Включается при `IS_DRIVE_PLAYTEST = True`:
+- `BOOT()` не грузит сейв, сбрасывает профиль и включает плейтест‑статистику.
+- `DRIVE_PRESET` выбирает пресет.
+- `DriveScene` при завершении сегмента ведёт в `ResultScene`.
+- `ResultScene` по `A` запускает следующий сегмент (цикл DRIVE↔RESULT).
 
 ---
 
-## 6) Контракт переходов DRIVE ↔ POI
+## 3) Правила мутаций (кто что имеет право менять)
 
-Минимальный набор данных, который должен сохраняться между режимами (лежит в RunState):
-- `run.seed`, `run.node_id`, `run.threat_level`
-- `run.inventory`
-- `run.car` (fuel/battery/heat + parts/statuses)
-- `run.active_upgrade_id`
+### 3.1 GarageScene
+Файл: `tic80/python/scenes/garage_scene.py`
+- `GameState.start_run()` создаёт новый `RunState` с `car_hp/car_fuel` из профиля.
+- Ремонт меняет только профиль (через `Profile.repair()`).
+- Профиль сохраняется в ключевых местах (до старта, после ремонта, после reset).
 
-Переходы (из архитектуры):
-- `DRIVE(travel) → POI_V0 → DRIVE(extract) → RESULT`
+### 3.2 RegionMapScene
+Файл: `tic80/python/scenes/region_map_scene.py`
+- Меняет только `run.node_id`.
+- Создаёт/активирует “дельту сегмента” через `run.ensure_delta(run.node_id)`.
+
+### 3.3 DriveScene
+Файл: `tic80/python/scenes/drive_scene.py`
+- Меняет только `run.car_hp` и `run.car_fuel` (через `RunState.apply_damage()` и `RunState.consume_fuel()` внутри drive‑логики).
+- По эвакуации выставляет `delta.escape_outcome="fail"` и уходит в RESULT.
+- По успешному extract выставляет `delta.escape_outcome="ok"` и уходит в RESULT.
+
+### 3.4 PoiScene
+Файл: `tic80/python/scenes/poi_scene.py`
+- Выставляет `delta.poi_action`.
+- При `loot` добавляет предмет(ы) в `run.inventory` и отмечает это в `delta`.
+- При тайм‑ауте выставляет `delta.escape_outcome="fail"` и уходит напрямую в RESULT (упрощение M1).
+
+### 3.5 ResultScene
+Файл: `tic80/python/scenes/result_scene.py`
+- В обычной игре единственное место, где результат применяется к профилю: `GameState.apply_run_results()`.
+- После применения результата `GameState` завершает ран (`end_run` внутри `apply_run_results()`).
 
 ---
 
-## 7) Инварианты (чтобы ловить баги рано)
+## 4) Границы сохранений (as-is)
 
-- `run.car.parts` содержит все 6 ключевых деталей.
-- `run.seed` не меняется в течение рана.
-- `run.segment.delta` либо `None`, либо соответствует текущему сегменту и очищается после RESULT.
-- Ни одна сцена не хранит «важный прогресс» только внутри себя: всё важное либо в RunState, либо в SegmentDelta.
+Сейчас сохраняется только профиль. Ран не сериализуется.
+Детали: `docs/00_spec/6_save_load.md`.
 
 ---
 
-## 8) Debug overlay (минимум для M1)
+## 5) Инварианты (минимум)
 
-Для отладки удобно показывать:
-- `seed`, `region_id`, `node_id`, `threat_level`
-- `car.fuel`, `car.battery`, `car.heat`
-- `parts (body/engine/tires/battery/fuel_tank/suspension)`
-- текущая сцена и `DRIVE.mode`
+- `Profile` никогда не содержит “живой ран”.
+- `RunState.seed` задаётся при создании и не меняется в течение рана.
+- `RunState.inventory_items()` возвращает копию списка (чтобы не было внешней мутации).
 
+---
+
+## 6) Планируемое (ещё не реализовано)
+
+В ранних спеках встречаются поля “CarState parts/statuses”, “MetaState”, “secure/loose”.
+Сейчас этого в коде нет: `Profile` и `RunState` минимальны под M1.

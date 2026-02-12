@@ -5,6 +5,8 @@
 - иметь общий язык при тюнинге управления,
 - одинаково использовать одну логику для **Top-down** и будущего **Cockpit/pseudo‑3D**.
 
+Отдельно про m1.6 (камера/читаемость заноса): `00_spec/9_drive_playtest_camera.md`.
+
 ## 1) Две системы координат: world-space и road-space
 
 ### 1.1 World-space (как “на самом деле” едет машина)
@@ -38,10 +40,14 @@
 ## 2) Как Top-down рендер устроен
 
 Top-down рисует **машину всегда в центре экрана**,
-а мир (дорогу и объекты) рисует в системе координат машины:
+а мир (дорогу и объекты) рисует в системе координат камеры/машины:
 
-- вверх экрана = “вперёд по направлению машины”
-- вправо экрана = “вправо от направления машины”
+- вверх экрана = “вперёд по направлению камеры”
+- вправо экрана = “вправо от направления камеры”
+
+Важная деталь (m1.6): направление камеры сейчас не всегда строго равно `fwd` машины.
+Оно может быть **blend** между “куда смотрит машина” и “куда движется скорость”
+для читаемости заноса на скорости.
 
 Из-за этого дорога визуально “крутится под машиной” — это нормально и ожидаемо
 для world-space модели.
@@ -182,11 +188,15 @@ centerline. Это даёт:
 
 ## 6) Где это реализовано в коде
 
-- Физика world-space: `tic80/python/systems/drive/drive_logic.py`
+- Физика world-space (основная логика): `tic80/python/systems/drive/drive_logic_core.py`
+- Проекция на дорогу (road_s/road_d, хитбоксы): `tic80/python/systems/drive/drive_logic_projection.py`
 - Дорога и centerline: `tic80/python/systems/drive/road_model.py`
-- Объекты сегмента (s, d): `tic80/python/systems/drive/drive_objects.py`
-- Top-down рендер в системе машины: `tic80/python/scenes/drive_scene.py`
-- Параметры тюнинга: `tic80/python/data/tuning.py` (секция DRIVE)
+- Объекты сегмента (s, d) + зоны: `tic80/python/systems/drive/drive_objects.py`
+- Ввод (газ/тормоз/ручник): `tic80/python/systems/drive/drive_input.py`
+- Коллизии с препятствиями: `tic80/python/systems/drive/drive_obstacle_hits.py`
+- Сцена DRIVE (склейка логики/рендера/UI): `tic80/python/scenes/drive_scene.py`
+- Top-down рендер (камера, дорога, FX): `tic80/python/scenes/drive/drive_topdown_renderer.py`
+- Параметры тюнинга DRIVE: `tic80/python/data/tuning/drive/physics.py`
 
 ## 7) Важные ручки тюнинга (короткий справочник)
 
