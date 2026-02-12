@@ -9,6 +9,7 @@ if TYPE_CHECKING:
     from ...systems.drive.drive_fx import TopdownProjector
     from ...systems.drive.drive_logic_core import DriveLogic
     from ...systems.drive.drive_objects import DriveObjects, DriveZone
+    from ...systems.drive.drive_screen_shake import DriveScreenShake
     from ...systems.drive.road_model import RoadModel
     from .car_pose2d import CarPose2D
     from .topdown_debug_draw import TopdownDebugDraw
@@ -41,6 +42,7 @@ class DriveTopdownRenderer:
         self._skid_marks = TopdownSkidMarks()
         self._debug_draw = TopdownDebugDraw()
         self._fx_overlay = TopdownFxOverlay()
+        self._shake = DriveScreenShake()
         self._cam_fwd_x = 1.0
         self._cam_fwd_y = 0.0
         self._cam_inited = False
@@ -66,6 +68,7 @@ class DriveTopdownRenderer:
             impact,
             hitbox_radius
         )
+        self._shake.notify_hit(impact, TUNING)
 
     def draw(
         self,
@@ -74,8 +77,16 @@ class DriveTopdownRenderer:
         objects: DriveObjects,
         active_zone: DriveZone | None
     ) -> None:
-        center_x = 120
+        self._shake.ensure_seed(road.seed)
+        shake_x, shake_y = self._shake.update(
+            float(TUNING.CORE.dt),
+            logic.offroad,
+            TUNING
+        )
+
+        center_x = 120 + int(shake_x)
         center_y = self._road_draw.clamp_center_y(int(TUNING.DRIVE.view_center_y))
+        center_y += int(shake_y)
 
         p_s = logic.road_s
         car_x = logic.x

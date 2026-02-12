@@ -103,6 +103,17 @@ class DriveTuning:
         "cam_low_speed_cap_blend_max",
         "cam_low_speed_yaw_rate_min_deg",
         "cam_low_speed_yaw_rate_max_deg",
+        "shake_max_px",
+        "shake_offroad_strength",
+        "shake_offroad_ramp_up",
+        "shake_offroad_ramp_down",
+        "shake_offroad_freq_hz",
+        "shake_hit_strength",
+        "shake_hit_impact_mult",
+        "shake_hit_trauma_max",
+        "shake_hit_decay_per_sec",
+        "shake_hit_freq_hz",
+        "shake_hit_smooth_rate",
         "car_sprite_anchor_x",
         "car_sprite_anchor_y",
         "debug_vectors_enabled",
@@ -248,6 +259,17 @@ class DriveTuning:
         self.cam_low_speed_cap_blend_max = 0.0
         self.cam_low_speed_yaw_rate_min_deg = 0.0
         self.cam_low_speed_yaw_rate_max_deg = 0.0
+        self.shake_max_px = 0.0
+        self.shake_offroad_strength = 0.0
+        self.shake_offroad_ramp_up = 0.0
+        self.shake_offroad_ramp_down = 0.0
+        self.shake_offroad_freq_hz = 0.0
+        self.shake_hit_strength = 0.0
+        self.shake_hit_impact_mult = 0.0
+        self.shake_hit_trauma_max = 0.0
+        self.shake_hit_decay_per_sec = 0.0
+        self.shake_hit_freq_hz = 0.0
+        self.shake_hit_smooth_rate = 0.0
         self.car_sprite_anchor_x = 0.0
         self.car_sprite_anchor_y = 0.0
         self.debug_vectors_enabled = False

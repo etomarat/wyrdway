@@ -53,6 +53,34 @@ TUNING.DRIVE.cam_low_speed_cap_blend_max = 0.45
 TUNING.DRIVE.cam_low_speed_yaw_rate_min_deg = 260.0
 TUNING.DRIVE.cam_low_speed_yaw_rate_max_deg = 720.0
 
+# Screen shake (top-down).
+# Общий лимит амплитуды, px (ограничивает сумму всех источников).
+TUNING.DRIVE.shake_max_px = 4.0
+
+# Оффроуд: сила, скорость набора/спада и частота "кочек".
+# - strength: амплитуда тряски (px) при уровне offroad=1.0
+# - ramp_up: скорость нарастания эффекта (1/sec)
+# - ramp_down: скорость затухания эффекта (1/sec)
+# - freq_hz: частота смены "кочек" (Гц)
+TUNING.DRIVE.shake_offroad_strength = 2
+TUNING.DRIVE.shake_offroad_ramp_up = 10.0
+TUNING.DRIVE.shake_offroad_ramp_down = 6.0
+TUNING.DRIVE.shake_offroad_freq_hz = 14.0
+
+# Удар об препятствие: сила, "впрыск" травмы от impact и её спад.
+# - hit_strength: амплитуда (px) при trauma=1.0
+# - hit_impact_mult: сколько trauma добавлять на единицу impact
+# - hit_trauma_max: максимум trauma (0..1)
+# - hit_decay_per_sec: спад trauma (1/sec)
+# - hit_freq_hz: частота "толчков" от удара (Гц)
+# - hit_smooth_rate: сглаживание рывков (1/sec)
+TUNING.DRIVE.shake_hit_strength = 3.0
+TUNING.DRIVE.shake_hit_impact_mult = 0.06
+TUNING.DRIVE.shake_hit_trauma_max = 1.0
+TUNING.DRIVE.shake_hit_decay_per_sec = 1.6
+TUNING.DRIVE.shake_hit_freq_hz = 24.0
+TUNING.DRIVE.shake_hit_smooth_rate = 24.0
+
 # PRESET A (закомментированный): меньше jerk на выходе из дрифта, но без лишней ватности.
 # Включать целиком (заменить активные значения выше).
 #
