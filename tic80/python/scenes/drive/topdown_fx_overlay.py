@@ -80,7 +80,8 @@ class TopdownFxOverlay:
     def _maybe_start_move(self, logic: DriveLogic, pose: CarPose2D) -> bool:
         spd = logic.speed
         start_move = False
-        if self._prev_speed <= 0.5 and spd > 0.5:
+        min_speed = float(TUNING.DRIVE.fx_start_move_min_speed)
+        if self._prev_speed <= min_speed and spd > min_speed:
             # Букс/дым на старте имеет смысл только на дороге.
             # На оффроуде пусть будет просто “постоянная пыль”, без старта как на асфальте.
             if not logic.offroad:
@@ -118,7 +119,7 @@ class TopdownFxOverlay:
                 proj,
                 pose
             )
-            self._offroad_transition_cooldown = 0.20
+            self._offroad_transition_cooldown = float(TUNING.DRIVE.fx_transition_cooldown_seconds)
         self._prev_offroad = logic.offroad
 
     def _maybe_emit_offroad_dust(self, logic: DriveLogic, dt: float, pose: CarPose2D) -> None:

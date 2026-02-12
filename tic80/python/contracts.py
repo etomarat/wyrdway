@@ -100,6 +100,9 @@ class DriveTuning:
         "cam_vel_dir_lerp",
         "cam_spring_freq_hz",
         "cam_spring_damping",
+        "cam_low_speed_cap_blend_max",
+        "cam_low_speed_yaw_rate_min_deg",
+        "cam_low_speed_yaw_rate_max_deg",
         "car_sprite_anchor_x",
         "car_sprite_anchor_y",
         "debug_vectors_enabled",
@@ -123,7 +126,9 @@ class DriveTuning:
         "zones_per_100m",
         "spawn_min_distance_between",
         "spawn_min_distance_from_edges",
-        "obstacle_radius",
+        "obstacle_radius_min",
+        "obstacle_radius_max",
+        "obstacle_radius_weights",
         "obstacle_render_range_s",
         "obstacle_damage_base",
         "obstacle_damage_impact_mult",
@@ -167,10 +172,12 @@ class DriveTuning:
         "fx_transition_sparks_wheelbase_px",
         "fx_transition_sparks_min_speed",
         "fx_transition_sparks_ramp_speed",
+        "fx_transition_cooldown_seconds",
         "fx_dust_jitter_x_px",
         "fx_dust_jitter_y_px",
         "fx_dust_spread_vx",
         "fx_dust_spread_vy",
+        "fx_start_move_min_speed",
         "fx_exhaust_min_speed_factor",
         "fx_exhaust_ramp_speed_factor",
         "fx_exhaust_rate",
@@ -238,6 +245,9 @@ class DriveTuning:
         self.cam_vel_dir_lerp = 0.0
         self.cam_spring_freq_hz = 0.0
         self.cam_spring_damping = 0.0
+        self.cam_low_speed_cap_blend_max = 0.0
+        self.cam_low_speed_yaw_rate_min_deg = 0.0
+        self.cam_low_speed_yaw_rate_max_deg = 0.0
         self.car_sprite_anchor_x = 0.0
         self.car_sprite_anchor_y = 0.0
         self.debug_vectors_enabled = False
@@ -261,7 +271,9 @@ class DriveTuning:
         self.zones_per_100m = 0.0
         self.spawn_min_distance_between = 0.0
         self.spawn_min_distance_from_edges = 0.0
-        self.obstacle_radius = 0.0
+        self.obstacle_radius_min = 0.0
+        self.obstacle_radius_max = 0.0
+        self.obstacle_radius_weights: list[float] = []
         self.obstacle_render_range_s = 0.0
         self.obstacle_damage_base = 0.0
         self.obstacle_damage_impact_mult = 0.0
@@ -305,10 +317,12 @@ class DriveTuning:
         self.fx_transition_sparks_wheelbase_px = 0.0
         self.fx_transition_sparks_min_speed = 0.0
         self.fx_transition_sparks_ramp_speed = 0.0
+        self.fx_transition_cooldown_seconds = 0.0
         self.fx_dust_jitter_x_px = 0.0
         self.fx_dust_jitter_y_px = 0.0
         self.fx_dust_spread_vx = 0.0
         self.fx_dust_spread_vy = 0.0
+        self.fx_start_move_min_speed = 0.0
         self.fx_exhaust_min_speed_factor = 0.0
         self.fx_exhaust_ramp_speed_factor = 0.0
         self.fx_exhaust_rate = 0.0

@@ -43,3 +43,46 @@ class Rng:
 
     def uniform(self, a: float, b: float) -> float:
         return a + (b - a) * self.rand01()
+
+    def randint_inclusive(self, x: int, y: int) -> int:
+        """Возвращает целое число в диапазоне [x..y]."""
+        if y < x:
+            y = x
+        span = y - x + 1
+        if span <= 1:
+            return x
+        return x + (self.next_u32() % span)
+
+    def choice_weighted_index(self, weights: list[float]) -> int:
+        """Возвращает индекс по весам (0..n-1).
+
+        Важно:
+        - веса <= 0 игнорируются
+        - если суммарный вес <= 0, возвращаем -1
+        - выбор детерминированный по seed
+        """
+        total = 0.0
+        last_pos = -1
+        i = 0
+        while i < len(weights):
+            w = float(weights[i])
+            if w > 0.0:
+                total += w
+                last_pos = i
+            i += 1
+        if total <= 0.0:
+            return -1
+
+        r = self.rand01() * total
+        acc = 0.0
+        i = 0
+        while i < len(weights):
+            w = float(weights[i])
+            if w > 0.0:
+                acc += w
+                if r < acc:
+                    return i
+            i += 1
+
+        # Из-за float округлений можем не попасть ровно в acc==total.
+        return last_pos

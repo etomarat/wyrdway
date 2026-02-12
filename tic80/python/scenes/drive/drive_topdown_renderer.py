@@ -35,23 +35,6 @@ class DriveTopdownRenderer:
     # Костыль, чтобы не переписывать остальные цифры из TUNING. Раньше у спрайта было смещение слева
     # и все цифры подогнаны под это
     _CAR_DRAW_OFFSET_X = 8.0
-    # Low-speed anti-jerk yaw cap (cam-v3.1):
-    # - _LOW_SPEED_CAP_BLEND_MAX: до какого speed_blend действует ограничение (0..1).
-    # - _LOW_SPEED_YAW_RATE_MIN_DEG: минимальная скорость поворота цели камеры при почти нулевой скорости.
-    # - _LOW_SPEED_YAW_RATE_MAX_DEG: ограничение near-перехода к средней скорости.
-    _LOW_SPEED_CAP_BLEND_MAX = 0.45
-    _LOW_SPEED_YAW_RATE_MIN_DEG = 260.0
-    _LOW_SPEED_YAW_RATE_MAX_DEG = 720.0
-    # PRESET A (закомментированный): сильнее режет резкий поворот цели на very-low-speed.
-    # _LOW_SPEED_CAP_BLEND_MAX = 0.60
-    # _LOW_SPEED_YAW_RATE_MIN_DEG = 220.0
-    # _LOW_SPEED_YAW_RATE_MAX_DEG = 720.0
-    # PRESET B (закомментированный): более отзывчивый выход, меньше "ватности",
-    # но рывки на very-low-speed могут быть чуть заметнее.
-    # _LOW_SPEED_CAP_BLEND_MAX = 0.35
-    # _LOW_SPEED_YAW_RATE_MIN_DEG = 300.0
-    # _LOW_SPEED_YAW_RATE_MAX_DEG = 900.0
-
     def __init__(self) -> None:
         self._road_draw = TopdownRoadDraw()
         self._obstacles_draw = TopdownObstaclesDraw()
@@ -243,16 +226,16 @@ class DriveTopdownRenderer:
     ) -> float:
         if dt <= 0.0:
             return target_angle
-        cap_blend_max = self._LOW_SPEED_CAP_BLEND_MAX
+        cap_blend_max = float(TUNING.DRIVE.cam_low_speed_cap_blend_max)
         if cap_blend_max <= 0.0:
             return target_angle
         if speed_blend >= cap_blend_max:
             return target_angle
 
         t = self._clamp(speed_blend / cap_blend_max, 0.0, 1.0)
-        max_rate_deg = self._LOW_SPEED_YAW_RATE_MIN_DEG + (
-            self._LOW_SPEED_YAW_RATE_MAX_DEG - self._LOW_SPEED_YAW_RATE_MIN_DEG
-        ) * t
+        min_rate = float(TUNING.DRIVE.cam_low_speed_yaw_rate_min_deg)
+        max_rate = float(TUNING.DRIVE.cam_low_speed_yaw_rate_max_deg)
+        max_rate_deg = min_rate + (max_rate - min_rate) * t
         max_step = math.radians(max_rate_deg) * dt
         delta = self._wrap_angle(target_angle - self._cam_angle)
         if delta > max_step:

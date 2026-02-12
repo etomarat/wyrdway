@@ -45,6 +45,14 @@ TUNING.DRIVE.cam_vel_dir_lerp = 0.16
 TUNING.DRIVE.cam_spring_freq_hz = 4.8
 TUNING.DRIVE.cam_spring_damping = 1.1
 
+# Low-speed anti-jerk yaw cap (cam-v3.1).
+# - cam_low_speed_cap_blend_max: до какого speed_blend действует ограничение (0..1).
+# - cam_low_speed_yaw_rate_min_deg: минимальная скорость поворота цели камеры при почти нулевой скорости.
+# - cam_low_speed_yaw_rate_max_deg: ограничение near-перехода к средней скорости.
+TUNING.DRIVE.cam_low_speed_cap_blend_max = 0.45
+TUNING.DRIVE.cam_low_speed_yaw_rate_min_deg = 260.0
+TUNING.DRIVE.cam_low_speed_yaw_rate_max_deg = 720.0
+
 # PRESET A (закомментированный): меньше jerk на выходе из дрифта, но без лишней ватности.
 # Включать целиком (заменить активные значения выше).
 #

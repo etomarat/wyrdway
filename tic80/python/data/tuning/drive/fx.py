@@ -79,11 +79,15 @@ TUNING.DRIVE.fx_transition_sparks_wheelbase_px = 12.0
 # - чем выше скорость, тем заметнее (с плавной “раскачкой”, а не рубильником)
 TUNING.DRIVE.fx_transition_sparks_min_speed = 20.0
 TUNING.DRIVE.fx_transition_sparks_ramp_speed = 40.0
+TUNING.DRIVE.fx_transition_cooldown_seconds = 0.20
 # Небольшой шум, чтобы пыль не была идеальными столбиками.
 TUNING.DRIVE.fx_dust_jitter_x_px = 5.0
 TUNING.DRIVE.fx_dust_jitter_y_px = 4.0
 TUNING.DRIVE.fx_dust_spread_vx = 80.0
 TUNING.DRIVE.fx_dust_spread_vy = 40.0
+
+# Порог старта движения (для стартового дыма/пыли).
+TUNING.DRIVE.fx_start_move_min_speed = 0.5
 
 # “Выхлоп” на высокой скорости: легкий дымок снизу машины, чуть левее центра.
 TUNING.DRIVE.fx_exhaust_min_speed_factor = 1.0

@@ -105,9 +105,16 @@ class DriveObjects:
         safe = road.safe_start_length
         width = road.road_width
 
-        max_d = width * 0.5 - d.spawn_min_distance_from_edges
-        if max_d < 0.0:
-            max_d = 0.0
+        max_d_base = width * 0.5 - d.spawn_min_distance_from_edges
+        if max_d_base < 0.0:
+            max_d_base = 0.0
+
+        rmin = d.obstacle_radius_min
+        rmax = d.obstacle_radius_max
+        if rmin < 0.0:
+            rmin = 0.0
+        if rmax < rmin:
+            rmax = rmin
 
         obstacles: list[DriveObstacle] = []
         zones: list[DriveZone] = []
@@ -123,6 +130,27 @@ class DriveObjects:
         while i < obstacles_n and attempts < obstacles_n * 80 + 80:
             attempts += 1
             s = rng.uniform(safe, total)
+
+            radius_int = -1
+            weights = d.obstacle_radius_weights
+            if weights is not None and len(weights) > 0:
+                idx = rng.choice_weighted_index(weights)
+                if idx >= 0:
+                    radius_int = idx
+
+            if radius_int < 0:
+                rmin_i = int(rmin)
+                if float(rmin_i) < rmin:
+                    rmin_i += 1
+                rmax_i = int(rmax)
+                if rmax_i < rmin_i:
+                    rmax_i = rmin_i
+                radius_int = rng.randint_inclusive(rmin_i, rmax_i)
+
+            radius = float(radius_int)
+            max_d = max_d_base - radius
+            if max_d < 0.0:
+                max_d = 0.0
             d0 = rng.uniform(-max_d, max_d) if max_d > 0.0 else 0.0
 
             ok = True
@@ -133,7 +161,7 @@ class DriveObjects:
                     break
                 j += 1
             if ok:
-                obstacles.append(DriveObstacle(s, d0, d.obstacle_radius))
+                obstacles.append(DriveObstacle(s, d0, radius))
                 i += 1
 
         i = 0
@@ -150,7 +178,7 @@ class DriveObjects:
             attempts += 1
             s_start = rng.uniform(safe, zone_s_max)
             s_end = s_start + zone_len
-            d_center = rng.uniform(-max_d, max_d) if max_d > 0.0 else 0.0
+            d_center = rng.uniform(-max_d_base, max_d_base) if max_d_base > 0.0 else 0.0
 
             ok = True
             j = 0

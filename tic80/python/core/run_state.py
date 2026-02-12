@@ -111,3 +111,7 @@ class RunState:
 
     def consume_fuel(self, amount: float) -> None:
         self._car_fuel = max(0.0, self._car_fuel - amount)
+
+    def reset_car_stats(self, car_hp: float, car_fuel: float) -> None:
+        self._car_hp = car_hp
+        self._car_fuel = car_fuel

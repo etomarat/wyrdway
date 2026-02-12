@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from tic80 import cls, print
+    from tic80 import cls, keyp, print
 
     from ..contracts import DriveEnterParams, ResultEnterParams, SceneNavigator
     from ..core.palette import Color
@@ -38,6 +38,8 @@ class DriveScene:
         self._renderer = DriveTopdownRenderer()
         self._ui = DriveUi()
         self._last_hp = 0.0
+        self._start_car_hp = 0.0
+        self._start_car_fuel = 0.0
 
     def enter(self, params: object | None = None) -> None:
         if not isinstance(params, DriveEnterParams):
@@ -57,6 +59,8 @@ class DriveScene:
         self._objects = DriveObjects.from_road_and_tuning(
             seed, self._road, TUNING)
         self._last_hp = run.car_hp
+        self._start_car_hp = run.car_hp
+        self._start_car_fuel = run.car_fuel
 
         if TUNING.DRIVE.telemetry_enabled:
             self._telemetry = DriveTelemetry(
@@ -76,6 +80,9 @@ class DriveScene:
         if self._road is None:
             return
         if self._objects is None:
+            return
+        if self._state.playtest_enabled and keyp(18):
+            self._restart_segment()
             return
         if self._state.playtest_enabled:
             self._state.playtest_add_time(dt)
@@ -137,6 +144,13 @@ class DriveScene:
         if road is None or logic is None or objects is None:
             return
         apply_obstacle_hits(run, road, logic, objects, TUNING, self._renderer.notify_obstacle_hit)
+
+    def _restart_segment(self) -> None:
+        run = self._state.run
+        if run is None:
+            return
+        run.reset_car_stats(self._start_car_hp, self._start_car_fuel)
+        self.enter(DriveEnterParams(self._mode, self._variant))
 
     def draw(self) -> None:
         cls(Color.BLACK)
