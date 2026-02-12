@@ -81,6 +81,26 @@ TUNING.DRIVE.shake_hit_decay_per_sec = 1.6
 TUNING.DRIVE.shake_hit_freq_hz = 24.0
 TUNING.DRIVE.shake_hit_smooth_rate = 24.0
 
+# Выхлоп/высокая скорость: не тряска, а плавный "дрейф" камеры + редкие толчки.
+# - exhaust_strength: амплитуда (px) дрейфа при strength=1.0
+# - exhaust_ramp_up/down: скорость нарастания/спада уровня (1/sec)
+# - exhaust_freq_hz: частота смены направления дрейфа (Гц)
+# - exhaust_smooth_rate: сглаживание дрейфа (1/sec)
+# - exhaust_pulse_*: редкие короткие толчки, вероятность завязана на strength
+# TUNING.DRIVE.shake_exhaust_strength = 1.2
+TUNING.DRIVE.shake_exhaust_strength = 0  # Disabled. Candidate for removal.
+TUNING.DRIVE.shake_exhaust_ramp_up = 3.0
+TUNING.DRIVE.shake_exhaust_ramp_down = 4.0
+TUNING.DRIVE.shake_exhaust_freq_hz = 2.2
+TUNING.DRIVE.shake_exhaust_smooth_rate = 6.0
+# TUNING.DRIVE.shake_exhaust_pulse_strength = 1.5
+# Disabled. Candidate for removal.
+TUNING.DRIVE.shake_exhaust_pulse_strength = 0
+TUNING.DRIVE.shake_exhaust_pulse_chance_per_sec = 0.30
+TUNING.DRIVE.shake_exhaust_pulse_decay_per_sec = 2.4
+TUNING.DRIVE.shake_exhaust_pulse_freq_hz = 18.0
+TUNING.DRIVE.shake_exhaust_pulse_smooth_rate = 28.0
+
 # PRESET A (закомментированный): меньше jerk на выходе из дрифта, но без лишней ватности.
 # Включать целиком (заменить активные значения выше).
 #

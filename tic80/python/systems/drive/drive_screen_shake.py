@@ -65,8 +65,12 @@ class DriveScreenShake:
         self._rng: Rng | None = None
         self._offroad_level = 0.0
         self._hit_trauma = 0.0
+        self._exhaust_level = 0.0
+        self._exhaust_pulse_trauma = 0.0
         self._offroad_channel = _ShakeChannel()
         self._hit_channel = _ShakeChannel()
+        self._exhaust_channel = _ShakeChannel()
+        self._exhaust_pulse_channel = _ShakeChannel()
 
     def ensure_seed(self, seed: int) -> None:
         if self._seed == seed and self._rng is not None:
@@ -75,8 +79,12 @@ class DriveScreenShake:
         self._rng = Rng(seed ^ 0xA5A5A5A5)
         self._offroad_level = 0.0
         self._hit_trauma = 0.0
+        self._exhaust_level = 0.0
+        self._exhaust_pulse_trauma = 0.0
         self._offroad_channel.reset()
         self._hit_channel.reset()
+        self._exhaust_channel.reset()
+        self._exhaust_pulse_channel.reset()
 
     def notify_hit(self, impact: float, tuning: "Tuning") -> None:
         d = tuning.DRIVE
@@ -96,6 +104,7 @@ class DriveScreenShake:
         self,
         dt: float,
         offroad: bool,
+        exhaust_strength: float,
         tuning: "Tuning"
     ) -> tuple[float, float]:
         rng = self._rng
@@ -128,6 +137,43 @@ class DriveScreenShake:
         # Удар: амплитуда от травмы (квадрат — мягче на малых значениях).
         hit_amp = float(d.shake_hit_strength) * (self._hit_trauma * self._hit_trauma)
 
+        # Выхлоп: целевой уровень (0..1) берём из визуального эффекта дыма.
+        target_exhaust = float(exhaust_strength)
+        if target_exhaust < 0.0:
+            target_exhaust = 0.0
+        if target_exhaust > 1.0:
+            target_exhaust = 1.0
+        if target_exhaust > self._exhaust_level:
+            rate = float(d.shake_exhaust_ramp_up)
+            self._exhaust_level += rate * dt
+            if self._exhaust_level > target_exhaust:
+                self._exhaust_level = target_exhaust
+        else:
+            rate = float(d.shake_exhaust_ramp_down)
+            self._exhaust_level -= rate * dt
+            if self._exhaust_level < target_exhaust:
+                self._exhaust_level = target_exhaust
+
+        # Выхлоп: плавный дрейф камеры (чем сильнее дым, тем выше амплитуда).
+        exhaust_amp = self._exhaust_level * float(d.shake_exhaust_strength)
+
+        # Редкие "толчки" от высокой скорости: вероятность и сила завязаны на дым.
+        if self._exhaust_level > 0.0:
+            chance = float(d.shake_exhaust_pulse_chance_per_sec) * self._exhaust_level
+            if chance > 0.0 and rng.rand01() < chance * dt:
+                self._exhaust_pulse_trauma += 1.0
+                if self._exhaust_pulse_trauma > 1.0:
+                    self._exhaust_pulse_trauma = 1.0
+
+        pulse_decay = float(d.shake_exhaust_pulse_decay_per_sec)
+        if pulse_decay > 0.0:
+            self._exhaust_pulse_trauma -= pulse_decay * dt
+            if self._exhaust_pulse_trauma < 0.0:
+                self._exhaust_pulse_trauma = 0.0
+
+        pulse_amp = float(d.shake_exhaust_pulse_strength)
+        pulse_amp *= (self._exhaust_pulse_trauma * self._exhaust_pulse_trauma)
+
         off_x, off_y = self._offroad_channel.update(
             dt,
             rng,
@@ -142,9 +188,23 @@ class DriveScreenShake:
             float(d.shake_hit_freq_hz),
             float(d.shake_hit_smooth_rate)
         )
+        ex_x, ex_y = self._exhaust_channel.update(
+            dt,
+            rng,
+            exhaust_amp,
+            float(d.shake_exhaust_freq_hz),
+            float(d.shake_exhaust_smooth_rate)
+        )
+        pulse_x, pulse_y = self._exhaust_pulse_channel.update(
+            dt,
+            rng,
+            pulse_amp,
+            float(d.shake_exhaust_pulse_freq_hz),
+            float(d.shake_exhaust_pulse_smooth_rate)
+        )
 
-        total_x = off_x + hit_x
-        total_y = off_y + hit_y
+        total_x = off_x + hit_x + ex_x + pulse_x
+        total_y = off_y + hit_y + ex_y + pulse_y
         # Общий лимит по амплитуде (px).
         max_px = float(d.shake_max_px)
         if max_px > 0.0:

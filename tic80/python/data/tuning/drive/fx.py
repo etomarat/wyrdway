@@ -90,8 +90,8 @@ TUNING.DRIVE.fx_dust_spread_vy = 40.0
 TUNING.DRIVE.fx_start_move_min_speed = 0.5
 
 # “Выхлоп” на высокой скорости: легкий дымок снизу машины, чуть левее центра.
-TUNING.DRIVE.fx_exhaust_min_speed_factor = 1.0
-TUNING.DRIVE.fx_exhaust_ramp_speed_factor = 0.25
+TUNING.DRIVE.fx_exhaust_min_speed_factor = 0.75
+TUNING.DRIVE.fx_exhaust_ramp_speed_factor = 0.35
 TUNING.DRIVE.fx_exhaust_rate = 48.0
 TUNING.DRIVE.fx_exhaust_dx_px = -3.0
 TUNING.DRIVE.fx_exhaust_dy_px = 14.0

@@ -81,12 +81,13 @@ class DriveTopdownRenderer:
         shake_x, shake_y = self._shake.update(
             float(TUNING.CORE.dt),
             logic.offroad,
+            self._fx_overlay.exhaust_strength(),
             TUNING
         )
 
-        center_x = 120 + int(shake_x)
+        center_x = 120 + self._round_to_int(shake_x)
         center_y = self._road_draw.clamp_center_y(int(TUNING.DRIVE.view_center_y))
-        center_y += int(shake_y)
+        center_y += self._round_to_int(shake_y)
 
         p_s = logic.road_s
         car_x = logic.x
@@ -313,6 +314,12 @@ class DriveTopdownRenderer:
         if value > max_value:
             return max_value
         return value
+
+    @staticmethod
+    def _round_to_int(value: float) -> int:
+        if value >= 0.0:
+            return int(value + 0.5)
+        return int(value - 0.5)
 
     @staticmethod
     def _wrap_angle(angle: float) -> float:

@@ -28,6 +28,7 @@ class TopdownFxOverlay:
         self._fx_spawn_accum_exhaust = 0.0
         self._fx_seed = 1
         self._hit_events: list[tuple[float, float, float, float, float, float]] = []
+        self._exhaust_strength = 0.0
 
     def notify_obstacle_hit(
         self,
@@ -49,6 +50,7 @@ class TopdownFxOverlay:
         pose: CarPose2D
     ) -> bool:
         dt = TUNING.CORE.dt
+        self._exhaust_strength = 0.0
 
         world_dx, world_dy = proj.world_vec_to_screen(-logic.vx * dt, -logic.vy * dt)
         self._update_world_particles(dt, world_dx, world_dy)
@@ -60,6 +62,10 @@ class TopdownFxOverlay:
         self._maybe_emit_offroad_dust(logic, dt, pose)
         self._maybe_emit_exhaust_smoke(logic, dt, pose)
         return start_move
+
+    def exhaust_strength(self) -> float:
+        """Текущая сила выхлопа (0..1), вычисленная в этом кадре."""
+        return self._exhaust_strength
 
     def _update_world_particles(self, dt: float, world_dx: float, world_dy: float) -> None:
         # Искры перехода должны читаться как “локальный” эффект у колёс,
@@ -152,6 +158,7 @@ class TopdownFxOverlay:
         strength = strength * strength
         if strength <= 0.0:
             return
+        self._exhaust_strength = strength
         rate = d.fx_exhaust_rate * strength
         self._fx_spawn_accum_exhaust += rate * dt
         self._emit_exhaust_smoke_vand(
