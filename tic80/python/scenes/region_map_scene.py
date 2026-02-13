@@ -107,7 +107,7 @@ class RegionMapScene:
         run = self._state.run
         if run is not None:
             print("seed=" + str(run.seed), 90, 40, Color.WHITE)
-            print("fuel=" + str(round(run.car_fuel, 2)), 8, 8, Color.WHITE)
+            print("fuel=" + f"{run.car_fuel:.2f}", 8, 8, Color.WHITE)
         print("scrap=" + str(self._state.profile.scrap), 170, 8, Color.WHITE)
         for i in range(self.node_count):
             node_id = i + 1

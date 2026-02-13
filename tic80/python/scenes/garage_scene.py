@@ -47,9 +47,9 @@ class GarageScene:
         cls(Color.BLACK)
         print("GARAGE", 98, 40, Color.WHITE)
         print("scrap=" + str(self._state.profile.scrap), 82, 60, Color.WHITE)
-        print("hp=" + str(round(self._state.profile.garage_hp, 1)),
+        print("hp=" + f"{self._state.profile.garage_hp:.2f}",
               82, 70, Color.WHITE)
-        print("fuel=" + str(round(self._state.profile.garage_fuel, 1)),
+        print("fuel=" + f"{self._state.profile.garage_fuel:.2f}",
               82, 80, Color.WHITE)
         print("Z = START", 86, 100, Color.WHITE)
         print("X = REPAIR (-" + str(TUNING.PROFILE.repair_cost) + ")",

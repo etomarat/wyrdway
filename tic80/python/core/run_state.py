@@ -1,4 +1,7 @@
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
+
+if TYPE_CHECKING:
+    from .route_planner import RoutePlanner
 
 PoiAction = Literal["loot", "leave", "timeout"]
 EscapeOutcome = Literal["ok", "fail"]
@@ -172,8 +175,8 @@ class SegmentDelta:
 
 class RunState:
     __slots__ = ("_seed", "_node_id", "_car_hp",
-                 "_car_fuel", "_inventory", "_delta",
-                 "_route_stack", "_active_segment")
+                  "_car_fuel", "_inventory", "_delta",
+                 "_route_stack", "_active_segment", "_planner")
 
     def __init__(self, seed: int, car_hp: float, car_fuel: float) -> None:
         self._seed = seed
@@ -184,6 +187,7 @@ class RunState:
         self._delta: SegmentDelta | None = None
         self._route_stack = RouteStack()
         self._active_segment: SegmentPlan | None = None
+        self._planner = RoutePlanner(seed)
 
     @property
     def seed(self) -> int:
@@ -245,61 +249,20 @@ class RunState:
         self._car_hp = car_hp
         self._car_fuel = car_fuel
 
-    def _mix_seed(self, node_id: int, salt: int) -> int:
-        s = self._seed & 0xFFFFFFFF
-        n = (int(node_id) + 1) & 0xFFFFFFFF
-        x = (s ^ (n * 0x45D9F3B) ^ salt) & 0xFFFFFFFF
-        if x == 0:
-            x = 0x12345678
-        x ^= (x << 13) & 0xFFFFFFFF
-        x ^= (x >> 17) & 0xFFFFFFFF
-        x ^= (x << 5) & 0xFFFFFFFF
-        return x & 0xFFFFFFFF
-
     def _outbound_seed_base(self, to_node_id: int) -> int:
-        return self._mix_seed(to_node_id, 0xC8013EA4)
-
-    def _next_u32(self, x: int) -> int:
-        return ((x * 1664525) + 1013904223) & 0xFFFFFFFF
-
-    def _roll_range(self, x: int, min_inclusive: int, max_inclusive: int) -> tuple[int, int]:
-        a = int(min_inclusive)
-        b = int(max_inclusive)
-        if b < a:
-            b = a
-        span = b - a + 1
-        if span <= 1:
-            return a, self._next_u32(x)
-        n = self._next_u32(x)
-        return a + int(n % span), n
+        return self._planner.outbound_seed_base(to_node_id)
 
     def _pick_outbound_poi_type(self, to_node_id: int, seed_base: int) -> PoiType:
-        x = (seed_base ^ ((to_node_id + 31) * 0x85EBCA6B)) & 0xFFFFFFFF
-        r = int(x % 100)
-        if r < 35:
+        poi_type = self._planner.pick_outbound_poi_type(to_node_id, seed_base)
+        if poi_type == "gas_station":
             return "gas_station"
-        if r < 70:
+        if poi_type == "scrapyard":
             return "scrapyard"
         return "depot"
 
     def _roll_segment_rewards(self, to_node_id: int, seed_base: int, poi_type: PoiType) -> SegmentRewards:
-        x = (seed_base ^ ((to_node_id + 17) * 0x9E3779B9)) & 0xFFFFFFFF
-
-        if poi_type == "gas_station":
-            # Fuel-heavy: всегда заметно больше топлива, чем у balanced POI.
-            scrap, x = self._roll_range(x, 1, 6)
-            fuel, x = self._roll_range(x, 24, 40)
-            return SegmentRewards(scrap, fuel)
-
-        if poi_type == "scrapyard":
-            # Scrap-heavy: всегда заметно больше скрапа, чем у balanced POI.
-            scrap, x = self._roll_range(x, 20, 34)
-            fuel, x = self._roll_range(x, 0, 2)
-            return SegmentRewards(scrap, fuel)
-
-        # Balanced: средние значения по обоим ресурсам.
-        scrap, x = self._roll_range(x, 10, 16)
-        fuel, x = self._roll_range(x, 10, 16)
+        scrap, fuel = self._planner.roll_segment_rewards(
+            to_node_id, seed_base, poi_type)
         return SegmentRewards(scrap, fuel)
 
     def preview_outbound_rewards(self, to_node_id: int) -> SegmentRewards:

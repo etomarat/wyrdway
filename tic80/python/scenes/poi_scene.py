@@ -44,20 +44,15 @@ class PoiScene:
         if escape_outcome is not None:
             delta.set_escape_outcome(escape_outcome)
         if action == "loot":
-            rewards = None
             segment = run.active_segment
             if segment is not None:
                 rewards = segment.rewards
-            if rewards is not None:
                 if rewards.scrap > 0:
                     item = run.add_item("scrap", rewards.scrap)
                     delta.add_item_gained(item)
                 if rewards.fuel > 0:
                     run.add_fuel(rewards.fuel)
                     delta.add_fuel_gained(rewards.fuel)
-            else:
-                item = run.add_item("scrap", TUNING.POI.scrap_per_loot)
-                delta.add_item_gained(item)
 
         if go_result:
             if message is None:
