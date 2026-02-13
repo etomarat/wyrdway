@@ -23,7 +23,7 @@ if TYPE_CHECKING:
     from .scenes.region_map_scene import make_region_map_scene
     from .scenes.result_scene import make_result_scene
 
-IS_DRIVE_PLAYTEST = True
+IS_DRIVE_PLAYTEST = False
 
 include("core.palette")
 include("contracts")

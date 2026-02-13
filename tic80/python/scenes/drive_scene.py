@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
     from tic80 import cls, keyp, print
@@ -54,10 +54,27 @@ class DriveScene:
 
         run = self._state.require_run()
         seed = run.seed
-        self._road = RoadModel.from_tuning(seed, TUNING)
+        segment_len = float(TUNING.DRIVE.segment_total_length)
+        reverse_layout = False
+        segment = run.active_segment
+        if segment is not None:
+            seed = segment.seed_base
+            segment_len = segment.len_units
+            reverse_layout = segment.leg_kind == "RETURN"
+        self._road = RoadModel.from_tuning_with_length(seed, TUNING, segment_len)
+        if reverse_layout:
+            self._road.reverse_geometry_in_place()
         self._logic = DriveLogic(run, self._road, TUNING)
+        spawn_threats = True
+        if self._mode == "extract":
+            spawn_threats = False
         self._objects = DriveObjects.from_road_and_tuning(
-            seed, self._road, TUNING)
+            seed,
+            self._road,
+            TUNING,
+            spawn_threats,
+            reverse_layout
+        )
         self._last_hp = run.car_hp
         self._start_car_hp = run.car_hp
         self._start_car_fuel = run.car_fuel
@@ -150,7 +167,13 @@ class DriveScene:
         if run is None:
             return
         run.reset_car_stats(self._start_car_hp, self._start_car_fuel)
-        self.enter(DriveEnterParams(self._mode, self._variant))
+        mode: Literal["travel", "extract"] = "travel"
+        if self._mode == "extract":
+            mode = "extract"
+        variant: Literal["topdown", "cockpit"] = "topdown"
+        if self._variant == "cockpit":
+            variant = "cockpit"
+        self.enter(DriveEnterParams(mode, variant))
 
     def draw(self) -> None:
         cls(Color.BLACK)

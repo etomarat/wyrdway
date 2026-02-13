@@ -28,13 +28,26 @@
 ### 1.3 RunState
 Файл: `tic80/python/core/run_state.py`
 
-`RunState` — минимальные данные забега (M1):
+`RunState` — минимальные данные забега (M1 + старт M1.7):
 - `seed: int`
 - `node_id: int | None`
 - `car_hp: float`
 - `car_fuel: float`
 - `inventory: list[RunItem]` (сейчас это только `"scrap"`, см. `RunItemId`)
 - `delta: SegmentDelta | None`
+- `route_stack: RouteStack` (история outbound/return сегментов текущего рейда)
+- `active_segment: SegmentPlan | None` (сегмент, на котором сейчас едем)
+
+### 1.3.1 SegmentPlan / RouteStack (M1.7)
+Файл: `tic80/python/core/run_state.py`
+
+- `SegmentPlan` хранит:
+  - `from_node_id`, `to_node_id`
+  - `leg_kind: "OUTBOUND" | "RETURN"`
+  - `seed_base`
+  - `len_units`
+  - `rewards: SegmentRewards` (`scrap`, `fuel`)
+- `RouteStack` хранит списки outbound/return сегментов и даёт поиск outbound по `to_node_id`.
 
 ### 1.4 SegmentDelta
 Файл: `tic80/python/core/run_state.py`
@@ -56,7 +69,7 @@
 Включается при `IS_DRIVE_PLAYTEST = False`:
 - `BOOT()` вызывает `GameState.load_profile()`.
 - `GarageScene` по `A` делает `save_profile()` и `start_run()`.
-- `RegionMapScene` выбирает `node_id` и вызывает `run.ensure_delta(node_id)`.
+- `RegionMapScene` выбирает `node_id`, создаёт outbound-сегмент и вызывает `run.ensure_delta(node_id)`.
 - `DriveScene` обновляет вождение и меняет `run.car_hp/run.car_fuel`.
 - `PoiScene` выставляет `delta.poi_action`, добавляет лут в ран, при тайм‑ауте ставит `escape_outcome="fail"`.
 - `ResultScene` по `A` вызывает `GameState.apply_run_results()` и возвращает в `GarageScene`.
@@ -80,19 +93,27 @@
 
 ### 3.2 RegionMapScene
 Файл: `tic80/python/scenes/region_map_scene.py`
-- Меняет только `run.node_id`.
-- Создаёт/активирует “дельту сегмента” через `run.ensure_delta(run.node_id)`.
+- На карте показывает награды узла (`Scrap +N`, `Fuel +M`):
+  - до подтверждения — детерминированный preview от `run.seed + node_id`
+  - после подтверждения — данные из сохранённого `SegmentPlan.rewards`
+- При подтверждении узла создаёт/активирует outbound-сегмент через
+  `run.ensure_outbound_segment(node_id, len_units)` и затем выставляет
+  “дельту сегмента” через `run.ensure_delta(run.node_id)`.
 
 ### 3.3 DriveScene
 Файл: `tic80/python/scenes/drive_scene.py`
 - Меняет только `run.car_hp` и `run.car_fuel` (через `RunState.apply_damage()` и `RunState.consume_fuel()` внутри drive‑логики).
+- Для `active_segment.leg_kind == "RETURN"` строит ту же базовую дорогу в обратном порядке и отключает threats.
 - По эвакуации выставляет `delta.escape_outcome="fail"` и уходит в RESULT.
 - По успешному extract выставляет `delta.escape_outcome="ok"` и уходит в RESULT.
 
 ### 3.4 PoiScene
 Файл: `tic80/python/scenes/poi_scene.py`
 - Выставляет `delta.poi_action`.
-- При `loot` добавляет предмет(ы) в `run.inventory` и отмечает это в `delta`.
+- При `loot` выдаёт награды из `run.active_segment.rewards`:
+  - `scrap` идёт в `run.inventory` (и отмечается в `delta`);
+  - `fuel` сразу добавляется в текущий бак `run.car_fuel`.
+- Перед переходом в extract делает `run.ensure_return_from_active_outbound()`.
 - При тайм‑ауте выставляет `delta.escape_outcome="fail"` и уходит напрямую в RESULT (упрощение M1).
 
 ### 3.5 ResultScene

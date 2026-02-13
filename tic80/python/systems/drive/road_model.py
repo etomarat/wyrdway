@@ -66,6 +66,23 @@ class RoadModel:
             d.ramp_fraction
         )
 
+    @classmethod
+    def from_tuning_with_length(cls, seed: int, tuning: Tuning, segment_total_length: float):
+        d = tuning.DRIVE
+        return cls(
+            seed,
+            segment_total_length,
+            d.safe_start_length,
+            d.ds,
+            d.road_width,
+            d.min_piece_length,
+            d.max_piece_length,
+            d.max_curvature,
+            d.straight_piece_chance,
+            d.straight_max_curvature,
+            d.ramp_fraction
+        )
+
     def _build(self) -> None:
         ds = self.ds
         if ds <= 0:
@@ -198,6 +215,42 @@ class RoadModel:
             x += dx * ds
             y += dy * ds
             i += 1
+
+    def reverse_geometry_in_place(self) -> None:
+        """Разворачивает геометрию: новый s=0 начинается в старом конце сегмента."""
+        n = len(self._center_x)
+        if n <= 1:
+            return
+
+        curv_rev = [0.0] * n
+        cx_rev = [0.0] * n
+        cy_rev = [0.0] * n
+        dx_rev = [0.0] * n
+        dy_rev = [0.0] * n
+
+        i = 0
+        while i < n:
+            src = n - 1 - i
+            curv_rev[i] = -self._curv[src]
+            cx_rev[i] = self._center_x[src]
+            cy_rev[i] = self._center_y[src]
+            dx_rev[i] = -self._dir_x[src]
+            dy_rev[i] = -self._dir_y[src]
+            i += 1
+
+        x0 = cx_rev[0]
+        y0 = cy_rev[0]
+        i = 0
+        while i < n:
+            cx_rev[i] -= x0
+            cy_rev[i] -= y0
+            i += 1
+
+        self._curv = curv_rev
+        self._center_x = cx_rev
+        self._center_y = cy_rev
+        self._dir_x = dx_rev
+        self._dir_y = dy_rev
 
     def curvature_at(self, s: float) -> float:
         """Возвращает кривизну дороги в точке прогресса `s`.
