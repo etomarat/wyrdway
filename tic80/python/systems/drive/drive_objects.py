@@ -194,7 +194,10 @@ class DriveObjects:
             ok = True
             j = 0
             while j < len(zones):
-                if abs(zones[j].s_start - s_start) < d.spawn_min_distance_between:
+                z = zones[j]
+                left = z.s_start - d.spawn_min_distance_between
+                right = z.s_end + d.spawn_min_distance_between
+                if s_end >= left and s_start <= right:
                     ok = False
                     break
                 j += 1

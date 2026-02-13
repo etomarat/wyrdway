@@ -80,9 +80,11 @@ PERF = PerfOverlay()
 
 def BOOT() -> None:
     DEBUG.set_enabled(TUNING.DEBUG.overlay_default)
+    SCENE_MANAGER.state.set_debug_overlay_enabled(DEBUG.enabled)
     PERF.set_enabled(TUNING.DEBUG.perf_overlay_default)
     if IS_DRIVE_PLAYTEST:
         DEBUG.set_enabled(False)
+        SCENE_MANAGER.state.set_debug_overlay_enabled(DEBUG.enabled)
         SCENE_MANAGER.state.profile.reset()
         SCENE_MANAGER.state.end_run()
         SCENE_MANAGER.state.playtest_begin()
@@ -96,12 +98,13 @@ def BOOT() -> None:
         return
 
     SCENE_MANAGER.state.load_profile()
+    SCENE_MANAGER.register(SceneId.DRIVE_PRESET, make_drive_preset_scene)
     SCENE_MANAGER.register(SceneId.GARAGE, make_garage_scene)
     SCENE_MANAGER.register(SceneId.REGION_MAP, make_region_map_scene)
     SCENE_MANAGER.register(SceneId.DRIVE, make_drive_scene)
     SCENE_MANAGER.register(SceneId.POI, make_poi_scene)
     SCENE_MANAGER.register(SceneId.RESULT, make_result_scene)
-    SCENE_MANAGER.go(SceneId.GARAGE)
+    SCENE_MANAGER.go(SceneId.DRIVE_PRESET)
 
 
 def TIC() -> None:
@@ -122,6 +125,7 @@ def TIC() -> None:
     SCENE_MANAGER.state.clear_debug_lines()
     if not IS_DRIVE_PLAYTEST:
         DEBUG.handle_input()
+        SCENE_MANAGER.state.set_debug_overlay_enabled(DEBUG.enabled)
     SCENE_MANAGER.update(dt)
     SCENE_MANAGER.draw()
 

@@ -13,7 +13,8 @@ class GameState:
     __slots__ = ('_profile', '_run', '_seed_counter', '_save',
                  '_profile_loaded', '_profile_tuning_mismatch',
                  '_profile_tuning_version', '_debug_lines',
-                 '_playtest_enabled', '_playtest_time', '_playtest_segments')
+                 '_playtest_enabled', '_playtest_time', '_playtest_segments',
+                 '_debug_overlay_enabled')
 
     def __init__(self) -> None:
         self._profile = Profile(
@@ -31,6 +32,7 @@ class GameState:
         self._playtest_enabled = False
         self._playtest_time = 0.0
         self._playtest_segments = 0
+        self._debug_overlay_enabled = False
 
     @property
     def profile(self) -> Profile:
@@ -47,6 +49,13 @@ class GameState:
     @property
     def playtest_enabled(self) -> bool:
         return self._playtest_enabled
+
+    @property
+    def debug_overlay_enabled(self) -> bool:
+        return self._debug_overlay_enabled
+
+    def set_debug_overlay_enabled(self, enabled: bool) -> None:
+        self._debug_overlay_enabled = bool(enabled)
 
     def playtest_begin(self) -> None:
         """Сбрасывает статистику DRIVE-плейтеста (режим “одна дорога за другой”)."""

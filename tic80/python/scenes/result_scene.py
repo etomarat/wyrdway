@@ -43,19 +43,39 @@ class ResultScene:
             self._lines = playtest_lines
             return
 
-        lines: list[str] = [
-            "seed=" + str(run.seed),
-            "node=" + str(run.node_id),
-            "fuel=" + str(round(run.car_fuel, 1)),
-            "inv=" + str(run.inventory_count())
-        ]
+        gained_scrap = 0
+        for item in run.inventory_items():
+            if item.id == "scrap":
+                gained_scrap += item.qty
+
+        gained_fuel = 0
+        poi_action = "-"
+        poi_type = "-"
+        escaped = "-"
+        segment = run.active_segment
+        if segment is not None:
+            poi_type = str(segment.poi_type)
         if run.delta is not None:
             delta = run.delta
-            lines.append("poi=" + str(delta.poi_action))
-            lines.append("gained=" + str(delta.items_gained_count()))
-            lines.append("escape=" + str(delta.escape_outcome))
+            gained_fuel = delta.fuel_gained
+            if delta.poi_action is not None:
+                poi_action = str(delta.poi_action)
+            if delta.escape_outcome is not None:
+                escaped = str(delta.escape_outcome)
+
+        status = "OK"
         if fallback is not None:
-            lines.append("msg=" + str(fallback))
+            status = str(fallback)
+        elif escaped == "fail":
+            status = "FAIL"
+
+        lines: list[str] = [
+            "status: " + status,
+            "poi type: " + poi_type,
+            "scrap gained: +" + str(gained_scrap),
+            "fuel gained: +" + str(gained_fuel),
+            "poi action: " + poi_action
+        ]
 
         self._lines = lines
 

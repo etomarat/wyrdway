@@ -43,6 +43,7 @@
 
 - `SegmentPlan` хранит:
   - `from_node_id`, `to_node_id`
+  - `poi_type` (`gas_station` / `scrapyard` / `depot`)
   - `leg_kind: "OUTBOUND" | "RETURN"`
   - `seed_base`
   - `len_units`

@@ -4,6 +4,7 @@ PoiAction = Literal["loot", "leave", "timeout"]
 EscapeOutcome = Literal["ok", "fail"]
 RunItemId = Literal["scrap"]
 LegKind = Literal["OUTBOUND", "RETURN"]
+PoiType = Literal["gas_station", "scrapyard", "depot"]
 
 
 class RunItem:
@@ -38,13 +39,14 @@ class SegmentRewards:
         return self._fuel
 
 class SegmentPlan:
-    __slots__ = ("_from_node_id", "_to_node_id", "_leg_kind",
+    __slots__ = ("_from_node_id", "_to_node_id", "_poi_type", "_leg_kind",
                  "_seed_base", "_len_units", "_rewards")
 
     def __init__(
         self,
         from_node_id: int,
         to_node_id: int,
+        poi_type: PoiType,
         leg_kind: LegKind,
         seed_base: int,
         len_units: float,
@@ -52,6 +54,7 @@ class SegmentPlan:
     ) -> None:
         self._from_node_id = int(from_node_id)
         self._to_node_id = int(to_node_id)
+        self._poi_type: PoiType = poi_type
         self._leg_kind: LegKind = leg_kind
         self._seed_base = int(seed_base)
         self._len_units = float(len_units)
@@ -64,6 +67,10 @@ class SegmentPlan:
     @property
     def to_node_id(self) -> int:
         return self._to_node_id
+
+    @property
+    def poi_type(self) -> PoiType:
+        return self._poi_type
 
     @property
     def leg_kind(self) -> LegKind:
@@ -121,13 +128,15 @@ class RouteStack:
 
 
 class SegmentDelta:
-    __slots__ = ("_node_id", "_poi_action", "_items_gained", "_escape_outcome")
+    __slots__ = ("_node_id", "_poi_action", "_items_gained",
+                 "_escape_outcome", "_fuel_gained")
 
     def __init__(self, node_id: int | None) -> None:
         self._node_id = node_id
         self._poi_action: PoiAction | None = None
         self._items_gained: list[RunItem] = []
         self._escape_outcome: EscapeOutcome | None = None
+        self._fuel_gained = 0
 
     @property
     def node_id(self) -> int | None:
@@ -141,6 +150,10 @@ class SegmentDelta:
     def escape_outcome(self) -> EscapeOutcome | None:
         return self._escape_outcome
 
+    @property
+    def fuel_gained(self) -> int:
+        return self._fuel_gained
+
     def set_poi_action(self, action: PoiAction) -> None:
         self._poi_action = action
 
@@ -149,6 +162,9 @@ class SegmentDelta:
 
     def add_item_gained(self, item: RunItem) -> None:
         self._items_gained.append(item)
+
+    def add_fuel_gained(self, amount: int) -> None:
+        self._fuel_gained += max(0, int(amount))
 
     def items_gained_count(self) -> int:
         return len(self._items_gained)
@@ -243,11 +259,47 @@ class RunState:
     def _outbound_seed_base(self, to_node_id: int) -> int:
         return self._mix_seed(to_node_id, 0xC8013EA4)
 
-    def _roll_segment_rewards(self, to_node_id: int, seed_base: int) -> SegmentRewards:
+    def _next_u32(self, x: int) -> int:
+        return ((x * 1664525) + 1013904223) & 0xFFFFFFFF
+
+    def _roll_range(self, x: int, min_inclusive: int, max_inclusive: int) -> tuple[int, int]:
+        a = int(min_inclusive)
+        b = int(max_inclusive)
+        if b < a:
+            b = a
+        span = b - a + 1
+        if span <= 1:
+            return a, self._next_u32(x)
+        n = self._next_u32(x)
+        return a + int(n % span), n
+
+    def _pick_outbound_poi_type(self, to_node_id: int, seed_base: int) -> PoiType:
+        x = (seed_base ^ ((to_node_id + 31) * 0x85EBCA6B)) & 0xFFFFFFFF
+        r = int(x % 100)
+        if r < 35:
+            return "gas_station"
+        if r < 70:
+            return "scrapyard"
+        return "depot"
+
+    def _roll_segment_rewards(self, to_node_id: int, seed_base: int, poi_type: PoiType) -> SegmentRewards:
         x = (seed_base ^ ((to_node_id + 17) * 0x9E3779B9)) & 0xFFFFFFFF
-        scrap = 3 + int(x % 9)
-        y = ((x * 1103515245) + 12345) & 0x7FFFFFFF
-        fuel = 6 + int(y % 19)
+
+        if poi_type == "gas_station":
+            # Fuel-heavy: всегда заметно больше топлива, чем у balanced POI.
+            scrap, x = self._roll_range(x, 1, 6)
+            fuel, x = self._roll_range(x, 24, 40)
+            return SegmentRewards(scrap, fuel)
+
+        if poi_type == "scrapyard":
+            # Scrap-heavy: всегда заметно больше скрапа, чем у balanced POI.
+            scrap, x = self._roll_range(x, 20, 34)
+            fuel, x = self._roll_range(x, 0, 2)
+            return SegmentRewards(scrap, fuel)
+
+        # Balanced: средние значения по обоим ресурсам.
+        scrap, x = self._roll_range(x, 10, 16)
+        fuel, x = self._roll_range(x, 10, 16)
         return SegmentRewards(scrap, fuel)
 
     def preview_outbound_rewards(self, to_node_id: int) -> SegmentRewards:
@@ -256,7 +308,21 @@ class RunState:
             rewards = existing.rewards
             return SegmentRewards(rewards.scrap, rewards.fuel)
         seed_base = self._outbound_seed_base(to_node_id)
-        return self._roll_segment_rewards(to_node_id, seed_base)
+        poi_type = self._pick_outbound_poi_type(to_node_id, seed_base)
+        return self._roll_segment_rewards(to_node_id, seed_base, poi_type)
+
+    def preview_outbound_seed_base(self, to_node_id: int) -> int:
+        existing = self._route_stack.find_outbound_by_target(to_node_id)
+        if existing is not None:
+            return existing.seed_base
+        return self._outbound_seed_base(to_node_id)
+
+    def preview_outbound_poi_type(self, to_node_id: int) -> PoiType:
+        existing = self._route_stack.find_outbound_by_target(to_node_id)
+        if existing is not None:
+            return existing.poi_type
+        seed_base = self._outbound_seed_base(to_node_id)
+        return self._pick_outbound_poi_type(to_node_id, seed_base)
 
     def ensure_outbound_segment(self, to_node_id: int, len_units: float) -> SegmentPlan:
         to_node_id = int(to_node_id)
@@ -266,10 +332,12 @@ class RunState:
             if self._node_id is not None:
                 from_node_id = self._node_id
             seed_base = self._outbound_seed_base(to_node_id)
-            rewards = self._roll_segment_rewards(to_node_id, seed_base)
+            poi_type = self._pick_outbound_poi_type(to_node_id, seed_base)
+            rewards = self._roll_segment_rewards(to_node_id, seed_base, poi_type)
             plan = SegmentPlan(
                 from_node_id,
                 to_node_id,
+                poi_type,
                 "OUTBOUND",
                 seed_base,
                 len_units,
@@ -296,6 +364,7 @@ class RunState:
             plan = SegmentPlan(
                 from_node_id,
                 to_node_id,
+                active.poi_type,
                 "RETURN",
                 active.seed_base,
                 active.len_units,

@@ -20,11 +20,7 @@ class GarageScene:
         self._can_restart = False
 
     def enter(self, params: object | None = None) -> None:
-        profile = self._profile
-        full_fuel = float(TUNING.PROFILE.start_garage_fuel)
-        if profile.garage_fuel < full_fuel:
-            profile.set_garage_stats(profile.garage_hp, full_fuel)
-            self._state.save_profile()
+        pass
 
     def update(self, dt: float) -> None:
         profile = self._profile
@@ -51,7 +47,8 @@ class GarageScene:
         cls(Color.BLACK)
         print("GARAGE", 98, 40, Color.WHITE)
         print("scrap=" + str(self._state.profile.scrap), 82, 60, Color.WHITE)
-        print("hp=" + str(round(self._state.profile.garage_hp, 1)), 94, 70, Color.WHITE)
+        print("hp=" + str(round(self._state.profile.garage_hp, 1)),
+              82, 70, Color.WHITE)
         print("fuel=" + str(round(self._state.profile.garage_fuel, 1)),
               82, 80, Color.WHITE)
         print("Z = START", 86, 100, Color.WHITE)
