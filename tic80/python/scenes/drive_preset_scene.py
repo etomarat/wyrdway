@@ -154,28 +154,47 @@ class DrivePresetScene:
         self._baseline = DrivePhysicsSnapshot(TUNING.DRIVE)
         self._selected = 0
 
+    def _apply_selected_preset(self) -> bool:
+        baseline = self._baseline
+        if baseline is None:
+            return False
+        preset = self._presets[self._selected]
+        preset.apply(TUNING.DRIVE, baseline)
+        diffs = preset.diff_lines(baseline, TUNING.DRIVE)
+        trace("drive preset: " + preset.name)
+        if len(diffs) == 0:
+            trace("drive preset: no changes")
+        else:
+            for line in diffs:
+                trace("drive preset: " + line)
+        return True
+
+    def _start_chase_test(self) -> None:
+        run = self._state.start_run()
+        run.ensure_outbound_segment(1, float(TUNING.DRIVE.segment_total_length))
+        run.ensure_return_from_active_outbound()
+        test_scrap = run.run_scrap()
+        if test_scrap < 20:
+            run.add_item("scrap", 20 - test_scrap)
+        trace("drive preset: chase test start")
+        self._nav.go(SceneId.DRIVE, DriveEnterParams("extract", "topdown"))
+
     def update(self, dt: float) -> None:
         if btnp(Button.LEFT) or btnp(Button.UP):
             self._selected = (self._selected - 1) % len(self._presets)
         if btnp(Button.RIGHT) or btnp(Button.DOWN):
             self._selected = (self._selected + 1) % len(self._presets)
         if btnp(Button.A):
-            baseline = self._baseline
-            if baseline is None:
+            if not self._apply_selected_preset():
                 return
-            preset = self._presets[self._selected]
-            preset.apply(TUNING.DRIVE, baseline)
-            diffs = preset.diff_lines(baseline, TUNING.DRIVE)
-            trace("drive preset: " + preset.name)
-            if len(diffs) == 0:
-                trace("drive preset: no changes")
-            else:
-                for line in diffs:
-                    trace("drive preset: " + line)
             if self._state.playtest_enabled:
                 self._nav.go(SceneId.DRIVE, DriveEnterParams("travel", "topdown"))
                 return
             self._nav.go(SceneId.GARAGE)
+        elif btnp(Button.B):
+            if not self._apply_selected_preset():
+                return
+            self._start_chase_test()
 
     def draw(self) -> None:
         cls(Color.BLACK)
@@ -189,9 +208,11 @@ class DrivePresetScene:
             y += 10
         print("ARROWS: SELECT", 60, 112, Color.LIGHT_GREY)
         if self._state.playtest_enabled:
-            print("A (Z): START DRIVE", 56, 122, Color.LIGHT_GREY)
+            print("A (Z): START DRIVE", 56, 114, Color.LIGHT_GREY)
+            print("B (X): CHASE TEST", 56, 122, Color.LIGHT_GREY)
             return
-        print("A (Z): CONTINUE", 64, 122, Color.LIGHT_GREY)
+        print("A (Z): CONTINUE", 64, 114, Color.LIGHT_GREY)
+        print("B (X): CHASE TEST", 56, 122, Color.LIGHT_GREY)
 
     def exit(self) -> None:
         pass

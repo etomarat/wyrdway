@@ -49,6 +49,7 @@ class PursuerChase:
         "_active",
         "_state",
         "_phase",
+        "_latched",
         "_grace_start_s",
         "_grace_elapsed",
         "_pursuer_s",
@@ -64,6 +65,7 @@ class PursuerChase:
         self._active = False
         self._state: PursuerState = "FAR"
         self._phase: StrikePhase = "SCRAP_HP"
+        self._latched = False
         self._grace_start_s = 0.0
         self._grace_elapsed = 0.0
         self._pursuer_s = 0.0
@@ -85,6 +87,10 @@ class PursuerChase:
     @property
     def phase(self) -> StrikePhase:
         return self._phase
+
+    @property
+    def latched(self) -> bool:
+        return self._latched
 
     @property
     def distance_s(self) -> float:
@@ -132,6 +138,7 @@ class PursuerChase:
         self._active = bool(TUNING.PURSUER.enabled)
         self._state = "FAR"
         self._phase = "SCRAP_HP"
+        self._latched = False
         self._grace_start_s = float(car_s)
         self._grace_elapsed = 0.0
         self._pursuer_s = float(car_s) - float(TUNING.PURSUER.start_gap_s)
@@ -145,6 +152,7 @@ class PursuerChase:
     def disable(self) -> None:
         self._active = False
         self._state = "FAR"
+        self._latched = False
         self._dist_s = 9999.0
         self._cooldown = 0.0
         self._strike_flash = 0.0
@@ -187,6 +195,11 @@ class PursuerChase:
         win = float(TUNING.PURSUER.center_window_d)
         if win < 0.0:
             win = 0.0
+        min_abs = float(TUNING.PURSUER.center_cross_min_abs_d)
+        if min_abs < 0.0:
+            min_abs = 0.0
+        if max(abs(prev_d), abs(curr_d)) < min_abs:
+            return False
         near_center = min(abs(prev_d), abs(curr_d)) <= win
         return near_center
 
@@ -226,6 +239,7 @@ class PursuerChase:
         self._pursuer_s = car_s - near
         self._dist_s = near
         self._state = "NEAR"
+        self._latched = True
 
     def force_strike_now(self, run: "RunState") -> bool:
         if not self._active:
@@ -257,6 +271,7 @@ class PursuerChase:
 
         car_s = float(logic.road_s)
         if self._in_grace(car_s):
+            self._pursuer_s = car_s - float(TUNING.PURSUER.start_gap_s)
             self._state = "FAR"
             self._dist_s = float(TUNING.PURSUER.start_gap_s)
             self._prev_road_d = float(logic.road_d)
@@ -278,21 +293,47 @@ class PursuerChase:
             pursuer_speed += float(TUNING.PURSUER.offroad_catchup)
         if pursuer_speed < 0.0:
             pursuer_speed = 0.0
-        self._last_speed = pursuer_speed
+        show = float(TUNING.PURSUER.show_dist_s)
+        near = float(TUNING.PURSUER.near_dist_s)
+        gap = float(TUNING.PURSUER.follow_gap_s)
+        if gap < 0.0:
+            gap = 0.0
 
-        self._pursuer_s += pursuer_speed * dt
+        if self._latched:
+            follow_speed = (
+                float(logic.speed) * float(TUNING.PURSUER.latched_follow_speed_mult)
+                + float(TUNING.PURSUER.latched_follow_speed_add)
+            )
+            if follow_speed < 0.0:
+                follow_speed = 0.0
+            self._last_speed = follow_speed
+            self._pursuer_s += follow_speed * dt
+        else:
+            self._last_speed = pursuer_speed
+            self._pursuer_s += pursuer_speed * dt
+
         if boost_pushback_event:
             pushback = float(TUNING.PURSUER.boost_pushback_s)
             if pushback > 0.0:
                 self._pursuer_s -= pushback
 
+        max_pursuer_s = car_s - gap
+        if self._pursuer_s > max_pursuer_s:
+            self._pursuer_s = max_pursuer_s
+
         dist = car_s - self._pursuer_s
         if dist < 0.0:
             dist = 0.0
-        self._dist_s = dist
+        if not self._latched and dist <= near:
+            self._latched = True
+        elif self._latched:
+            release_dist = float(TUNING.PURSUER.latch_release_dist_s)
+            if release_dist <= near:
+                release_dist = near + 1.0
+            if dist >= release_dist:
+                self._latched = False
 
-        show = float(TUNING.PURSUER.show_dist_s)
-        near = float(TUNING.PURSUER.near_dist_s)
+        self._dist_s = dist
         if dist > show:
             self._state = "FAR"
         elif dist > near:
@@ -302,5 +343,10 @@ class PursuerChase:
 
         crossed = self._crossed_center(self._prev_road_d, float(logic.road_d))
         self._prev_road_d = float(logic.road_d)
-        if self._state == "NEAR" and self._cooldown <= 0.0 and crossed:
+        min_speed = float(TUNING.PURSUER.strike_min_speed)
+        speed_ok = True
+        if min_speed > 0.0:
+            speed_ok = float(logic.speed) >= min_speed
+        strike_auto = bool(TUNING.PURSUER.strike_auto_when_latched) and self._latched
+        if self._state == "NEAR" and self._cooldown <= 0.0 and speed_ok and (crossed or strike_auto):
             self._apply_strike(run)

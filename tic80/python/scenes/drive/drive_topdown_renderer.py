@@ -50,6 +50,9 @@ class DriveTopdownRenderer:
         self._cam_ang_vel = 0.0
         self._cam_vel_x = 1.0
         self._cam_vel_y = 0.0
+        self._pursuer_anim_t = 0.0
+        self._pursuer_draw_s = 0.0
+        self._pursuer_draw_inited = False
 
     def notify_obstacle_hit(
         self,
@@ -86,6 +89,7 @@ class DriveTopdownRenderer:
         strike_flash: float = 0.0
     ) -> None:
         self._shake.ensure_seed(road.seed)
+        self._pursuer_anim_t += float(TUNING.CORE.dt)
         shake_x, shake_y = self._shake.update(
             float(TUNING.CORE.dt),
             logic.offroad,
@@ -147,10 +151,11 @@ class DriveTopdownRenderer:
 
         # Следы шин должны быть ПОД пылью/дымом.
         self._fx_overlay.draw_world()
-        self._draw_pursuer_world(road, proj, pose, pursuer_state, pursuer_s, strike_flash)
 
         # Стартовый дым/пыль рисуем ВЫШЕ skid marks, но НИЖЕ кузова.
         self._fx_overlay.draw_under_car()
+        # Преследователь рисуем поверх дыма от колёс, но под машиной игрока.
+        self._draw_pursuer_world(road, proj, pose, pursuer_state, pursuer_s, strike_flash)
         self._draw_car_ttri(pose)
         self._fx_overlay.draw_over_car()
 
@@ -169,6 +174,7 @@ class DriveTopdownRenderer:
         strike_flash: float
     ) -> None:
         if pursuer_state is None or pursuer_state == "FAR":
+            self._pursuer_draw_inited = False
             return
 
         s = float(pursuer_s)
@@ -177,14 +183,29 @@ class DriveTopdownRenderer:
         if s > road.segment_total_length:
             s = road.segment_total_length
 
-        cx, cy = road.sample_centerline(s)
-        dir_x, dir_y = road.direction_at(s)
+        if (not self._pursuer_draw_inited) or abs(s - self._pursuer_draw_s) > 48.0:
+            self._pursuer_draw_s = s
+            self._pursuer_draw_inited = True
+        else:
+            # Сглаживаем позицию преследователя на экране, чтобы убрать дёрганье
+            # из-за мелких колебаний centerline/camera.
+            lerp = 0.14
+            self._pursuer_draw_s += (s - self._pursuer_draw_s) * lerp
+
+        draw_s = self._pursuer_draw_s
+        cx, cy = road.sample_centerline(draw_s)
+        dir_x, dir_y = road.direction_at(draw_s)
         right_x = -dir_y
         right_y = dir_x
+        t = self._pursuer_anim_t
         wobble = 2.0
         if pursuer_state == "NEAR":
             wobble = 4.0
-        wobble *= math.sin(s * 0.11 + self._cam_angle * 3.0)
+        phase = float(road.seed & 1023) * 0.01
+        wobble *= (
+            0.60 * math.sin(t * 6.0 + phase + self._cam_angle * 2.5)
+            + 0.40 * math.sin(t * 3.5 + phase * 1.7)
+        )
         wx = cx + right_x * wobble
         wy = cy + right_y * wobble
         sx, sy = proj.world_to_screen(wx, wy)

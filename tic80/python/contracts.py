@@ -425,6 +425,13 @@ class PursuerTuning:
         "strike_cooldown_sec",
         "strike_drain_amount",
         "center_window_d",
+        "center_cross_min_abs_d",
+        "strike_auto_when_latched",
+        "strike_min_speed",
+        "follow_gap_s",
+        "latch_release_dist_s",
+        "latched_follow_speed_mult",
+        "latched_follow_speed_add",
         "boost_pushback_s",
         "strike_shake_intensity",
         "near_vignette",
@@ -445,6 +452,13 @@ class PursuerTuning:
         self.strike_cooldown_sec = 0.0
         self.strike_drain_amount = 0
         self.center_window_d = 0.0
+        self.center_cross_min_abs_d = 0.0
+        self.strike_auto_when_latched = False
+        self.strike_min_speed = 0.0
+        self.follow_gap_s = 0.0
+        self.latch_release_dist_s = 0.0
+        self.latched_follow_speed_mult = 0.0
+        self.latched_follow_speed_add = 0.0
         self.boost_pushback_s = 0.0
         self.strike_shake_intensity = 0.0
         self.near_vignette = 0.0

@@ -8,7 +8,7 @@ if TYPE_CHECKING:
 
 TUNING: Tuning = Tuning()
 # Поднимай версию при изменениях баланса (числа в TUNING).
-TUNING.tuning_version = 10
+TUNING.tuning_version = 16
 
 include("data.tuning.core")
 include("data.tuning.profile")

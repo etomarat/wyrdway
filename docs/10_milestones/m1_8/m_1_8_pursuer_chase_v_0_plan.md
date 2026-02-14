@@ -35,29 +35,30 @@
 ### Pursuer (distance model)
 - `pursuer_grace_meters = 90`
 - `pursuer_grace_seconds_cap = 4.0`
-- `pursuer_start_gap_s = 140`  
+- `pursuer_start_gap_s = 150`  
   (после grace преследователь стартует на таком отставании)
 
 ### Pursuer speed
 - Базовая скорость преследователя (в road-space units/sec):
-  - `pursuer_base_speed = 72`
+  - `pursuer_base_speed = 25`
 - Догоняние зависит от скорости игрока относительно `TUNING.DRIVE.max_speed`:
   - `speed_factor = clamp(speed / max_speed, 0, 2)`
   - `slow_factor = clamp(1 - speed_factor, 0, 1)`
   - `catchup = slow_factor * pursuer_slow_catchup`
-  - `pursuer_slow_catchup = 55`
+  - `pursuer_slow_catchup = 40`
 - Доп. фактор (опционально): оффроад ускоряет догоняние:
-  - `pursuer_offroad_catchup = 35`
+  - `pursuer_offroad_catchup = 20`
   - `0` = фактор выключен
 
 ### Visibility / states
-- `pursuer_show_dist_s = 120`  (начинаем рисовать/FX)
-- `pursuer_near_dist_s = 55`   (может готовить атаку)
+- `pursuer_show_dist_s = 210`  (начинаем рисовать/FX)
+- `pursuer_near_dist_s = 70`   (может готовить атаку)
 
 ### Strike rules
 - `strike_cooldown_sec = 1.35`
 - `strike_drain_amount = 2`
 - `center_window_d = 6` (узкое окно около оси дороги)
+- `strike_min_speed = 12` (если скорость ниже — укус не срабатывает)
 - Триггер «пересёк центр» (v0):
   - sign(prev_road_d) != sign(curr_road_d)
   - min(abs(prev_road_d), abs(curr_road_d)) <= center_window_d

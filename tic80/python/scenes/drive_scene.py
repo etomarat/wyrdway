@@ -1,3 +1,4 @@
+import math
 from typing import TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
@@ -53,6 +54,7 @@ class DriveScene:
         self._start_car_fuel = 0.0
         self._pursuer = PursuerChase()
         self._popups: list[_DrivePopup] = []
+        self._pursuer_fx_time = 0.0
 
     def enter(self, params: object | None = None) -> None:
         if not isinstance(params, DriveEnterParams):
@@ -65,6 +67,7 @@ class DriveScene:
         self._objects = None
         self._active_zone = None
         self._popups = []
+        self._pursuer_fx_time = 0.0
 
         run = self._state.require_run()
         seed = run.seed
@@ -222,6 +225,7 @@ class DriveScene:
         logic = self._logic
         if logic is None:
             return
+        self._pursuer_fx_time += dt
         pushback_event = self._boost_pushback_event(z_before, z_after)
         self._pursuer.update(dt, run, logic, pushback_event)
         event = self._pursuer.strike_event
@@ -274,12 +278,20 @@ class DriveScene:
             pursuer_s,
             strike_flash
         )
+        if self._pursuer.active:
+            # FX погони (виньетка/шум) рисуем ПОД HUD.
+            self._draw_pursuer_screen_fx(logic)
         self._ui.draw_stats(run, logic)
         self._ui.draw_steer_wheel(logic)
         self._ui.draw_slip_bar(logic)
         if self._pursuer.active:
-            self._ui.draw_pursuer_hud(run.run_scrap(), run.car_fuel, self._pursuer.distance_s, self._pursuer.state)
-            self._draw_pursuer_screen_fx(logic)
+            self._ui.draw_pursuer_hud(
+                run.run_scrap(),
+                run.car_fuel,
+                self._pursuer.distance_s,
+                self._pursuer.state,
+                self._pursuer.latched
+            )
         self._draw_popups()
         if logic.finished():
             print("Z = CONTINUE", 2, 128, Color.WHITE)
@@ -298,6 +310,8 @@ class DriveScene:
                 + str(round(self._pursuer.cooldown, 2))
                 + " phase="
                 + self._pursuer.phase
+                + " latch="
+                + ("1" if self._pursuer.latched else "0")
             )
         self._state.set_debug_lines(lines)
         return
@@ -320,12 +334,13 @@ class DriveScene:
         intensity = self._pursuer.near_intensity()
         if intensity <= 0.0:
             return
+        pulse = (1.0 + math.sin(self._pursuer_fx_time * 8.0)) * 0.5
 
-        vig = intensity * float(TUNING.PURSUER.near_vignette)
+        vig = intensity * float(TUNING.PURSUER.near_vignette) * (1.0 + 0.25 * pulse)
         if vig > 0.0:
-            thick = int(vig * 12.0 + 0.5)
-            if thick > 6:
-                thick = 6
+            thick = int(vig * 16.0 + 0.5)
+            if thick > 8:
+                thick = 8
             i = 0
             while i < thick:
                 color = Color.DARK_BLUE
@@ -341,11 +356,16 @@ class DriveScene:
                 line(x1, y0, x1, y1, color)
                 i += 1
 
-        noise = intensity * float(TUNING.PURSUER.near_noise)
-        dots = int(noise * 70.0)
+        noise = intensity * float(TUNING.PURSUER.near_noise) * (1.0 + 0.35 * pulse)
+        dots = int(noise * 110.0)
         if dots <= 0:
             return
-        seed = int(logic.road_s * 13.0 + self._pursuer.distance_s * 7.0 + self._pursuer.cooldown * 100.0)
+        seed = int(
+            logic.road_s * 13.0
+            + self._pursuer.distance_s * 7.0
+            + self._pursuer.cooldown * 100.0
+            + self._pursuer_fx_time * 1000.0
+        )
         seed &= 0xFFFFFFFF
         i = 0
         while i < dots:
