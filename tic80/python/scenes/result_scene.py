@@ -26,7 +26,10 @@ class ResultScene:
 
         run = self._state.run
         if run is None:
-            self._lines = ["no run", "msg=" + str(fallback)]
+            if fallback is None:
+                self._lines = ["RESULT", "no active run"]
+            else:
+                self._lines = [str(fallback)]
             return
 
         if self._state.playtest_enabled:
@@ -76,6 +79,9 @@ class ResultScene:
             "fuel gained: +" + str(gained_fuel),
             "poi action: " + poi_action
         ]
+        if escaped == "fail":
+            lines[2] = "scrap gained: +0 (lost)"
+            lines.append("scrap lost: " + str(gained_scrap))
 
         self._lines = lines
 

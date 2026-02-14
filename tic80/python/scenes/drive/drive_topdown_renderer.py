@@ -2,7 +2,7 @@ import math
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from tic80 import ttri
+    from tic80 import circ, circb, line, ttri
 
     from ...core.palette import Color
     from ...data.tuning import TUNING
@@ -70,12 +70,20 @@ class DriveTopdownRenderer:
         )
         self._shake.notify_hit(impact, TUNING)
 
+    def notify_pursuer_strike(self, intensity: float) -> None:
+        if intensity <= 0.0:
+            return
+        self._shake.notify_hit(float(intensity), TUNING)
+
     def draw(
         self,
         road: RoadModel,
         logic: DriveLogic,
         objects: DriveObjects,
-        active_zone: DriveZone | None
+        active_zone: DriveZone | None,
+        pursuer_state: str | None = None,
+        pursuer_s: float = 0.0,
+        strike_flash: float = 0.0
     ) -> None:
         self._shake.ensure_seed(road.seed)
         shake_x, shake_y = self._shake.update(
@@ -139,6 +147,7 @@ class DriveTopdownRenderer:
 
         # Следы шин должны быть ПОД пылью/дымом.
         self._fx_overlay.draw_world()
+        self._draw_pursuer_world(road, proj, pose, pursuer_state, pursuer_s, strike_flash)
 
         # Стартовый дым/пыль рисуем ВЫШЕ skid marks, но НИЖЕ кузова.
         self._fx_overlay.draw_under_car()
@@ -149,6 +158,53 @@ class DriveTopdownRenderer:
             self._debug_draw.draw_vectors(logic, proj, center_x, center_y)
         if TUNING.DRIVE.debug_hitboxes_enabled:
             self._debug_draw.draw_hitboxes(logic, proj)
+
+    def _draw_pursuer_world(
+        self,
+        road: RoadModel,
+        proj: TopdownProjector,
+        pose: CarPose2D,
+        pursuer_state: str | None,
+        pursuer_s: float,
+        strike_flash: float
+    ) -> None:
+        if pursuer_state is None or pursuer_state == "FAR":
+            return
+
+        s = float(pursuer_s)
+        if s < 0.0:
+            s = 0.0
+        if s > road.segment_total_length:
+            s = road.segment_total_length
+
+        cx, cy = road.sample_centerline(s)
+        dir_x, dir_y = road.direction_at(s)
+        right_x = -dir_y
+        right_y = dir_x
+        wobble = 2.0
+        if pursuer_state == "NEAR":
+            wobble = 4.0
+        wobble *= math.sin(s * 0.11 + self._cam_angle * 3.0)
+        wx = cx + right_x * wobble
+        wy = cy + right_y * wobble
+        sx, sy = proj.world_to_screen(wx, wy)
+        px = int(sx)
+        py = int(sy)
+
+        body_color = Color.PURPLE
+        ring_color = Color.BLUE
+        r = 5
+        if pursuer_state == "NEAR":
+            body_color = Color.RED
+            ring_color = Color.ORANGE
+            r = 7
+        circ(px, py, r, body_color)
+        circb(px, py, r + 1, ring_color)
+
+        if strike_flash > 0.0:
+            car_x, car_y = pose.screen_center()
+            line(px, py, int(car_x), int(car_y), Color.WHITE)
+            line(px + 1, py, int(car_x), int(car_y), Color.RED)
 
     def _camera_forward(self, logic: DriveLogic) -> tuple[float, float]:
         heading_x = logic.fwd_x

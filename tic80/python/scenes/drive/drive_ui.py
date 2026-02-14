@@ -200,6 +200,46 @@ class DriveUi:
 
         print("slip", x0, y0 - 8, Color.WHITE)
 
+    def draw_pursuer_hud(
+        self,
+        run_scrap: int,
+        fuel: float,
+        pursuer_dist_s: float,
+        pursuer_state: str
+    ) -> None:
+        print("scrap " + str(int(run_scrap)), 168, 2, Color.LIGHT_GREEN)
+        print("fuel  " + self.fmt2(float(fuel)), 168, 10, Color.YELLOW)
+
+        bx = 168
+        by = 20
+        bw = 68
+        bh = 6
+        rectb(bx, by, bw, bh, Color.WHITE)
+
+        show = float(TUNING.PURSUER.show_dist_s)
+        near = float(TUNING.PURSUER.near_dist_s)
+        fill_n = 0.0
+        if show > near:
+            d = float(pursuer_dist_s)
+            if d < near:
+                fill_n = 1.0
+            elif d < show:
+                fill_n = (show - d) / (show - near)
+        if fill_n < 0.0:
+            fill_n = 0.0
+        if fill_n > 1.0:
+            fill_n = 1.0
+
+        fill_w = int((bw - 2) * fill_n)
+        color = Color.BLUE
+        if pursuer_state == "CHASE":
+            color = Color.ORANGE
+        elif pursuer_state == "NEAR":
+            color = Color.RED
+        if fill_w > 0:
+            rect(bx + 1, by + 1, fill_w, bh - 2, color)
+        print("pursuer", bx, by + 8, Color.WHITE)
+
     def fmt2(self, value: float) -> str:
         """Форматирует число с ровно 2 знаками после запятой (без `.format`/`%`).
 

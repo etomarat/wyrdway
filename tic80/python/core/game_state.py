@@ -119,20 +119,29 @@ class GameState:
             return
         delta = run.delta
         failed = delta is not None and delta.escape_outcome == "fail"
-        final_fuel = run.car_fuel
-
-        if failed:
-            fuel_loss = max(TUNING.PROFILE.evac_fuel_min,
-                            final_fuel * TUNING.PROFILE.evac_fuel_pct)
-            final_fuel = max(0.0, final_fuel - fuel_loss)
-            self._profile.add_scrap(-TUNING.PROFILE.evac_scrap_loss)
-        else:
+        if not failed:
             for item in run.inventory_items():
                 if item.id == "scrap":
                     self._profile.add_scrap(item.qty)
 
-        self._profile.set_garage_stats(run.car_hp, final_fuel)
+        self._profile.set_garage_stats(run.car_hp, run.car_fuel)
         self.save_profile()
+        self._run = None
+
+    def rollback_to_last_save(self) -> None:
+        data = self._save.load_profile()
+        if data is None:
+            self._profile.reset()
+            self._profile_loaded = False
+            self._profile_tuning_mismatch = False
+            self._profile_tuning_version = None
+        else:
+            self._profile.apply_save(data.scrap, data.garage_hp, data.garage_fuel)
+            self._profile_loaded = True
+            self._profile_tuning_version = data.tuning_version
+            self._profile_tuning_mismatch = (
+                data.tuning_version != int(TUNING.tuning_version)
+            )
         self._run = None
 
     def load_profile(self) -> None:

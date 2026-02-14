@@ -411,8 +411,49 @@ class PoiTuning:
         self.depot_fuel_max = 0
 
 
+class PursuerTuning:
+    __slots__ = (
+        "enabled",
+        "grace_meters",
+        "grace_seconds_cap",
+        "start_gap_s",
+        "base_speed",
+        "slow_catchup",
+        "offroad_catchup",
+        "show_dist_s",
+        "near_dist_s",
+        "strike_cooldown_sec",
+        "strike_drain_amount",
+        "center_window_d",
+        "boost_pushback_s",
+        "strike_shake_intensity",
+        "near_vignette",
+        "near_noise",
+        "strike_flash_seconds"
+    )
+
+    def __init__(self) -> None:
+        self.enabled = False
+        self.grace_meters = 0.0
+        self.grace_seconds_cap = 0.0
+        self.start_gap_s = 0.0
+        self.base_speed = 0.0
+        self.slow_catchup = 0.0
+        self.offroad_catchup = 0.0
+        self.show_dist_s = 0.0
+        self.near_dist_s = 0.0
+        self.strike_cooldown_sec = 0.0
+        self.strike_drain_amount = 0
+        self.center_window_d = 0.0
+        self.boost_pushback_s = 0.0
+        self.strike_shake_intensity = 0.0
+        self.near_vignette = 0.0
+        self.near_noise = 0.0
+        self.strike_flash_seconds = 0.0
+
+
 class Tuning:
-    __slots__ = ("tuning_version", "CORE", "DEBUG", "PROFILE", "DRIVE", "POI")
+    __slots__ = ("tuning_version", "CORE", "DEBUG", "PROFILE", "DRIVE", "POI", "PURSUER")
 
     def __init__(self) -> None:
         self.tuning_version = 0
@@ -421,6 +462,7 @@ class Tuning:
         self.PROFILE = ProfileTuning()
         self.DRIVE = DriveTuning()
         self.POI = PoiTuning()
+        self.PURSUER = PursuerTuning()
 
 
 DriveMode = Literal["travel", "extract"]

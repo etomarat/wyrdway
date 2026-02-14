@@ -25,6 +25,15 @@ class RunItem:
     def qty(self) -> int:
         return self._qty
 
+    def take(self, amount: int) -> int:
+        take = int(amount)
+        if take <= 0:
+            return 0
+        if take > self._qty:
+            take = self._qty
+        self._qty -= take
+        return take
+
 
 class SegmentRewards:
     __slots__ = ("_scrap", "_fuel")
@@ -235,6 +244,33 @@ class RunState:
         item = RunItem(item_id, qty)
         self._inventory.append(item)
         return item
+
+    def run_scrap(self) -> int:
+        total = 0
+        i = 0
+        while i < len(self._inventory):
+            item = self._inventory[i]
+            if item.id == "scrap":
+                total += item.qty
+            i += 1
+        return total
+
+    def drain_scrap(self, amount: int) -> int:
+        need = int(amount)
+        if need <= 0:
+            return 0
+        taken = 0
+        i = len(self._inventory) - 1
+        while i >= 0 and need > 0:
+            item = self._inventory[i]
+            if item.id == "scrap" and item.qty > 0:
+                got = item.take(need)
+                taken += got
+                need -= got
+                if item.qty <= 0:
+                    del self._inventory[i]
+            i -= 1
+        return taken
 
     def apply_damage(self, amount: float) -> None:
         self._car_hp = max(0, self._car_hp - amount)
