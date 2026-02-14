@@ -163,7 +163,7 @@ TUNING.DRIVE.side_recovery_min_speed_factor = 0.25
 # По умолчанию выключено (0.0), потому что это больше похоже на “аномалию/апгрейд”,
 # чем на базовое поведение ручника/вождения.
 TUNING.DRIVE.dash_impulse = 0.0
-TUNING.DRIVE.dash_cooldown = 0.8
+TUNING.DRIVE.dash_cooldown = 0.0
 
 # Мультипликатор руления на оффроуде (обычно хуже, чем на дороге).
 TUNING.DRIVE.offroad_steer_mult = 0.80
@@ -258,4 +258,4 @@ TUNING.DRIVE.drag_quad = 0.003
 TUNING.DRIVE.fuel_per_sec_idle = 0.05
 
 # Доп. расход топлива при газе (units/sec).
-TUNING.DRIVE.fuel_per_sec_throttle = 1.0
+TUNING.DRIVE.fuel_per_sec_throttle = 0.5

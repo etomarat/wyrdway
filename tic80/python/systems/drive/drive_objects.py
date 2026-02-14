@@ -89,17 +89,27 @@ class DriveObjects:
         return self._zones
 
     @classmethod
-    def from_road_and_tuning(cls, seed: int, road: RoadModel, tuning: Tuning):
+    def from_road_and_tuning(
+        cls,
+        seed: int,
+        road: RoadModel,
+        tuning: Tuning,
+        spawn_threats: bool = True,
+        reverse_layout: bool = False
+    ):
         """Генерирует объекты сегмента по seed + параметрам тюнинга.
 
         Принципы (m1.5):
         - детерминированно по seed (для сравнения A/B и тюнинга);
+        - base-слой (зоны/ускорители) и threats-слой (препятствия) генерируются
+          разными RNG, чтобы base не зависел от включения/выключения threats;
         - не спавнить в safe-start диапазоне;
         - выдерживать минимальную дистанцию между объектами по s;
         - избегать краёв дороги (через `spawn_min_distance_from_edges`).
         """
         d = tuning.DRIVE
-        rng = Rng(seed ^ 0x9E3779B9)
+        rng_threats = Rng(seed ^ 0x9E3779B9)
+        rng_base = Rng(seed ^ 0xA341316C)
 
         total = road.segment_total_length
         safe = road.safe_start_length
@@ -125,44 +135,45 @@ class DriveObjects:
         if safe > total:
             safe = total
 
-        i = 0
-        attempts = 0
-        while i < obstacles_n and attempts < obstacles_n * 80 + 80:
-            attempts += 1
-            s = rng.uniform(safe, total)
+        if spawn_threats:
+            i = 0
+            attempts = 0
+            while i < obstacles_n and attempts < obstacles_n * 80 + 80:
+                attempts += 1
+                s = rng_threats.uniform(safe, total)
 
-            radius_int = -1
-            weights = d.obstacle_radius_weights
-            if weights is not None and len(weights) > 0:
-                idx = rng.choice_weighted_index(weights)
-                if idx >= 0:
-                    radius_int = idx
+                radius_int = -1
+                weights = d.obstacle_radius_weights
+                if weights is not None and len(weights) > 0:
+                    idx = rng_threats.choice_weighted_index(weights)
+                    if idx >= 0:
+                        radius_int = idx
 
-            if radius_int < 0:
-                rmin_i = int(rmin)
-                if float(rmin_i) < rmin:
-                    rmin_i += 1
-                rmax_i = int(rmax)
-                if rmax_i < rmin_i:
-                    rmax_i = rmin_i
-                radius_int = rng.randint_inclusive(rmin_i, rmax_i)
+                if radius_int < 0:
+                    rmin_i = int(rmin)
+                    if float(rmin_i) < rmin:
+                        rmin_i += 1
+                    rmax_i = int(rmax)
+                    if rmax_i < rmin_i:
+                        rmax_i = rmin_i
+                    radius_int = rng_threats.randint_inclusive(rmin_i, rmax_i)
 
-            radius = float(radius_int)
-            max_d = max_d_base - radius
-            if max_d < 0.0:
-                max_d = 0.0
-            d0 = rng.uniform(-max_d, max_d) if max_d > 0.0 else 0.0
+                radius = float(radius_int)
+                max_d = max_d_base - radius
+                if max_d < 0.0:
+                    max_d = 0.0
+                d0 = rng_threats.uniform(-max_d, max_d) if max_d > 0.0 else 0.0
 
-            ok = True
-            j = 0
-            while j < len(obstacles):
-                if abs(obstacles[j].s - s) < d.spawn_min_distance_between:
-                    ok = False
-                    break
-                j += 1
-            if ok:
-                obstacles.append(DriveObstacle(s, d0, radius))
-                i += 1
+                ok = True
+                j = 0
+                while j < len(obstacles):
+                    if abs(obstacles[j].s - s) < d.spawn_min_distance_between:
+                        ok = False
+                        break
+                    j += 1
+                if ok:
+                    obstacles.append(DriveObstacle(s, d0, radius))
+                    i += 1
 
         i = 0
         attempts = 0
@@ -176,14 +187,17 @@ class DriveObjects:
 
         while i < zones_n and attempts < zones_n * 80 + 80:
             attempts += 1
-            s_start = rng.uniform(safe, zone_s_max)
+            s_start = rng_base.uniform(safe, zone_s_max)
             s_end = s_start + zone_len
-            d_center = rng.uniform(-max_d_base, max_d_base) if max_d_base > 0.0 else 0.0
+            d_center = rng_base.uniform(-max_d_base, max_d_base) if max_d_base > 0.0 else 0.0
 
             ok = True
             j = 0
             while j < len(zones):
-                if abs(zones[j].s_start - s_start) < d.spawn_min_distance_between:
+                z = zones[j]
+                left = z.s_start - d.spawn_min_distance_between
+                right = z.s_end + d.spawn_min_distance_between
+                if s_end >= left and s_start <= right:
                     ok = False
                     break
                 j += 1
@@ -195,6 +209,24 @@ class DriveObjects:
                     d.zone_radius,
                     d.zone_grip_mult
                 ))
+                i += 1
+
+        if reverse_layout:
+            i = 0
+            while i < len(obstacles):
+                ob = obstacles[i]
+                ob.s = max(0.0, total - ob.s)
+                ob.d = -ob.d
+                i += 1
+
+            i = 0
+            while i < len(zones):
+                z = zones[i]
+                s_start = max(0.0, total - z.s_end)
+                s_end = max(0.0, total - z.s_start)
+                z.s_start = s_start
+                z.s_end = s_end
+                z.d_center = -z.d_center
                 i += 1
 
         return cls(obstacles, zones)

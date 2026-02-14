@@ -22,6 +22,15 @@ class PoiScene:
     def enter(self, params: object | None = None) -> None:
         self.timer = TUNING.POI.timer_seconds
 
+    def _poi_type_label(self, poi_type: str) -> str:
+        if poi_type == "gas_station":
+            return "GAS STATION"
+        if poi_type == "scrapyard":
+            return "SCRAPYARD"
+        if poi_type == "depot":
+            return "DEPOT"
+        return str(poi_type).upper()
+
     def _leave(
         self,
         action: PoiAction,
@@ -35,8 +44,15 @@ class PoiScene:
         if escape_outcome is not None:
             delta.set_escape_outcome(escape_outcome)
         if action == "loot":
-            item = run.add_item("scrap", TUNING.POI.scrap_per_loot)
-            delta.add_item_gained(item)
+            segment = run.active_segment
+            if segment is not None:
+                rewards = segment.rewards
+                if rewards.scrap > 0:
+                    item = run.add_item("scrap", rewards.scrap)
+                    delta.add_item_gained(item)
+                if rewards.fuel > 0:
+                    run.add_fuel(rewards.fuel)
+                    delta.add_fuel_gained(rewards.fuel)
 
         if go_result:
             if message is None:
@@ -44,6 +60,7 @@ class PoiScene:
             self._nav.go(SceneId.RESULT, ResultEnterParams(message))
             return
 
+        run.ensure_return_from_active_outbound()
         self._nav.go(SceneId.DRIVE, DriveEnterParams("extract"))
 
     def update(self, dt: float) -> None:
@@ -58,12 +75,17 @@ class PoiScene:
     def draw(self) -> None:
         cls(Color.BLACK)
         print("POI", 112, 30, Color.WHITE)
-        print("timer=" + str(round(self.timer, 1)), 82, 50, Color.WHITE)
+        print("timer=" + f"{self.timer:.2f}", 82, 50, Color.WHITE)
         run = self._state.run
         if run is not None:
             print("inv=" + str(run.inventory_count()), 98, 60, Color.WHITE)
-        print("Z = LOOT", 90, 70, Color.WHITE)
-        print("X = LEAVE", 88, 80, Color.WHITE)
+            segment = run.active_segment
+            if segment is not None:
+                rewards = segment.rewards
+                print("type=" + self._poi_type_label(segment.poi_type), 74, 68, Color.WHITE)
+                print("reward: +" + str(rewards.scrap) + " scrap, +" + str(rewards.fuel) + " fuel", 40, 76, Color.WHITE)
+        print("Z = LOOT", 90, 96, Color.WHITE)
+        print("X = LEAVE", 88, 104, Color.WHITE)
 
     def exit(self) -> None:
         pass

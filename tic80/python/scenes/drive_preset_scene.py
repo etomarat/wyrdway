@@ -172,11 +172,15 @@ class DrivePresetScene:
             else:
                 for line in diffs:
                     trace("drive preset: " + line)
-            self._nav.go(SceneId.DRIVE, DriveEnterParams("travel", "topdown"))
+            if self._state.playtest_enabled:
+                self._nav.go(SceneId.DRIVE, DriveEnterParams("travel", "topdown"))
+                return
+            self._nav.go(SceneId.GARAGE)
 
     def draw(self) -> None:
         cls(Color.BLACK)
-        print('!!!DRIVING PLAYTEST MODE!!!', 52, 14, Color.WHITE)
+        if self._state.playtest_enabled:
+            print('!!!DRIVING PLAYTEST MODE!!!', 52, 14, Color.WHITE)
         print("DRIVE PHYSICS PRESET", 52, 34, Color.WHITE)
         y = 44
         for i, preset in enumerate(self._presets):
@@ -184,7 +188,10 @@ class DrivePresetScene:
             print(marker + " " + preset.label, 50, y, Color.WHITE)
             y += 10
         print("ARROWS: SELECT", 60, 112, Color.LIGHT_GREY)
-        print("A (Z): START", 70, 122, Color.LIGHT_GREY)
+        if self._state.playtest_enabled:
+            print("A (Z): START DRIVE", 56, 122, Color.LIGHT_GREY)
+            return
+        print("A (Z): CONTINUE", 64, 122, Color.LIGHT_GREY)
 
     def exit(self) -> None:
         pass
