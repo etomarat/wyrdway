@@ -428,12 +428,10 @@ class PursuerTuning:
         "strike_begin_dist_s",
         "strike_min_speed",
         "follow_gap_s",
-        "latch_release_dist_s",
-        "latched_follow_speed_mult",
-        "latched_follow_speed_add",
         "boost_pushback_s",
         "body_radius_chase",
         "body_radius_near",
+        "debug_contact_marker",
         "strike_shake_intensity",
         "near_vignette",
         "near_noise",
@@ -459,12 +457,10 @@ class PursuerTuning:
         self.strike_begin_dist_s = 0.0
         self.strike_min_speed = 0.0
         self.follow_gap_s = 0.0
-        self.latch_release_dist_s = 0.0
-        self.latched_follow_speed_mult = 0.0
-        self.latched_follow_speed_add = 0.0
         self.boost_pushback_s = 0.0
         self.body_radius_chase = 0.0
         self.body_radius_near = 0.0
+        self.debug_contact_marker = False
         self.strike_shake_intensity = 0.0
         self.near_vignette = 0.0
         self.near_noise = 0.0

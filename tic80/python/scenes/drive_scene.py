@@ -289,8 +289,7 @@ class DriveScene:
                 run.run_scrap(),
                 run.car_fuel,
                 self._pursuer.distance_s,
-                self._pursuer.state,
-                self._pursuer.latched
+                self._pursuer.state
             )
         self._draw_popups()
         if logic.finished():
@@ -310,8 +309,6 @@ class DriveScene:
                 + str(round(self._pursuer.cooldown, 2))
                 + " phase="
                 + self._pursuer.phase
-                + " latch="
-                + ("1" if self._pursuer.latched else "0")
             )
         self._state.set_debug_lines(lines)
         return
@@ -334,7 +331,11 @@ class DriveScene:
         intensity = self._pursuer.near_intensity()
         if intensity <= 0.0:
             return
-        caught = self._pursuer.state == "NEAR" and self._pursuer.latched
+        strike_dist = float(TUNING.PURSUER.strike_begin_dist_s)
+        gap = float(TUNING.PURSUER.follow_gap_s)
+        if strike_dist < gap:
+            strike_dist = gap
+        caught = self._pursuer.distance_s <= strike_dist
         pulse = (1.0 + math.sin(self._pursuer_fx_time * 8.0)) * 0.5
 
         vig = intensity * float(TUNING.PURSUER.near_vignette) * (1.0 + 0.25 * pulse)

@@ -57,9 +57,9 @@ TUNING.PURSUER.offroad_catchup = 0.0
 # нарастание более "плавным" и заметным заранее.
 TUNING.PURSUER.show_dist_s = 240.0
 TUNING.PURSUER.near_dist_s = 16.0
-# Смещение "контакта" относительно центра преследователя.
-# >0 делает так, что догон/укус считаются раньше (полезно для большого визуального тела).
-TUNING.PURSUER.contact_offset_s = 24.0
+# Визуальный сдвиг тела преследователя назад относительно "контактной" точки.
+# Важно: это только рендер-смещение, не влияет на логику догона/укуса.
+TUNING.PURSUER.contact_offset_s = 32.0
 
 # Strike:
 # - cooldown между укусами
@@ -68,31 +68,15 @@ TUNING.PURSUER.strike_cooldown_sec = 1.35
 TUNING.PURSUER.strike_drain_amount = 2
 # Дистанция, с которой укус разрешён. Должна быть заметно меньше near_dist_s,
 # чтобы не было урона "издали", когда преследователь ещё вне кадра.
-TUNING.PURSUER.strike_begin_dist_s = 20.0
+TUNING.PURSUER.strike_begin_dist_s = 12.0
 
 # Минимальная скорость машины для срабатывания укуса.
 # 0 = укусы возможны даже при почти нулевой скорости (более агрессивная погоня).
 TUNING.PURSUER.strike_min_speed = 0.0
 
-# После первой догонялки преследователь "липнет" к машине:
-# - держим минимум на follow_gap_s позади,
-# - при отставании догоняем с latched_follow_speed.
-# Формула latched_follow_speed:
-#   speed * latched_follow_speed_mult + latched_follow_speed_add
-#
-# Примеры:
-# - при speed=60:  60*0.84 + 4 = 54.4
-# - при speed=100: 100*0.84 + 4 = 88
-# - при speed=120: 120*0.84 + 4 = 104.8
-#
-# То есть преследователь не обгоняет, но игрок может "вывозить" дистанцию
-# длительной быстрой и ровной ездой.
-TUNING.PURSUER.follow_gap_s = 8.0
-# Порог выхода из latch: если дистанция выросла выше этого значения, считаем,
-# что игрок оторвался и возвращаемся в обычный режим догонялки.
-TUNING.PURSUER.latch_release_dist_s = 20.0
-TUNING.PURSUER.latched_follow_speed_mult = 0.95
-TUNING.PURSUER.latched_follow_speed_add = 3.0
+# Минимальная дистанция, ближе которой преследователь не подъезжает.
+# Держим её небольшой, чтобы враг был "на хвосте", но не закрывал машину.
+TUNING.PURSUER.follow_gap_s = 11.0
 
 # Насколько дорожный бустер отталкивает преследователя назад по s.
 TUNING.PURSUER.boost_pushback_s = 22.0
@@ -100,6 +84,8 @@ TUNING.PURSUER.boost_pushback_s = 22.0
 # Размер glitch-сущности.
 TUNING.PURSUER.body_radius_chase = 9.0
 TUNING.PURSUER.body_radius_near = 13.0
+# Временная дебаг-метка контактной точки (white+red dot).
+TUNING.PURSUER.debug_contact_marker = True
 
 # Визуальные множители.
 # strike_shake_intensity прокидывается как "impact" в общий shake-hit канал.
@@ -108,7 +94,7 @@ TUNING.PURSUER.body_radius_near = 13.0
 TUNING.PURSUER.strike_shake_intensity = 24.0
 TUNING.PURSUER.near_vignette = 0.25
 TUNING.PURSUER.near_noise = 0.5
-# Доп. усиление шума, когда преследователь уже "сидит на хвосте" (NEAR+latch).
+# Доп. усиление шума, когда преследователь уже в контакте (дистанция укуса).
 # 1.0 = без усиления, 2.0 = вдвое сильнее базового near_noise.
 TUNING.PURSUER.contact_noise_mult = 10
 # Краткий буст шума именно в момент укуса (пока живёт strike_flash).

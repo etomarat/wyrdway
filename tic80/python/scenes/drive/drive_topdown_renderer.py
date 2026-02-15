@@ -181,7 +181,15 @@ class DriveTopdownRenderer:
             self._pursuer_screen_inited = False
             return
 
-        s = float(pursuer_s)
+        contact_s = float(pursuer_s)
+        if contact_s < 0.0:
+            contact_s = 0.0
+        if contact_s > road.segment_total_length:
+            contact_s = road.segment_total_length
+        s = contact_s
+        visual_offset = float(TUNING.PURSUER.contact_offset_s)
+        if visual_offset > 0.0:
+            s -= visual_offset
         if s < 0.0:
             s = 0.0
         if s > road.segment_total_length:
@@ -240,6 +248,26 @@ class DriveTopdownRenderer:
         )
         road_half_px = ((rx - sx) * (rx - sx) + (ry - sy) * (ry - sy)) ** 0.5
         self._draw_pursuer_glitch_body(px, py, pursuer_state, seed_base, road_half_px)
+        if TUNING.PURSUER.debug_contact_marker:
+            # TEMP: яркая метка в логической контактной точке (до visual contact_offset_s).
+            # Нужна для настройки offset относительно тела преследователя.
+            ccx, ccy = road.sample_centerline(contact_s)
+            cdir_x, cdir_y = road.direction_at(contact_s)
+            crx = -cdir_y
+            cry = cdir_x
+            cwobble = 1.4
+            if pursuer_state == "NEAR":
+                cwobble = 2.2
+            cwobble *= (
+                0.60 * math.sin(t * 4.5 + phase + self._cam_angle * 1.6)
+                + 0.40 * math.sin(t * 2.7 + phase * 1.3)
+            )
+            csx, csy = proj.world_to_screen(
+                ccx + crx * cwobble,
+                ccy + cry * cwobble
+            )
+            circ(int(csx), int(csy), 2, Color.WHITE)
+            circb(int(csx), int(csy), 3, Color.RED)
 
         car_x, car_y = pose.screen_center()
         if strike_flash > 0.0:

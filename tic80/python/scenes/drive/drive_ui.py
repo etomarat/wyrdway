@@ -205,8 +205,7 @@ class DriveUi:
         run_scrap: int,
         fuel: float,
         pursuer_dist_s: float,
-        pursuer_state: str,
-        pursuer_latched: bool
+        pursuer_state: str
     ) -> None:
         print("scrap " + str(int(run_scrap)), 168, 2, Color.LIGHT_GREEN)
         print("fuel  " + self.fmt2(float(fuel)), 168, 10, Color.YELLOW)
@@ -240,7 +239,6 @@ class DriveUi:
         if fill_w > 0:
             rect(bx + 1, by + 1, fill_w, bh - 2, color)
         print("dist " + self.fmt2(float(pursuer_dist_s)), bx, by + 8, Color.WHITE)
-        print("latch " + ("on" if pursuer_latched else "off"), bx, by + 16, Color.WHITE)
 
     def fmt2(self, value: float) -> str:
         """Форматирует число с ровно 2 знаками после запятой (без `.format`/`%`).
