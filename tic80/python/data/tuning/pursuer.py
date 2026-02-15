@@ -55,8 +55,8 @@ TUNING.PURSUER.offroad_catchup = 0.0
 #
 # Бар HUD строится по диапазону [near..show], поэтому увеличение show делает
 # нарастание более "плавным" и заметным заранее.
-TUNING.PURSUER.show_dist_s = 210.0
-TUNING.PURSUER.near_dist_s = 10.0
+TUNING.PURSUER.show_dist_s = 240.0
+TUNING.PURSUER.near_dist_s = 16.0
 
 # Strike:
 # - cooldown между укусами
@@ -84,7 +84,7 @@ TUNING.PURSUER.strike_min_speed = 0.0
 #
 # То есть преследователь не обгоняет, но игрок может "вывозить" дистанцию
 # длительной быстрой и ровной ездой.
-TUNING.PURSUER.follow_gap_s = 4.0
+TUNING.PURSUER.follow_gap_s = 8.0
 # Порог выхода из latch: если дистанция выросла выше этого значения, считаем,
 # что игрок оторвался и возвращаемся в обычный режим догонялки.
 TUNING.PURSUER.latch_release_dist_s = 20.0
@@ -98,7 +98,13 @@ TUNING.PURSUER.boost_pushback_s = 22.0
 # strike_shake_intensity прокидывается как "impact" в общий shake-hit канал.
 # Важно: в shake используется квадратичная кривая trauma^2, поэтому маленькие
 # значения почти незаметны. Для укуса держим impact выше "обычного удара".
-TUNING.PURSUER.strike_shake_intensity = 12.0
+TUNING.PURSUER.strike_shake_intensity = 24.0
 TUNING.PURSUER.near_vignette = 0.25
-TUNING.PURSUER.near_noise = 0.35
+TUNING.PURSUER.near_noise = 0.5
+# Доп. усиление шума, когда преследователь уже "сидит на хвосте" (NEAR+latch).
+# 1.0 = без усиления, 2.0 = вдвое сильнее базового near_noise.
+TUNING.PURSUER.contact_noise_mult = 10
+# Краткий буст шума именно в момент укуса (пока живёт strike_flash).
+# 0.0 = выключено, 1.0 = +100% к текущему уровню шума.
+TUNING.PURSUER.strike_noise_boost = 20
 TUNING.PURSUER.strike_flash_seconds = 0.22

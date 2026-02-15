@@ -255,7 +255,7 @@ TUNING.DRIVE.drag_quad = 0.003
 # Ресурсы
 
 # Расход топлива в простое (units/sec).
-TUNING.DRIVE.fuel_per_sec_idle = 0.05
+TUNING.DRIVE.fuel_per_sec_idle = 0.1
 
 # Доп. расход топлива при газе (units/sec).
 TUNING.DRIVE.fuel_per_sec_throttle = 0.5

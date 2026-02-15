@@ -357,6 +357,20 @@ class DriveScene:
                 i += 1
 
         noise = intensity * float(TUNING.PURSUER.near_noise) * (1.0 + 0.35 * pulse)
+        if self._pursuer.state == "NEAR" and self._pursuer.latched:
+            contact_mult = float(TUNING.PURSUER.contact_noise_mult)
+            if contact_mult > 0.0:
+                noise *= contact_mult
+        if self._pursuer.strike_flash > 0.0:
+            flash_t = float(TUNING.PURSUER.strike_flash_seconds)
+            flash_n = 1.0
+            if flash_t > 0.0001:
+                flash_n = self._pursuer.strike_flash / flash_t
+            if flash_n < 0.0:
+                flash_n = 0.0
+            if flash_n > 1.0:
+                flash_n = 1.0
+            noise *= 1.0 + float(TUNING.PURSUER.strike_noise_boost) * flash_n
         dots = int(noise * 110.0)
         if dots <= 0:
             return

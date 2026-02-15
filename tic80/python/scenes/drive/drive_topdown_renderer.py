@@ -53,6 +53,9 @@ class DriveTopdownRenderer:
         self._pursuer_anim_t = 0.0
         self._pursuer_draw_s = 0.0
         self._pursuer_draw_inited = False
+        self._pursuer_screen_x = 0.0
+        self._pursuer_screen_y = 0.0
+        self._pursuer_screen_inited = False
 
     def notify_obstacle_hit(
         self,
@@ -175,6 +178,7 @@ class DriveTopdownRenderer:
     ) -> None:
         if pursuer_state is None or pursuer_state == "FAR":
             self._pursuer_draw_inited = False
+            self._pursuer_screen_inited = False
             return
 
         s = float(pursuer_s)
@@ -198,19 +202,31 @@ class DriveTopdownRenderer:
         right_x = -dir_y
         right_y = dir_x
         t = self._pursuer_anim_t
-        wobble = 2.0
+        wobble = 1.4
         if pursuer_state == "NEAR":
-            wobble = 4.0
+            wobble = 2.2
         phase = float(road.seed & 1023) * 0.01
         wobble *= (
-            0.60 * math.sin(t * 6.0 + phase + self._cam_angle * 2.5)
-            + 0.40 * math.sin(t * 3.5 + phase * 1.7)
+            0.60 * math.sin(t * 4.5 + phase + self._cam_angle * 1.6)
+            + 0.40 * math.sin(t * 2.7 + phase * 1.3)
         )
         wx = cx + right_x * wobble
         wy = cy + right_y * wobble
         sx, sy = proj.world_to_screen(wx, wy)
-        px = int(sx)
-        py = int(sy)
+
+        if (not self._pursuer_screen_inited) or (abs(sx - self._pursuer_screen_x) + abs(sy - self._pursuer_screen_y) > 80.0):
+            self._pursuer_screen_x = sx
+            self._pursuer_screen_y = sy
+            self._pursuer_screen_inited = True
+        else:
+            screen_lerp = 0.14
+            if pursuer_state == "NEAR":
+                screen_lerp = 0.09
+            self._pursuer_screen_x += (sx - self._pursuer_screen_x) * screen_lerp
+            self._pursuer_screen_y += (sy - self._pursuer_screen_y) * screen_lerp
+
+        px = int(self._pursuer_screen_x)
+        py = int(self._pursuer_screen_y)
 
         body_color = Color.PURPLE
         ring_color = Color.BLUE

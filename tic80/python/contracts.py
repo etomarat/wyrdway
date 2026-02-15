@@ -434,6 +434,8 @@ class PursuerTuning:
         "strike_shake_intensity",
         "near_vignette",
         "near_noise",
+        "contact_noise_mult",
+        "strike_noise_boost",
         "strike_flash_seconds"
     )
 
@@ -459,6 +461,8 @@ class PursuerTuning:
         self.strike_shake_intensity = 0.0
         self.near_vignette = 0.0
         self.near_noise = 0.0
+        self.contact_noise_mult = 0.0
+        self.strike_noise_boost = 0.0
         self.strike_flash_seconds = 0.0
 
 
