@@ -26,7 +26,6 @@ class DriveTopdownRenderer:
     """
 
     _CAR_SPRITE_BASE_ID = 256
-    _CAR_SPRITE_PIXEL_SIZE = 32.0
     _CAR_CHROMAKEY = 12
     # Crop empty right column (8px) from repacked #256 block.
     _CAR_SRC_X0 = 0.0

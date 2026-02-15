@@ -95,7 +95,7 @@ class ResultScene:
                 self._state.profile.set_garage_stats(run.car_hp, run.car_fuel)
                 self._state.end_run()
                 self._state.start_run()
-                self._nav.go("DRIVE", DriveEnterParams("travel", "topdown"))
+                self._nav.go(SceneId.DRIVE, DriveEnterParams("travel", "topdown"))
                 return
             self._state.apply_run_results()
             self._nav.go(SceneId.GARAGE)

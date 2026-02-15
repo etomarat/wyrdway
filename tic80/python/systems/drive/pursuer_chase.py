@@ -201,21 +201,6 @@ class PursuerChase:
         self._cooldown = float(TUNING.PURSUER.strike_cooldown_sec)
         self._strike_flash = float(TUNING.PURSUER.strike_flash_seconds)
 
-    def force_near(self, car_s: float) -> None:
-        near = float(TUNING.PURSUER.near_dist_s)
-        if near < 1.0:
-            near = 1.0
-        self._pursuer_s = car_s - near
-        self._dist_s = near
-        self._state = "NEAR"
-
-    def force_strike_now(self, run: "RunState") -> bool:
-        if not self._active:
-            return False
-        self._cooldown = 0.0
-        self._apply_strike(run)
-        return self._strike_event.happened()
-
     def update(
         self,
         dt: float,

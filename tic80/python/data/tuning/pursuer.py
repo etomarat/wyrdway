@@ -85,7 +85,7 @@ TUNING.PURSUER.boost_pushback_s = 22.0
 TUNING.PURSUER.body_radius_chase = 9.0
 TUNING.PURSUER.body_radius_near = 13.0
 # Временная дебаг-метка контактной точки (white+red dot).
-TUNING.PURSUER.debug_contact_marker = True
+TUNING.PURSUER.debug_contact_marker = False
 
 # Визуальные множители.
 # strike_shake_intensity прокидывается как "impact" в общий shake-hit канал.

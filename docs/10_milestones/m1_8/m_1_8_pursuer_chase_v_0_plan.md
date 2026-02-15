@@ -34,48 +34,59 @@
 > Все числа — стартовые, для полировки через TUNING.
 
 ### Pursuer (distance model)
-- `pursuer_grace_meters = 90`
+- `pursuer_grace_meters = 20`
 - `pursuer_grace_seconds_cap = 4.0`
 - `pursuer_start_gap_s = 150`  
   (после grace преследователь стартует на таком отставании)
+- `follow_gap_s = 11`  
+  (минимальная дистанция сзади; ближе преследователь не подъезжает)
+- `contact_offset_s = 32`  
+  (только визуальный сдвиг тела назад относительно логической контактной точки)
 
 ### Pursuer speed
 - Базовая скорость преследователя (в road-space units/sec):
-  - `pursuer_base_speed = 25`
+  - `pursuer_base_speed = 100`
 - Догоняние зависит от скорости игрока относительно `TUNING.DRIVE.max_speed`:
   - `speed_factor = clamp(speed / max_speed, 0, 2)`
   - `slow_factor = clamp(1 - speed_factor, 0, 1)`
   - `catchup = slow_factor * pursuer_slow_catchup`
-  - `pursuer_slow_catchup = 40`
+  - `pursuer_slow_catchup = 0`
 - Доп. фактор (опционально): оффроад ускоряет догоняние:
-  - `pursuer_offroad_catchup = 20`
+  - `pursuer_offroad_catchup = 0`
   - `0` = фактор выключен
 
 ### Visibility / states
-- `pursuer_show_dist_s = 210`  (начинаем рисовать/FX)
-- `pursuer_near_dist_s = 70`   (может готовить атаку)
+- `pursuer_show_dist_s = 240`  (начинаем рисовать/FX)
+- `pursuer_near_dist_s = 16`   (режим NEAR и максимальная интенсивность давления)
 
 ### Strike rules
 - `strike_cooldown_sec = 1.35`
 - `strike_drain_amount = 2`
-- `strike_begin_dist_s = 24` (кусает только когда действительно рядом)
+- `strike_begin_dist_s = 12` (кусает только когда действительно рядом)
 - `strike_min_speed = 0` (`0` = укус возможен даже на очень низкой скорости)
 - Триггер укуса (v0):
-  - преследователь в NEAR
-  - `distance <= strike_begin_dist_s`
+  - `distance <= max(strike_begin_dist_s, follow_gap_s)`
   - cooldown готов
+  - выполнен speed gate (`speed >= strike_min_speed`, если порог > 0)
 
 ### Boost interaction
 - На активации дорожного буста (ускорялки) отталкиваем преследователя назад:
-  - `boost_pushback_s = 28`
+  - `boost_pushback_s = 22`
   - `0` = отключено
 
 ### Screen / FX
-- `strike_shake_intensity = 0.9` (множитель)
+- `strike_shake_intensity = 24.0` (impact в общий shake-hit канал)
 - `near_vignette = 0.25` (интенсивность при NEAR)
-- `near_noise = 0.35`    (интенсивность глича при NEAR)
-- `contact_noise_mult`   (доп. множитель шума, когда преследователь уже догнал)
-- `strike_noise_boost`   (доп. буст шума в момент укуса)
+- `near_noise = 0.5`     (интенсивность глича при NEAR)
+- `contact_noise_mult = 10` (доп. множитель шума, когда преследователь уже догнал)
+- `strike_noise_boost = 20` (доп. буст шума в момент укуса)
+- `strike_meltdown_intensity = 1.0` (сила global-break эффекта в момент укуса)
+- `strike_flash_seconds = 0.22` (длительность окна ударного визуала)
+
+### Pursuer body (visual)
+- `body_radius_chase = 9`
+- `body_radius_near = 13`
+- `debug_contact_marker = False` (временная дебаг-точка контакта, по умолчанию выключена)
 
 ---
 
@@ -108,7 +119,7 @@
   - [x] `pursuer_s = car_s - pursuer_start_gap_s`
 - [x] Каждый тик обновлять pursuer:
   - [x] вычислить `slow_factor` от `speed / max_speed`
-  - [x] добавить offroad catchup если `abs(road_d) > road_halfwidth`
+  - [x] добавить offroad catchup если игрок в оффроуде (`logic.offroad`)
   - [x] интегрировать `pursuer_s += (base + catchup) * dt`
 - [x] На boost событии: `pursuer_s -= boost_pushback_s`
 - [x] Вычислять `d = car_s - pursuer_s` и публиковать в HUD
@@ -118,7 +129,7 @@
   - [x] FAR (d > show)
   - [x] CHASE (show >= d > near)
   - [x] NEAR (d <= near)
-- [x] Укус по cooldown при `distance <= strike_begin_dist_s`
+- [x] Укус по cooldown при `distance <= max(strike_begin_dist_s, follow_gap_s)`
 - [x] Strike:
   - [x] триггер FX + shake
   - [x] дрен ресурсов (см. ниже)
@@ -181,12 +192,12 @@
 ---
 
 ## DoD (готово, если)
-- [ ] На return появляется преследователь, который в среднем догоняет при медленной езде
-- [ ] Буст заметно отталкивает преследователя
-- [ ] При `distance <= strike_begin_dist_s` укус срабатывает по кулдауну
-- [ ] Укус вызывает: shake + FX + popups `-SCRAP/-FUEL/-HP`
-- [ ] Дрен чередуется `SCRAP/HP` ↔ `FUEL`
-- [ ] При нуле hp/fuel происходит fail → гараж со штрафом (потеря добычи)
+- [x] На return появляется преследователь, который в среднем догоняет при медленной езде
+- [x] Буст заметно отталкивает преследователя
+- [x] При `distance <= max(strike_begin_dist_s, follow_gap_s)` укус срабатывает по кулдауну
+- [x] Укус вызывает: shake + FX + popups `-SCRAP/-FUEL/-HP`
+- [x] Дрен чередуется `SCRAP/HP` ↔ `FUEL`
+- [x] При нуле hp/fuel происходит fail → гараж со штрафом (потеря добычи)
 
 ---
 
