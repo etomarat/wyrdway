@@ -154,10 +154,10 @@ class DriveTopdownRenderer:
 
         # Стартовый дым/пыль рисуем ВЫШЕ skid marks, но НИЖЕ кузова.
         self._fx_overlay.draw_under_car()
-        # Преследователь рисуем поверх дыма от колёс, но под машиной игрока.
-        self._draw_pursuer_world(road, proj, pose, pursuer_state, pursuer_s, strike_flash)
         self._draw_car_ttri(pose)
         self._fx_overlay.draw_over_car()
+        # Преследователь рисуем ПОСЛЕ машины, чтобы он всегда был поверх кузова.
+        self._draw_pursuer_world(road, proj, pose, pursuer_state, pursuer_s, strike_flash)
 
         if TUNING.DRIVE.debug_vectors_enabled:
             self._debug_draw.draw_vectors(logic, proj, center_x, center_y)

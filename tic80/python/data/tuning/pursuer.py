@@ -23,7 +23,7 @@ TUNING.PURSUER.enabled = True
 # Grace заканчивается, когда сработал ЛЮБОЙ порог:
 # - проехали grace_meters
 # - или прошло grace_seconds_cap
-TUNING.PURSUER.grace_meters = 40.0
+TUNING.PURSUER.grace_meters = 20.0
 TUNING.PURSUER.grace_seconds_cap = 4.0
 
 # Базовое отставание преследователя от машины в момент старта погони.
@@ -44,9 +44,9 @@ TUNING.PURSUER.start_gap_s = 150.0
 # - base_speed — "крейсерская" скорость погони;
 # - slow_catchup — добавка, насколько сильнее догоняет при медленной езде игрока;
 # - offroad_catchup — дополнительная прибавка, если игрок ушёл в оффроад.
-TUNING.PURSUER.base_speed = 88.0
-TUNING.PURSUER.slow_catchup = 24.0
-TUNING.PURSUER.offroad_catchup = 8.0
+TUNING.PURSUER.base_speed = 100.0
+TUNING.PURSUER.slow_catchup = 0.0
+TUNING.PURSUER.offroad_catchup = 0.0
 
 # Пороги состояний:
 # - FAR:   d > show_dist_s
@@ -56,23 +56,16 @@ TUNING.PURSUER.offroad_catchup = 8.0
 # Бар HUD строится по диапазону [near..show], поэтому увеличение show делает
 # нарастание более "плавным" и заметным заранее.
 TUNING.PURSUER.show_dist_s = 210.0
-TUNING.PURSUER.near_dist_s = 70.0
+TUNING.PURSUER.near_dist_s = 10.0
 
 # Strike:
 # - cooldown между укусами
 # - сколько ресурсов снимаем за удар
-# - окно вокруг центра дороги для детектора "пересёк ось"
 TUNING.PURSUER.strike_cooldown_sec = 1.35
 TUNING.PURSUER.strike_drain_amount = 2
-TUNING.PURSUER.center_window_d = 6.0
-# Защита от ложных укусов: пересечение центра считаем валидным только если
-# хотя бы одна из точек (prev/curr) вышла на заметную амплитуду по |road_d|.
-TUNING.PURSUER.center_cross_min_abs_d = 0.4
-
-# Если True: в NEAR после latch укус может сработать просто по cooldown
-# (без обязательного пересечения центра). Нужен как "страховка", чтобы укус
-# не пропадал на прямой или при ровной езде.
-TUNING.PURSUER.strike_auto_when_latched = True
+# Дистанция, с которой укус разрешён. Должна быть заметно меньше near_dist_s,
+# чтобы не было урона "издали", когда преследователь ещё вне кадра.
+TUNING.PURSUER.strike_begin_dist_s = 20.0
 
 # Минимальная скорость машины для срабатывания укуса.
 # 0 = укусы возможны даже при почти нулевой скорости (более агрессивная погоня).
@@ -91,12 +84,12 @@ TUNING.PURSUER.strike_min_speed = 0.0
 #
 # То есть преследователь не обгоняет, но игрок может "вывозить" дистанцию
 # длительной быстрой и ровной ездой.
-TUNING.PURSUER.follow_gap_s = 16.0
+TUNING.PURSUER.follow_gap_s = 4.0
 # Порог выхода из latch: если дистанция выросла выше этого значения, считаем,
 # что игрок оторвался и возвращаемся в обычный режим догонялки.
-TUNING.PURSUER.latch_release_dist_s = 95.0
-TUNING.PURSUER.latched_follow_speed_mult = 0.84
-TUNING.PURSUER.latched_follow_speed_add = 4.0
+TUNING.PURSUER.latch_release_dist_s = 20.0
+TUNING.PURSUER.latched_follow_speed_mult = 0.95
+TUNING.PURSUER.latched_follow_speed_add = 3.0
 
 # Насколько дорожный бустер отталкивает преследователя назад по s.
 TUNING.PURSUER.boost_pushback_s = 22.0

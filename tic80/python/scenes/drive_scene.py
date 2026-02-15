@@ -96,7 +96,7 @@ class DriveScene:
         self._start_car_hp = run.car_hp
         self._start_car_fuel = run.car_fuel
         if self._mode == "extract" and not self._state.playtest_enabled and self._logic is not None:
-            self._pursuer.start_return(self._logic.road_s, self._logic.road_d)
+            self._pursuer.start_return(self._logic.road_s)
         else:
             self._pursuer.disable()
 
