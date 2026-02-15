@@ -300,6 +300,13 @@ class PursuerChase:
         dist = car_s - self._pursuer_s
         if dist < 0.0:
             dist = 0.0
+        contact_offset = float(TUNING.PURSUER.contact_offset_s)
+        if contact_offset < 0.0:
+            contact_offset = 0.0
+        if contact_offset > 0.0:
+            dist -= contact_offset
+            if dist < 0.0:
+                dist = 0.0
         if not self._latched and dist <= near:
             self._latched = True
         elif self._latched:

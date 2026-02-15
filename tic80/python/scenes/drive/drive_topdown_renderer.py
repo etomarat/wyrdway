@@ -233,7 +233,13 @@ class DriveTopdownRenderer:
             ^ int(draw_s * 17.0)
             ^ int(self._pursuer_anim_t * 1000.0)
         ) & 0xFFFFFFFF
-        self._draw_pursuer_glitch_body(px, py, pursuer_state, seed_base)
+        half_w = road.width_at(draw_s) * 0.5
+        rx, ry = proj.world_to_screen(
+            cx + right_x * half_w,
+            cy + right_y * half_w
+        )
+        road_half_px = ((rx - sx) * (rx - sx) + (ry - sy) * (ry - sy)) ** 0.5
+        self._draw_pursuer_glitch_body(px, py, pursuer_state, seed_base, road_half_px)
 
         car_x, car_y = pose.screen_center()
         if strike_flash > 0.0:
@@ -275,26 +281,37 @@ class DriveTopdownRenderer:
         px: int,
         py: int,
         pursuer_state: str,
-        seed_base: int
+        seed_base: int,
+        road_half_px: float
     ) -> None:
-        r = 5
+        r = int(TUNING.PURSUER.body_radius_chase)
         if pursuer_state == "NEAR":
-            r = 7
+            r = int(TUNING.PURSUER.body_radius_near)
+        min_by_road = int(road_half_px * 1.08)
+        if min_by_road > r:
+            r = min_by_road
+        if r < 3:
+            r = 3
 
-        # RGB/glitch split: несколько слоёв с микросдвигом.
-        circ(px - 1, py, r, Color.CYAN)
-        circ(px + 1, py, r, Color.BLUE)
-        core_r = r - 2
+        # Единое "ядро" без дублирования формы.
+        core_color = Color.DARK_BLUE
+        if pursuer_state == "NEAR":
+            core_color = Color.BLUE
+        circ(px, py, r, core_color)
+        core_r = r - 4
         if core_r < 2:
             core_r = 2
-        circ(px, py, core_r, Color.WHITE)
+        circ(px, py, core_r, Color.CYAN)
         circb(px, py, r + 1, Color.LIGHT_BLUE)
+        # RGB split как контуры, а не как второй "клон" тела.
+        circb(px - 1, py, r, Color.CYAN)
+        circb(px + 1, py, r, Color.BLUE)
 
         # Рваные "сканлайны" поверх ядра.
         seed = seed_base
-        lines_n = 7
+        lines_n = 7 + int(r * 0.55)
         if pursuer_state == "NEAR":
-            lines_n = 11
+            lines_n += int(r * 0.35)
         i = 0
         while i < lines_n:
             seed = self._lcg(seed)
@@ -307,7 +324,10 @@ class DriveTopdownRenderer:
             if half < 1:
                 half = 1
             seed = self._lcg(seed)
-            x_off = int(seed % 5) - 2
+            x_jit = int(r * 0.22)
+            if x_jit < 2:
+                x_jit = 2
+            x_off = int(seed % (x_jit * 2 + 1)) - x_jit
             color = Color.CYAN
             if (seed & 1) == 0:
                 color = Color.LIGHT_BLUE
@@ -326,13 +346,19 @@ class DriveTopdownRenderer:
         if pursuer_state != "NEAR":
             return
         seed = self._lcg(seed)
-        shards = 2
+        shards = 2 + int(r * 0.22)
+        spread_x = int(r * 2.1)
+        spread_y = int(r * 1.2)
+        if spread_x < 14:
+            spread_x = 14
+        if spread_y < 10:
+            spread_y = 10
         j = 0
         while j < shards:
             seed = self._lcg(seed)
-            sx = px + int(seed % 28) - 14
+            sx = px + int(seed % (spread_x * 2 + 1)) - spread_x
             seed = self._lcg(seed)
-            sy = py + int(seed % 20) - 10
+            sy = py + int(seed % (spread_y * 2 + 1)) - spread_y
             seed = self._lcg(seed)
             txt = self._code_shard_text(int(seed % 6))
             color = Color.LIGHT_BLUE

@@ -57,6 +57,9 @@ TUNING.PURSUER.offroad_catchup = 0.0
 # нарастание более "плавным" и заметным заранее.
 TUNING.PURSUER.show_dist_s = 240.0
 TUNING.PURSUER.near_dist_s = 16.0
+# Смещение "контакта" относительно центра преследователя.
+# >0 делает так, что догон/укус считаются раньше (полезно для большого визуального тела).
+TUNING.PURSUER.contact_offset_s = 24.0
 
 # Strike:
 # - cooldown между укусами
@@ -94,6 +97,10 @@ TUNING.PURSUER.latched_follow_speed_add = 3.0
 # Насколько дорожный бустер отталкивает преследователя назад по s.
 TUNING.PURSUER.boost_pushback_s = 22.0
 
+# Размер glitch-сущности.
+TUNING.PURSUER.body_radius_chase = 9.0
+TUNING.PURSUER.body_radius_near = 13.0
+
 # Визуальные множители.
 # strike_shake_intensity прокидывается как "impact" в общий shake-hit канал.
 # Важно: в shake используется квадратичная кривая trauma^2, поэтому маленькие
@@ -107,4 +114,7 @@ TUNING.PURSUER.contact_noise_mult = 10
 # Краткий буст шума именно в момент укуса (пока живёт strike_flash).
 # 0.0 = выключено, 1.0 = +100% к текущему уровню шума.
 TUNING.PURSUER.strike_noise_boost = 20
+# Насколько сильно "ломаем" картинку всего экрана во время укуса.
+# 0.0 = выключено, 1.0 = базовый эффект, >1.0 = более агрессивный.
+TUNING.PURSUER.strike_meltdown_intensity = 1.0
 TUNING.PURSUER.strike_flash_seconds = 0.22

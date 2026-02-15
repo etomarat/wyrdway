@@ -422,6 +422,7 @@ class PursuerTuning:
         "offroad_catchup",
         "show_dist_s",
         "near_dist_s",
+        "contact_offset_s",
         "strike_cooldown_sec",
         "strike_drain_amount",
         "strike_begin_dist_s",
@@ -431,11 +432,14 @@ class PursuerTuning:
         "latched_follow_speed_mult",
         "latched_follow_speed_add",
         "boost_pushback_s",
+        "body_radius_chase",
+        "body_radius_near",
         "strike_shake_intensity",
         "near_vignette",
         "near_noise",
         "contact_noise_mult",
         "strike_noise_boost",
+        "strike_meltdown_intensity",
         "strike_flash_seconds"
     )
 
@@ -449,6 +453,7 @@ class PursuerTuning:
         self.offroad_catchup = 0.0
         self.show_dist_s = 0.0
         self.near_dist_s = 0.0
+        self.contact_offset_s = 0.0
         self.strike_cooldown_sec = 0.0
         self.strike_drain_amount = 0
         self.strike_begin_dist_s = 0.0
@@ -458,11 +463,14 @@ class PursuerTuning:
         self.latched_follow_speed_mult = 0.0
         self.latched_follow_speed_add = 0.0
         self.boost_pushback_s = 0.0
+        self.body_radius_chase = 0.0
+        self.body_radius_near = 0.0
         self.strike_shake_intensity = 0.0
         self.near_vignette = 0.0
         self.near_noise = 0.0
         self.contact_noise_mult = 0.0
         self.strike_noise_boost = 0.0
+        self.strike_meltdown_intensity = 0.0
         self.strike_flash_seconds = 0.0
 
 

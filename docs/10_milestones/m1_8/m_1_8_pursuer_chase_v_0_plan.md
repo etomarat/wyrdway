@@ -160,6 +160,24 @@
 - [x] Debug overlay: `d`, `pursuer_speed`, state, cooldown, phase
 - [ ] Хоткеи: toggle pursuer, force NEAR, force STRIKE
 
+### 8) Visual Polish (pending approval)
+- [x] Увеличить визуальный размер преследователя (быстрый шаг):
+  - [x] Поднять базовый радиус в CHASE
+  - [x] Поднять радиус в NEAR (вплоть до визуально "почти ширины дороги")
+  - [ ] Проверить читаемость машины под оверлеем преследователя
+- [x] Разделить шум по состояниям:
+  - [x] До догона (`FAR/CHASE`) шум делать монохромным (white/light_grey/dark_grey), как статика
+  - [x] После догона (`NEAR + latched`) переключать шум в цветной "digital glitch" (cyan/blue/purple)
+  - [x] Сохранить текущие множители интенсивности (`near_noise`, `contact_noise_mult`, `strike_noise_boost`)
+- [x] Добавить экранный "meltdown" в момент укуса:
+  - [x] Кратковременный global-break эффект на время `strike_flash`
+  - [x] Бюджетные эффекты: scanline shear + line dropouts + channel split
+  - [x] Эффект должен быстро затухать и не ломать читаемость HUD
+- [ ] Прогон плейтеста и тюнинг:
+  - [ ] Проверить FPS/читаемость на длинной сессии
+  - [ ] Подкрутить интенсивность для CHASE/NEAR/STRIKE отдельно
+  - [ ] Зафиксировать финальные значения в `data/tuning/pursuer.py`
+
 ---
 
 ## DoD (готово, если)
