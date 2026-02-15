@@ -204,15 +204,15 @@ class DrivePresetScene:
         y = 44
         for i, preset in enumerate(self._presets):
             marker = ">" if i == self._selected else " "
-            print(marker + " " + preset.label, 50, y, Color.WHITE)
+            print(marker + " " + preset.label, 52, y, Color.WHITE)
             y += 10
-        print("ARROWS: SELECT", 60, 112, Color.LIGHT_GREY)
+        print("ARROWS: SELECT", 52, 106, Color.LIGHT_GREY)
         if self._state.playtest_enabled:
-            print("A (Z): START DRIVE", 56, 114, Color.LIGHT_GREY)
-            print("B (X): CHASE TEST", 56, 122, Color.LIGHT_GREY)
+            print("Z (A): START DRIVE", 52, 114, Color.LIGHT_GREY)
+            print("X (B): CHASE TEST", 52, 122, Color.LIGHT_GREY)
             return
-        print("A (Z): CONTINUE", 64, 114, Color.LIGHT_GREY)
-        print("B (X): CHASE TEST", 56, 122, Color.LIGHT_GREY)
+        print("Z (A): CONTINUE", 52, 114, Color.LIGHT_GREY)
+        print("X (B): CHASE TEST", 52, 122, Color.LIGHT_GREY)
 
     def exit(self) -> None:
         pass

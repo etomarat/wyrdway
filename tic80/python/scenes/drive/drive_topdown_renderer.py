@@ -2,7 +2,7 @@ import math
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from tic80 import circ, circb, line, ttri
+    from tic80 import circ, circb, line, print, ttri
 
     from ...core.palette import Color
     from ...data.tuning import TUNING
@@ -228,20 +228,159 @@ class DriveTopdownRenderer:
         px = int(self._pursuer_screen_x)
         py = int(self._pursuer_screen_y)
 
-        body_color = Color.PURPLE
-        ring_color = Color.BLUE
+        seed_base = (
+            road.seed
+            ^ int(draw_s * 17.0)
+            ^ int(self._pursuer_anim_t * 1000.0)
+        ) & 0xFFFFFFFF
+        self._draw_pursuer_glitch_body(px, py, pursuer_state, seed_base)
+
+        car_x, car_y = pose.screen_center()
+        if strike_flash > 0.0:
+            flash_dur = float(TUNING.PURSUER.strike_flash_seconds)
+            flash_n = 1.0
+            if flash_dur > 0.0001:
+                flash_n = strike_flash / flash_dur
+            if flash_n < 0.0:
+                flash_n = 0.0
+            if flash_n > 1.0:
+                flash_n = 1.0
+            self._draw_pursuer_strike_lightning(
+                px,
+                py,
+                int(car_x),
+                int(car_y),
+                flash_n,
+                seed_base ^ 0x9E3779B9
+            )
+
+    def _lcg(self, seed: int) -> int:
+        return ((seed * 1664525) + 1013904223) & 0xFFFFFFFF
+
+    def _code_shard_text(self, idx: int) -> str:
+        if idx == 0:
+            return "def"
+        if idx == 1:
+            return "0x"
+        if idx == 2:
+            return "ret"
+        if idx == 3:
+            return "NULL"
+        if idx == 4:
+            return "mem"
+        return "xor"
+
+    def _draw_pursuer_glitch_body(
+        self,
+        px: int,
+        py: int,
+        pursuer_state: str,
+        seed_base: int
+    ) -> None:
         r = 5
         if pursuer_state == "NEAR":
-            body_color = Color.RED
-            ring_color = Color.ORANGE
             r = 7
-        circ(px, py, r, body_color)
-        circb(px, py, r + 1, ring_color)
 
-        if strike_flash > 0.0:
-            car_x, car_y = pose.screen_center()
-            line(px, py, int(car_x), int(car_y), Color.WHITE)
-            line(px + 1, py, int(car_x), int(car_y), Color.RED)
+        # RGB/glitch split: несколько слоёв с микросдвигом.
+        circ(px - 1, py, r, Color.CYAN)
+        circ(px + 1, py, r, Color.BLUE)
+        core_r = r - 2
+        if core_r < 2:
+            core_r = 2
+        circ(px, py, core_r, Color.WHITE)
+        circb(px, py, r + 1, Color.LIGHT_BLUE)
+
+        # Рваные "сканлайны" поверх ядра.
+        seed = seed_base
+        lines_n = 7
+        if pursuer_state == "NEAR":
+            lines_n = 11
+        i = 0
+        while i < lines_n:
+            seed = self._lcg(seed)
+            if pursuer_state != "NEAR" and (seed & 3) == 0:
+                i += 1
+                continue
+            y_off = int(seed % (r * 2 + 3)) - (r + 1)
+            seed = self._lcg(seed)
+            half = r - int(abs(y_off) * 0.4) + int(seed & 1)
+            if half < 1:
+                half = 1
+            seed = self._lcg(seed)
+            x_off = int(seed % 5) - 2
+            color = Color.CYAN
+            if (seed & 1) == 0:
+                color = Color.LIGHT_BLUE
+            if (seed & 7) == 0:
+                color = Color.WHITE
+            line(
+                px - half + x_off,
+                py + y_off,
+                px + half + x_off,
+                py + y_off,
+                color
+            )
+            i += 1
+
+        # "Осколки кода" вокруг сущности — только в NEAR, чтобы не засорять экран.
+        if pursuer_state != "NEAR":
+            return
+        seed = self._lcg(seed)
+        shards = 2
+        j = 0
+        while j < shards:
+            seed = self._lcg(seed)
+            sx = px + int(seed % 28) - 14
+            seed = self._lcg(seed)
+            sy = py + int(seed % 20) - 10
+            seed = self._lcg(seed)
+            txt = self._code_shard_text(int(seed % 6))
+            color = Color.LIGHT_BLUE
+            if (seed & 1) != 0:
+                color = Color.CYAN
+            print(txt, sx, sy, color)
+            j += 1
+
+    def _draw_pursuer_strike_lightning(
+        self,
+        px: int,
+        py: int,
+        tx: int,
+        ty: int,
+        flash_n: float,
+        seed_base: int
+    ) -> None:
+        dx = float(tx - px)
+        dy = float(ty - py)
+        d2 = dx * dx + dy * dy
+        if d2 <= 0.0001:
+            return
+        inv = 1.0 / (d2 ** 0.5)
+        nx = -dy * inv
+        ny = dx * inv
+
+        seed = seed_base
+        segs = 7
+        prev_x = float(px)
+        prev_y = float(py)
+        i = 1
+        while i <= segs:
+            t = float(i) / float(segs)
+            x = float(px) + dx * t
+            y = float(py) + dy * t
+            if i < segs:
+                seed = self._lcg(seed)
+                jitter = ((float(seed & 255) / 255.0) * 2.0 - 1.0)
+                amp = 2.0 + 7.0 * flash_n
+                x += nx * jitter * amp
+                y += ny * jitter * amp
+            line(int(prev_x), int(prev_y), int(x), int(y), Color.CYAN)
+            line(int(prev_x) + 1, int(prev_y), int(x) + 1, int(y), Color.BLUE)
+            if flash_n > 0.55:
+                line(int(prev_x), int(prev_y) + 1, int(x), int(y) + 1, Color.WHITE)
+            prev_x = x
+            prev_y = y
+            i += 1
 
     def _camera_forward(self, logic: DriveLogic) -> tuple[float, float]:
         heading_x = logic.fwd_x
