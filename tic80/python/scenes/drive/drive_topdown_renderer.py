@@ -33,9 +33,9 @@ class DriveTopdownRenderer:
     _CAR_SRC_Y0 = 0.0
     _CAR_SRC_X1 = 24.0
     _CAR_SRC_Y1 = 32.0
-    # Костыль, чтобы не переписывать остальные цифры из TUNING. Раньше у спрайта было смещение слева
-    # и все цифры подогнаны под это
-    _CAR_DRAW_OFFSET_X = 8.0
+    # Internal compensation for atlas repack: old 32x32 sprite had 8px empty left column.
+    # Not gameplay tuning; keeps existing anchor-aligned geometry unchanged.
+    _CAR_SOURCE_REPACK_SHIFT_X = 8.0
     def __init__(self) -> None:
         self._road_draw = TopdownRoadDraw()
         self._obstacles_draw = TopdownObstaclesDraw()
@@ -547,10 +547,11 @@ class DriveTopdownRenderer:
         sy0 = self._CAR_SRC_Y0
         sx1 = self._CAR_SRC_X1
         sy1 = self._CAR_SRC_Y1
-        rx0, ry0 = pose.sprite_px_to_screen(sx0, sy0, self._CAR_DRAW_OFFSET_X)
-        rx1, ry1 = pose.sprite_px_to_screen(sx1, sy0, self._CAR_DRAW_OFFSET_X)
-        rx2, ry2 = pose.sprite_px_to_screen(sx1, sy1, self._CAR_DRAW_OFFSET_X)
-        rx3, ry3 = pose.sprite_px_to_screen(sx0, sy1, self._CAR_DRAW_OFFSET_X)
+        src_shift_x = self._CAR_SOURCE_REPACK_SHIFT_X
+        rx0, ry0 = pose.sprite_px_to_screen(sx0 + src_shift_x, sy0)
+        rx1, ry1 = pose.sprite_px_to_screen(sx1 + src_shift_x, sy0)
+        rx2, ry2 = pose.sprite_px_to_screen(sx1 + src_shift_x, sy1)
+        rx3, ry3 = pose.sprite_px_to_screen(sx0 + src_shift_x, sy1)
 
         base_u = float((self._CAR_SPRITE_BASE_ID % 16) * 8)
         base_v = float((self._CAR_SPRITE_BASE_ID // 16) * 8)

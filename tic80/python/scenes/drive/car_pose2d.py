@@ -71,23 +71,21 @@ class CarPose2D:
     def local_from_sprite_px(
         self,
         sprite_x: float,
-        sprite_y: float,
-        draw_offset_x: float = 0.0
+        sprite_y: float
     ) -> tuple[float, float]:
         """Converts sprite pixel coords to local coords against current anchor."""
         anchor_x = float(TUNING.DRIVE.car_sprite_anchor_x)
         anchor_y = float(TUNING.DRIVE.car_sprite_anchor_y)
-        local_x = sprite_x - anchor_x + draw_offset_x
+        local_x = sprite_x - anchor_x
         local_back = sprite_y - anchor_y
         return local_x, local_back
 
     def sprite_px_to_screen(
         self,
         sprite_x: float,
-        sprite_y: float,
-        draw_offset_x: float = 0.0
+        sprite_y: float
     ) -> tuple[float, float]:
-        local_x, local_back = self.local_from_sprite_px(sprite_x, sprite_y, draw_offset_x)
+        local_x, local_back = self.local_from_sprite_px(sprite_x, sprite_y)
         return self.local_to_screen(local_x, local_back)
 
     @staticmethod
