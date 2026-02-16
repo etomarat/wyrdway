@@ -206,7 +206,7 @@ class TopdownFxOverlay:
             return
 
         d = TUNING.DRIVE
-        wheel_dx, back = pose.local_from_legacy_center(
+        wheel_dx, back = pose.local_from_center_reference(
             float(d.fx_dust_wheel_dx_px),
             float(d.fx_dust_back_px)
         )
@@ -264,7 +264,7 @@ class TopdownFxOverlay:
         if s > 1.0:
             s = 1.0
 
-        base_x, base_back = pose.local_from_legacy_center(
+        base_x, base_back = pose.local_from_center_reference(
             float(d.fx_exhaust_dx_px),
             float(d.fx_exhaust_dy_px)
         )
@@ -392,7 +392,7 @@ class TopdownFxOverlay:
         if life > 26:
             life = 26
 
-        wheel_dx, back = pose.local_from_legacy_center(
+        wheel_dx, back = pose.local_from_center_reference(
             float(d.fx_transition_sparks_wheel_dx_px),
             float(d.fx_transition_sparks_back_px)
         )
