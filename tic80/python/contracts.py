@@ -514,10 +514,13 @@ class ResultEnterParams:
         return self._text
 
 
+SceneEnterParams = DriveEnterParams | ResultEnterParams | None
+
+
 class Scene(Protocol):
     """Контракт сцены в режиме Replace: одна активная сцена за кадр."""
 
-    def enter(self, params: object | None = None) -> None: ...
+    def enter(self, params: SceneEnterParams = None) -> None: ...
 
     def update(self, dt: float) -> None: ...
 
@@ -546,7 +549,7 @@ class SceneNavigator(Protocol):
     @overload
     def go(self, scene_id: SceneKeyNoParams, params: None = None) -> None: ...
 
-    def go(self, scene_id: str, params: object | None = None) -> None: ...
+    def go(self, scene_id: str, params: SceneEnterParams = None) -> None: ...
 
 
 SceneFactory = Callable[[SceneNavigator], Scene]

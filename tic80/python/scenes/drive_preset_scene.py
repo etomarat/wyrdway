@@ -3,14 +3,14 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from tic80 import btnp, cls, print, trace
 
-    from ..contracts import DriveEnterParams, SceneNavigator
+    from ..contracts import DriveEnterParams, DriveTuning, SceneEnterParams, SceneNavigator
     from ..core.input_buttons import Button
     from ..core.palette import Color
     from ..core.scene_ids import SceneId
     from ..data.tuning import TUNING
 
 
-DRIVE_PHYSICS_FIELDS = [
+DRIVE_PHYSICS_FIELDS: list[str] = [
     "slip_eps_speed",
     "max_speed",
     "speed_cap",
@@ -53,12 +53,12 @@ DRIVE_PHYSICS_FIELDS = [
 
 
 class DrivePhysicsSnapshot:
-    def __init__(self, drive) -> None:
-        self._values = []
+    def __init__(self, drive: DriveTuning) -> None:
+        self._values: list[tuple[str, float]] = []
         for name in DRIVE_PHYSICS_FIELDS:
             self._values.append((name, getattr(drive, name)))
 
-    def apply(self, drive) -> None:
+    def apply(self, drive: DriveTuning) -> None:
         for name, value in self._values:
             setattr(drive, name, value)
 
@@ -69,12 +69,12 @@ class DrivePhysicsPreset:
         self.label = label
         self.overrides = overrides
 
-    def apply(self, drive, baseline: DrivePhysicsSnapshot) -> None:
+    def apply(self, drive: DriveTuning, baseline: DrivePhysicsSnapshot) -> None:
         baseline.apply(drive)
         for name, value in self.overrides:
             setattr(drive, name, value)
 
-    def diff_lines(self, baseline: DrivePhysicsSnapshot, drive) -> list[str]:
+    def diff_lines(self, baseline: DrivePhysicsSnapshot, drive: DriveTuning) -> list[str]:
         base = baseline._values
         diffs: list[str] = []
         for name, base_value in base:
@@ -149,7 +149,7 @@ class DrivePresetScene:
             )
         ]
 
-    def enter(self, params: object | None = None) -> None:
+    def enter(self, params: SceneEnterParams = None) -> None:
         self._state.end_run()
         self._baseline = DrivePhysicsSnapshot(TUNING.DRIVE)
         self._selected = 0
@@ -218,5 +218,5 @@ class DrivePresetScene:
         pass
 
 
-def make_drive_preset_scene(nav: SceneNavigator) -> "DrivePresetScene":
+def make_drive_preset_scene(nav: SceneNavigator) -> DrivePresetScene:
     return DrivePresetScene(nav)

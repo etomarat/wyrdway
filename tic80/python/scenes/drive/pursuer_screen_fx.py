@@ -6,13 +6,11 @@ if TYPE_CHECKING:
 
     from ...core.palette import Color
     from ...data.tuning import TUNING
-    from ...systems.drive.drive_logic_core import DriveLogic
-    from ...systems.drive.pursuer_chase import PursuerChase
     from ...systems.drive.rng import lcg_next_u32
 
 
 class PursuerScreenFx:
-    def draw(self, logic: "DriveLogic", pursuer: "PursuerChase", fx_time: float) -> None:
+    def draw(self, logic, pursuer, fx_time: float) -> None:
         intensity = pursuer.near_intensity()
         if intensity <= 0.0:
             return

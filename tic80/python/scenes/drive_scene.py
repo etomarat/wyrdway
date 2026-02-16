@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Literal
 if TYPE_CHECKING:
     from tic80 import cls, keyp, print
 
-    from ..contracts import DriveEnterParams, ResultEnterParams, SceneNavigator
+    from ..contracts import DriveEnterParams, ResultEnterParams, SceneEnterParams, SceneNavigator
     from ..core.palette import Color
     from ..core.run_state import RunState
     from ..core.scene_ids import SceneId
@@ -56,7 +56,7 @@ class DriveScene:
         self._popups: list[_DrivePopup] = []
         self._pursuer_fx_time = 0.0
 
-    def enter(self, params: object | None = None) -> None:
+    def enter(self, params: SceneEnterParams = None) -> None:
         if not isinstance(params, DriveEnterParams):
             raise TypeError("DriveScene.enter expects DriveEnterParams")
         self._mode = params.mode

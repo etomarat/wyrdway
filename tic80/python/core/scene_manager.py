@@ -7,6 +7,7 @@ if TYPE_CHECKING:
         DriveEnterParams,
         ResultEnterParams,
         Scene,
+        SceneEnterParams,
         SceneFactory,
         SceneKeyDrive,
         SceneKeyNoParams,
@@ -40,7 +41,7 @@ class SceneManager(SceneNavigator):
     @overload
     def go(self, scene_id: SceneKeyNoParams, params: None = None) -> None: ...
 
-    def go(self, scene_id: str, params: object | None = None) -> None:
+    def go(self, scene_id: str, params: SceneEnterParams = None) -> None:
         if scene_id not in self._scenes:
             return
 

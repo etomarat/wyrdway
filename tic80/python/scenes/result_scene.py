@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from tic80 import btnp, cls, print
 
-    from ..contracts import DriveEnterParams, ResultEnterParams, SceneNavigator
+    from ..contracts import DriveEnterParams, ResultEnterParams, SceneEnterParams, SceneNavigator
     from ..core.input_buttons import Button
     from ..core.palette import Color
     from ..core.scene_ids import SceneId
@@ -17,7 +17,7 @@ class ResultScene:
         self._state = nav.state
         self._lines: list[str] = ["RESULT: OK"]
 
-    def enter(self, params: object | None = None) -> None:
+    def enter(self, params: SceneEnterParams = None) -> None:
         fallback = None
         if params is not None:
             if not isinstance(params, ResultEnterParams):
@@ -116,5 +116,5 @@ class ResultScene:
         pass
 
 
-def make_result_scene(nav: SceneNavigator) -> "ResultScene":
+def make_result_scene(nav: SceneNavigator) -> ResultScene:
     return ResultScene(nav)

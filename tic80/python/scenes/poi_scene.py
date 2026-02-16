@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from tic80 import btnp, cls, print
 
-    from ..contracts import DriveEnterParams, ResultEnterParams, SceneNavigator
+    from ..contracts import DriveEnterParams, ResultEnterParams, SceneEnterParams, SceneNavigator
     from ..core.input_buttons import Button
     from ..core.palette import Color
     from ..core.run_state import EscapeOutcome, PoiAction
@@ -14,12 +14,12 @@ if TYPE_CHECKING:
 class PoiScene:
     SCENE_ID = SceneId.POI
 
-    def __init__(self, nav: "SceneNavigator") -> None:
+    def __init__(self, nav: SceneNavigator) -> None:
         self._nav = nav
         self._state = nav.state
         self.timer = TUNING.POI.timer_seconds
 
-    def enter(self, params: object | None = None) -> None:
+    def enter(self, params: SceneEnterParams = None) -> None:
         self.timer = TUNING.POI.timer_seconds
 
     def _poi_type_label(self, poi_type: str) -> str:
@@ -91,5 +91,5 @@ class PoiScene:
         pass
 
 
-def make_poi_scene(nav: "SceneNavigator") -> "PoiScene":
+def make_poi_scene(nav: SceneNavigator) -> PoiScene:
     return PoiScene(nav)

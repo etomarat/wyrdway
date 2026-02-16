@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from tic80 import btnp, cls, print
 
-    from ..contracts import SceneNavigator
+    from ..contracts import SceneEnterParams, SceneNavigator
     from ..core.input_buttons import Button
     from ..core.palette import Color
     from ..core.scene_ids import SceneId
@@ -19,7 +19,7 @@ class GarageScene:
         self._profile = nav.state.profile
         self._can_restart = False
 
-    def enter(self, params: object | None = None) -> None:
+    def enter(self, params: SceneEnterParams = None) -> None:
         pass
 
     def update(self, dt: float) -> None:
@@ -61,5 +61,5 @@ class GarageScene:
         pass
 
 
-def make_garage_scene(nav: SceneNavigator) -> "GarageScene":
+def make_garage_scene(nav: SceneNavigator) -> GarageScene:
     return GarageScene(nav)

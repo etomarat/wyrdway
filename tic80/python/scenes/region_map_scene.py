@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from tic80 import btnp, cls, print
 
-    from ..contracts import DriveEnterParams, SceneNavigator
+    from ..contracts import DriveEnterParams, SceneEnterParams, SceneNavigator
     from ..core.input_buttons import Button
     from ..core.palette import Color
     from ..core.run_state import RunState
@@ -14,13 +14,13 @@ if TYPE_CHECKING:
 class RegionMapScene:
     SCENE_ID = SceneId.REGION_MAP
 
-    def __init__(self, nav: "SceneNavigator") -> None:
+    def __init__(self, nav: SceneNavigator) -> None:
         self._nav = nav
         self._state = nav.state
         self.selected_node = 1
         self.node_count = 5
 
-    def enter(self, params: object | None = None) -> None:
+    def enter(self, params: SceneEnterParams = None) -> None:
         run = self._state.run
         if run is not None and run.node_id is not None:
             self.selected_node = run.node_id
@@ -120,5 +120,5 @@ class RegionMapScene:
         pass
 
 
-def make_region_map_scene(nav: "SceneNavigator") -> "RegionMapScene":
+def make_region_map_scene(nav: SceneNavigator) -> RegionMapScene:
     return RegionMapScene(nav)
