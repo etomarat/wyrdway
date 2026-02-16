@@ -8,6 +8,7 @@ if TYPE_CHECKING:
     from ...data.tuning import TUNING
     from ...systems.drive.drive_fx import TopdownProjector
     from ...systems.drive.drive_logic_core import DriveLogic
+    from ...systems.drive.rng import lcg_next_u32
     from ...systems.drive.drive_objects import DriveObjects, DriveZone
     from ...systems.drive.drive_screen_shake import DriveScreenShake
     from ...systems.drive.road_model import RoadModel
@@ -288,7 +289,7 @@ class DriveTopdownRenderer:
             )
 
     def _lcg(self, seed: int) -> int:
-        return ((seed * 1664525) + 1013904223) & 0xFFFFFFFF
+        return lcg_next_u32(seed)
 
     def _code_shard_text(self, idx: int) -> str:
         if idx == 0:

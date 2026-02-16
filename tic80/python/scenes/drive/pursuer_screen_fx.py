@@ -8,6 +8,7 @@ if TYPE_CHECKING:
     from ...data.tuning import TUNING
     from ...systems.drive.drive_logic_core import DriveLogic
     from ...systems.drive.pursuer_chase import PursuerChase
+    from ...systems.drive.rng import lcg_next_u32
 
 
 class PursuerScreenFx:
@@ -72,9 +73,9 @@ class PursuerScreenFx:
         seed &= 0xFFFFFFFF
         i = 0
         while i < dots:
-            seed = ((seed * 1664525) + 1013904223) & 0xFFFFFFFF
+            seed = self._lcg(seed)
             x = int(seed % 240)
-            seed = ((seed * 1664525) + 1013904223) & 0xFFFFFFFF
+            seed = self._lcg(seed)
             y = int(seed % 136)
             c = Color.DARK_GREY
             if caught:
@@ -107,11 +108,11 @@ class PursuerScreenFx:
         jitter_max = int(1 + strength * 8.0)
         i = 0
         while i < bands:
-            seed = ((seed * 1664525) + 1013904223) & 0xFFFFFFFF
+            seed = self._lcg(seed)
             y = int(seed % 136)
-            seed = ((seed * 1664525) + 1013904223) & 0xFFFFFFFF
+            seed = self._lcg(seed)
             h = 1 + int(seed % 3)
-            seed = ((seed * 1664525) + 1013904223) & 0xFFFFFFFF
+            seed = self._lcg(seed)
             spread = jitter_max * 2 + 1
             shift = int(seed % spread) - jitter_max
             c = Color.CYAN
@@ -131,17 +132,17 @@ class PursuerScreenFx:
         blocks = int(2 + strength * 7.0)
         i = 0
         while i < blocks:
-            seed = ((seed * 1664525) + 1013904223) & 0xFFFFFFFF
+            seed = self._lcg(seed)
             x = int(seed % 220)
-            seed = ((seed * 1664525) + 1013904223) & 0xFFFFFFFF
+            seed = self._lcg(seed)
             y = int(seed % 124)
-            seed = ((seed * 1664525) + 1013904223) & 0xFFFFFFFF
+            seed = self._lcg(seed)
             w = 8 + int(seed % 24)
-            seed = ((seed * 1664525) + 1013904223) & 0xFFFFFFFF
+            seed = self._lcg(seed)
             h = 4 + int(seed % 10)
-            seed = ((seed * 1664525) + 1013904223) & 0xFFFFFFFF
+            seed = self._lcg(seed)
             dx = int(seed % 17) - 8
-            seed = ((seed * 1664525) + 1013904223) & 0xFFFFFFFF
+            seed = self._lcg(seed)
             dy = int(seed % 9) - 4
             self._blit_glitch_block(x, y, w, h, dx, dy)
             if (seed & 3) == 0:
@@ -154,13 +155,13 @@ class PursuerScreenFx:
         holes = int(3 + strength * 10.0)
         i = 0
         while i < holes:
-            seed = ((seed * 1664525) + 1013904223) & 0xFFFFFFFF
+            seed = self._lcg(seed)
             x = int(seed % 224)
-            seed = ((seed * 1664525) + 1013904223) & 0xFFFFFFFF
+            seed = self._lcg(seed)
             y = int(seed % 120)
-            seed = ((seed * 1664525) + 1013904223) & 0xFFFFFFFF
+            seed = self._lcg(seed)
             w = 8 + int(seed % 24)
-            seed = ((seed * 1664525) + 1013904223) & 0xFFFFFFFF
+            seed = self._lcg(seed)
             h = 6 + int(seed % 20)
             yy = y
             while yy < y + h and yy < 136:
@@ -173,6 +174,9 @@ class PursuerScreenFx:
                     xx += 1
                 yy += 1
             i += 1
+
+    def _lcg(self, seed: int) -> int:
+        return lcg_next_u32(seed)
 
     def _shift_scanline(self, y: int, shift: int) -> None:
         if y < 0 or y >= 136:

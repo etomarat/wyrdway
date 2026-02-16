@@ -7,6 +7,7 @@ if TYPE_CHECKING:
     from ...systems.drive.drive_logic_core import DriveLogic
     from ...systems.drive.fx_particles import Particles2D
     from ...systems.drive.road_model import RoadModel
+    from ...systems.drive.rng import lcg_next_u31
     from ...systems.fx.vendor.vand_particles import VandParticles
     from .car_pose2d import CarPose2D
 
@@ -192,7 +193,7 @@ class TopdownFxOverlay:
         self._hit_events = []
 
     def _next_fx_seed(self) -> int:
-        self._fx_seed = (self._fx_seed * 1103515245 + 12345) & 0x7fffffff
+        self._fx_seed = lcg_next_u31(self._fx_seed)
         return self._fx_seed
 
     def _emit_offroad_smoke_vand(
@@ -216,10 +217,8 @@ class TopdownFxOverlay:
 
         i = 0
         while i < n:
-            self._fx_seed = (self._fx_seed * 1103515245 + 12345) & 0x7fffffff
-            r0 = self._fx_seed
-            self._fx_seed = (self._fx_seed * 1103515245 + 12345) & 0x7fffffff
-            r1 = self._fx_seed
+            r0 = self._next_fx_seed()
+            r1 = self._next_fx_seed()
 
             jx = ((r1 % 1000) / 1000.0 - 0.5) * jitter_x
             jy = ((r0 % 1000) / 1000.0) * jitter_y
@@ -280,8 +279,7 @@ class TopdownFxOverlay:
 
         i = 0
         while i < n:
-            self._fx_seed = (self._fx_seed * 1103515245 + 12345) & 0x7fffffff
-            r = self._fx_seed
+            r = self._next_fx_seed()
             t = (r % 1000) / 1000.0
             u = ((r // 1000) % 1000) / 1000.0
 
@@ -487,10 +485,8 @@ class TopdownFxOverlay:
 
         i = 0
         while i < count:
-            self._fx_seed = (self._fx_seed * 1103515245 + 12345) & 0x7fffffff
-            r0 = self._fx_seed
-            self._fx_seed = (self._fx_seed * 1103515245 + 12345) & 0x7fffffff
-            r1 = self._fx_seed
+            r0 = self._next_fx_seed()
+            r1 = self._next_fx_seed()
 
             t = (r0 % 1000) / 1000.0
             u = (r1 % 1000) / 1000.0
