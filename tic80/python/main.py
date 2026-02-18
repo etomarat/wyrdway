@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 IS_DRIVE_PLAYTEST = False
 
 include("core.palette")
-include("contracts")
+include("contracts.__init__")
 include("data.tuning.__init__")
 include("core.debug")
 include("core.input_buttons")
