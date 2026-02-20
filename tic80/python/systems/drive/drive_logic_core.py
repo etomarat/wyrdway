@@ -11,6 +11,31 @@ if TYPE_CHECKING:
         drive_project_world_to_road_near_idx,
         drive_update_road_projection
     )
+    from .drive_logic_utils import (
+        drive_logic_update_dash_cooldown,
+        drive_logic_speed_factor,
+        drive_logic_estimated_vmax
+    )
+    from .drive_logic_controls import (
+        drive_logic_apply_steering,
+        drive_logic_apply_handbrake_steer_boost,
+        drive_logic_apply_dash,
+        drive_logic_apply_longitudinal,
+        drive_logic_apply_handbrake_decel,
+        drive_logic_clamp_v_fwd
+    )
+    from .drive_logic_lateral import (
+        drive_logic_effective_grip,
+        drive_logic_apply_lateral_damping,
+        drive_logic_apply_zone_antislip,
+        drive_logic_apply_side_recovery
+    )
+    from .drive_logic_post_step import (
+        drive_logic_apply_drag,
+        drive_logic_apply_fuel,
+        drive_logic_apply_offroad_damage,
+        drive_logic_apply_zone_boost
+    )
 
 
 class DriveLogic:
@@ -202,11 +227,11 @@ class DriveLogic:
         часть энергии уходит в боковую скорость. Но оценка полезна, чтобы понимать,
         почему при текущих `accel/drag_*` машина стабилизируется примерно на X.
         """
-        return self._estimated_vmax(False)
+        return drive_logic_estimated_vmax(self, False)
 
     def estimated_vmax_offroad(self) -> float:
         """Оценивает "крейсерскую максималку" (плато) на оффроуде."""
-        return self._estimated_vmax(True)
+        return drive_logic_estimated_vmax(self, True)
 
     def _estimated_vmax(self, offroad: bool) -> float:
         """Внутренняя оценка плато скорости при постоянном газе.
@@ -218,38 +243,7 @@ class DriveLogic:
           accel ≈ (drag_lin + drag_quad*v) * v
           => drag_quad*v^2 + drag_lin*v - accel ≈ 0
         """
-        d = self._tuning.DRIVE
-        accel = d.accel
-        if accel <= 0.0:
-            return 0.0
-
-        drag_lin = d.drag_lin
-        drag_quad = d.drag_quad
-        if offroad:
-            drag_lin += d.offroad_drag_lin
-            drag_quad += d.offroad_drag_quad
-
-        speed_cap = d.speed_cap
-
-        v = 0.0
-        if drag_lin <= 0.0 and drag_quad <= 0.0:
-            v = speed_cap if speed_cap > 0.0 else 9999.0
-        elif drag_quad <= 0.0:
-            if drag_lin <= 0.0:
-                v = speed_cap if speed_cap > 0.0 else 9999.0
-            else:
-                v = accel / drag_lin
-        else:
-            disc = drag_lin * drag_lin + 4.0 * drag_quad * accel
-            if disc < 0.0:
-                disc = 0.0
-            v = (-drag_lin + (disc ** 0.5)) / (2.0 * drag_quad)
-
-        if speed_cap > 0.0 and v > speed_cap:
-            v = speed_cap
-        if v < 0.0:
-            v = 0.0
-        return v
+        return drive_logic_estimated_vmax(self, offroad)
 
     @property
     def road_s(self) -> float:
@@ -422,22 +416,12 @@ class DriveLogic:
 
     def _step_update_dash_cooldown(self, dt: float) -> None:
         """Обновляет внутренний таймер кулдауна рывка (dash)."""
-        if self._dash_cd > 0.0:
-            self._dash_cd -= dt
-            if self._dash_cd < 0.0:
-                self._dash_cd = 0.0
+        drive_logic_update_dash_cooldown(self, dt)
 
     @staticmethod
     def _step_speed_factor(speed: float, max_speed: float) -> float:
         """Нормализует скорость в диапазон 0..1 (для тюнинга рулёжки/заноса)."""
-        if max_speed <= 0.0:
-            return 0.0
-        sf = speed / max_speed
-        if sf > 1.0:
-            sf = 1.0
-        if sf < 0.0:
-            sf = 0.0
-        return sf
+        return drive_logic_speed_factor(speed, max_speed)
 
     def _step_apply_steering(
         self,
@@ -450,24 +434,16 @@ class DriveLogic:
         speed_factor: float
     ) -> None:
         """Поворачивает heading по вводу руля и условиям (скорость, ручник, оффроуд)."""
-        d = self._tuning.DRIVE
-
-        steer_scale = d.steer_scale_max + (d.steer_scale_min - d.steer_scale_max) * speed_factor
-        if steer_scale < 0.0:
-            steer_scale = 0.0
-        if speed < d.steer_min_speed:
-            steer_scale = 0.0
-        if self.v_forward < 0.0:
-            steer_scale *= d.steer_reverse_mult
-        self._dbg_steer_scale = steer_scale
-
-        yaw = steer_input * d.steer_rate * steer_scale * dt
-        if handbrake and throttle and steer_input != 0:
-            yaw = self._step_apply_handbrake_steer_boost(yaw, speed_factor)
-        if offroad_before:
-            yaw *= d.offroad_steer_mult
-        if yaw != 0.0:
-            self._rotate_heading(yaw)
+        drive_logic_apply_steering(
+            self,
+            dt,
+            steer_input,
+            throttle,
+            handbrake,
+            offroad_before,
+            speed,
+            speed_factor
+        )
 
     def _step_apply_handbrake_steer_boost(self, yaw: float, speed_factor: float) -> float:
         """Усиливает руление от ручника (B) только на скорости.
@@ -475,36 +451,11 @@ class DriveLogic:
         Идея: на низкой скорости ручник не должен “читерить”, а на высокой — помогает
         довернуть (эффект а-ля Mario Kart).
         """
-        d = self._tuning.DRIVE
-
-        hb_min = d.handbrake_steer_min_speed_factor
-        if hb_min < 0.0:
-            hb_min = 0.0
-        if hb_min > 1.0:
-            hb_min = 1.0
-
-        hb_t = 0.0
-        if speed_factor > hb_min:
-            denom = 1.0 - hb_min
-            if denom > 0.0:
-                hb_t = (speed_factor - hb_min) / denom
-            else:
-                hb_t = 1.0
-        if hb_t > 1.0:
-            hb_t = 1.0
-        if hb_t < 0.0:
-            hb_t = 0.0
-
-        hb_gain = d.handbrake_steer_mult - 1.0
-        return yaw * (1.0 + hb_gain * hb_t)
+        return drive_logic_apply_handbrake_steer_boost(self, yaw, speed_factor)
 
     def _step_apply_dash(self, v_fwd: float, dash_pressed: bool) -> float:
         """Применяет рывок вперёд (dash), если включён тюнингом и нет кулдауна."""
-        d = self._tuning.DRIVE
-        if dash_pressed and d.dash_impulse > 0.0 and self._dash_cd <= 0.0:
-            v_fwd += d.dash_impulse
-            self._dash_cd = d.dash_cooldown
-        return v_fwd
+        return drive_logic_apply_dash(self, v_fwd, dash_pressed)
 
     def _step_apply_longitudinal(
         self,
@@ -517,25 +468,16 @@ class DriveLogic:
         speed_factor: float
     ) -> float:
         """Продольная динамика: газ/тормоз/накат + доп. замедление от ручника."""
-        d = self._tuning.DRIVE
-
-        if throttle and not brake:
-            if v_fwd < 0.0:
-                v_fwd = self._approach(v_fwd, 0.0, d.brake * dt)
-            else:
-                v_fwd += d.accel * dt
-        elif brake and not throttle:
-            if v_fwd > 0.0:
-                v_fwd = self._approach(v_fwd, 0.0, d.brake * dt)
-            else:
-                v_fwd -= d.accel * dt
-        else:
-            v_fwd = self._approach(v_fwd, 0.0, d.coast_decel * dt)
-
-        if handbrake and d.handbrake_decel > 0.0:
-            v_fwd = self._step_apply_handbrake_decel(dt, v_fwd, throttle, steer_input, speed_factor)
-
-        return v_fwd
+        return drive_logic_apply_longitudinal(
+            self,
+            dt,
+            v_fwd,
+            throttle,
+            brake,
+            handbrake,
+            steer_input,
+            speed_factor
+        )
 
     def _step_apply_handbrake_decel(
         self,
@@ -546,45 +488,22 @@ class DriveLogic:
         speed_factor: float
     ) -> float:
         """Замедление от ручника: сильнее ощущается на скорости, слабее под газом."""
-        d = self._tuning.DRIVE
-        hb_sf = speed_factor
-        if hb_sf < d.handbrake_decel_min_speed_factor:
-            hb_sf = d.handbrake_decel_min_speed_factor
-        hb_decel = d.handbrake_decel * hb_sf
-        if throttle:
-            if steer_input != 0:
-                hb_decel *= d.handbrake_decel_throttle_turn_mult
-            else:
-                hb_decel *= d.handbrake_decel_throttle_straight_mult
-        self._dbg_handbrake_decel = hb_decel
-        return self._approach(v_fwd, 0.0, hb_decel * dt)
+        return drive_logic_apply_handbrake_decel(
+            self,
+            dt,
+            v_fwd,
+            throttle,
+            steer_input,
+            speed_factor
+        )
 
     def _step_clamp_v_fwd(self, v_fwd: float) -> float:
         """Ограничивает задний ход и (опционально) верхнюю скорость по оси вперёд."""
-        d = self._tuning.DRIVE
-        if v_fwd < -d.max_reverse_speed:
-            v_fwd = -d.max_reverse_speed
-        if d.speed_cap > 0.0 and v_fwd > d.speed_cap:
-            v_fwd = d.speed_cap
-        return v_fwd
+        return drive_logic_clamp_v_fwd(self, v_fwd)
 
     def _step_effective_grip(self, handbrake: bool, offroad_before: bool) -> float:
         """Считает effective_grip для этого кадра и пишет dbg_effective_grip."""
-        d = self._tuning.DRIVE
-
-        effective_grip = d.grip
-        if handbrake:
-            effective_grip *= d.handbrake_grip_mult
-        if offroad_before:
-            effective_grip *= d.offroad_grip_mult
-        if self._zone_grip_mult != 1.0:
-            effective_grip *= self._zone_grip_mult
-        if self._zone_grip_floor > 0.0 and effective_grip < self._zone_grip_floor:
-            effective_grip = self._zone_grip_floor
-        if effective_grip < 0.0:
-            effective_grip = 0.0
-        self._dbg_effective_grip = effective_grip
-        return effective_grip
+        return drive_logic_effective_grip(self, handbrake, offroad_before)
 
     def _step_apply_lateral_damping(
         self,
@@ -594,26 +513,13 @@ class DriveLogic:
         speed_factor: float
     ) -> float:
         """Гасит боковую скорость (занос) в текущем кадре через side_friction."""
-        d = self._tuning.DRIVE
-        v_side_before = v_side
-
-        slip = 1.0 + d.side_slip_speed_mult * speed_factor
-        if slip < 1.0:
-            slip = 1.0
-        side_damp = 1.0 - (d.side_friction * effective_grip * dt) / slip
-        if side_damp < 0.0:
-            side_damp = 0.0
-        if side_damp > 1.0:
-            side_damp = 1.0
-
-        v_side *= side_damp
-        self._dbg_side_damp = side_damp
-        if dt > 0.0:
-            self._dbg_side_accel = (v_side - v_side_before) / dt
-        else:
-            self._dbg_side_accel = 0.0
-
-        return v_side
+        return drive_logic_apply_lateral_damping(
+            self,
+            dt,
+            v_side,
+            effective_grip,
+            speed_factor
+        )
 
     def _step_apply_zone_antislip(self, dt: float, v_side: float) -> float:
         """Дополнительно гасит боковую скорость внутри зоны (ускорялки).
@@ -626,16 +532,7 @@ class DriveLogic:
           v_side *= clamp(1 - k * dt, 0..1)
         Где `k` — `TUNING.DRIVE.zone_antislip` (единицы: 1/sec).
         """
-        k = self._zone_antislip
-        if k <= 0.0 or dt <= 0.0:
-            return v_side
-        factor = 1.0 - k * dt
-        if factor < 0.0:
-            factor = 0.0
-        if factor > 1.0:
-            factor = 1.0
-        v_side *= factor
-        return v_side
+        return drive_logic_apply_zone_antislip(self, dt, v_side)
 
     def _step_apply_side_recovery(
         self,
@@ -657,28 +554,14 @@ class DriveLogic:
         - и только долю потерь,
         возвращаем в `v_forward`.
         """
-        d = self._tuning.DRIVE
-        if not throttle:
-            return v_fwd
-        if speed_factor < d.side_recovery_min_speed_factor:
-            return v_fwd
-        if d.side_recovery_mult <= 0.0:
-            return v_fwd
-
-        removed = abs(v_side_before) - abs(v_side_after)
-        if removed <= 0.0:
-            return v_fwd
-
-        add = removed * d.side_recovery_mult
-        if add > d.side_recovery_max_add:
-            add = d.side_recovery_max_add
-        if add < 0.0:
-            add = 0.0
-        self._dbg_side_recovery = add
-
-        if v_fwd >= 0.0:
-            return v_fwd + add
-        return v_fwd - add
+        return drive_logic_apply_side_recovery(
+            self,
+            v_fwd,
+            v_side_before,
+            v_side_after,
+            throttle,
+            speed_factor
+        )
 
     def _step_apply_drag(self, dt: float) -> None:
         """Общие сопротивления движения + добавка от оффроуда.
@@ -689,43 +572,11 @@ class DriveLogic:
         Оффроуд добавляет к C_lin/C_quad свои коэффициенты (вязкость/песок),
         чтобы на высокой скорости темп падал, но на низкой можно было выбраться обратно.
         """
-        d = self._tuning.DRIVE
-        drag_lin = d.drag_lin
-        drag_quad = d.drag_quad
-        if self._offroad:
-            drag_lin += d.offroad_drag_lin
-            drag_quad += d.offroad_drag_quad
-        if drag_lin <= 0.0 and drag_quad <= 0.0:
-            return
-
-        v2 = self._vx * self._vx + self._vy * self._vy
-        spd = v2 ** 0.5
-        drag = drag_lin + drag_quad * spd
-        if drag <= 0.0:
-            return
-
-        mult = 1.0 - drag * dt
-        if mult < 0.0:
-            mult = 0.0
-        if mult > 1.0:
-            mult = 1.0
-        self._vx *= mult
-        self._vy *= mult
+        drive_logic_apply_drag(self, dt)
 
     def _step_apply_fuel(self, dt: float, throttle: bool) -> None:
         """Списывает топливо по текущему вводу и поверхности (оффроуд дороже)."""
-        d = self._tuning.DRIVE
-        fuel_spend = d.fuel_per_sec_idle * dt
-        if throttle:
-            fuel_spend += d.fuel_per_sec_throttle * dt
-        if self._offroad and d.offroad_fuel_mult > 0.0:
-            fuel_spend *= d.offroad_fuel_mult
-        if dt > 0.0:
-            self._dbg_fuel_per_sec = fuel_spend / dt
-        else:
-            self._dbg_fuel_per_sec = 0.0
-        if fuel_spend > 0.0:
-            self._run.consume_fuel(fuel_spend)
+        drive_logic_apply_fuel(self, dt, throttle)
 
     def _step_apply_offroad_damage(self, dt: float) -> None:
         """Наносит небольшой урон за езду по оффроуду (rate * dt).
@@ -733,23 +584,7 @@ class DriveLogic:
         Важно: урон должен быть только при движении. Стоя на месте вне дороги, игрок
         не должен терять hp.
         """
-        d = self._tuning.DRIVE
-        if not self._offroad:
-            return
-        rate = d.offroad_damage_per_sec
-        if rate <= 0.0:
-            return
-
-        v2 = self._vx * self._vx + self._vy * self._vy
-        if v2 <= 0.0:
-            return
-        speed = v2 ** 0.5
-        if speed <= d.offroad_damage_min_speed:
-            return
-
-        dmg = rate * dt
-        if dmg > 0.0:
-            self._run.apply_damage(dmg)
+        drive_logic_apply_offroad_damage(self, dt)
 
     def finished(self) -> bool:
         """True, если игрок доехал по дороге до конца сегмента."""
@@ -799,33 +634,7 @@ class DriveLogic:
 
     def _apply_zone_boost(self, dt: float) -> None:
         """Применяет ускорялку зоны (если активна) к (vx, vy) в этом кадре."""
-        forward = self._zone_boost_forward
-        center = self._zone_boost_center
-        if forward <= 0.0 and center <= 0.0:
-            return
-        if dt <= 0.0:
-            return
-
-        # Направление и нормаль дороги берём по текущему road_s (из прошлого кадра).
-        dir_x, dir_y = self._road.direction_at(self._road_s)
-        nrm_x = -dir_y
-        nrm_y = dir_x
-
-        ax = dir_x * forward
-        ay = dir_y * forward
-
-        if center > 0.0:
-            # Пуш к центру: если d>0 (правее центра) -> толкаем влево (-nrm).
-            # Если d<0 -> толкаем вправо (+nrm).
-            if self._road_d > 0.0:
-                ax -= nrm_x * center
-                ay -= nrm_y * center
-            elif self._road_d < 0.0:
-                ax += nrm_x * center
-                ay += nrm_y * center
-
-        self._vx += ax * dt
-        self._vy += ay * dt
+        drive_logic_apply_zone_boost(self, dt)
 
     def _rotate_heading(self, delta: float) -> None:
         """Поворачивает направление машины на маленький угол `delta` (в радианах).
