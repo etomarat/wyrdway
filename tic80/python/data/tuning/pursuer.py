@@ -56,7 +56,9 @@ TUNING.PURSUER.offroad_catchup = 0.0
 # Бар HUD строится по диапазону [near..show], поэтому увеличение show делает
 # нарастание более "плавным" и заметным заранее.
 TUNING.PURSUER.show_dist_s = 240.0
-TUNING.PURSUER.near_dist_s = 16.0
+# Поднимаем NEAR, чтобы тревога и визуальный акцент начинались раньше,
+# заметно до фактической дистанции укуса.
+TUNING.PURSUER.near_dist_s = 24.0
 # Визуальный сдвиг тела преследователя назад относительно "контактной" точки.
 # Важно: это только рендер-смещение, не влияет на логику догона/укуса.
 TUNING.PURSUER.contact_offset_s = 32.0
@@ -84,6 +86,18 @@ TUNING.PURSUER.boost_pushback_s = 22.0
 # Размер glitch-сущности.
 TUNING.PURSUER.body_radius_chase = 9.0
 TUNING.PURSUER.body_radius_near = 13.0
+
+# Кодовые осколки вокруг преследователя:
+# - спавним в кольце [inner..outer], а не в квадрате
+# - inner/outer дополнительно ограничиваются в рендере, чтобы осколки не попадали внутрь тела
+# - up_bias приподнимает ореол над центром
+# - count_* управляет плотностью в CHASE/NEAR
+TUNING.PURSUER.code_shard_radius_inner = 24.0
+TUNING.PURSUER.code_shard_radius_outer = 50.0
+TUNING.PURSUER.code_shard_up_bias = 0.0
+TUNING.PURSUER.code_shard_count_chase = 4
+TUNING.PURSUER.code_shard_count_near = 8
+
 # Временная дебаг-метка контактной точки (white+red dot).
 TUNING.PURSUER.debug_contact_marker = False
 

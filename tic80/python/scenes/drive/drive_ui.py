@@ -218,13 +218,27 @@ class DriveUi:
 
         show = float(TUNING.PURSUER.show_dist_s)
         near = float(TUNING.PURSUER.near_dist_s)
+        strike = float(TUNING.PURSUER.strike_begin_dist_s)
+        gap = float(TUNING.PURSUER.follow_gap_s)
+        if strike < gap:
+            strike = gap
+
+        d = float(pursuer_dist_s) - strike
+        if d < 0.0:
+            d = 0.0
+        show_eff = show - strike
+        near_eff = near - strike
+        if show_eff < 0.0:
+            show_eff = 0.0
+        if near_eff < 0.0:
+            near_eff = 0.0
+
         fill_n = 0.0
-        if show > near:
-            d = float(pursuer_dist_s)
-            if d < near:
+        if show_eff > near_eff:
+            if d < near_eff:
                 fill_n = 1.0
-            elif d < show:
-                fill_n = (show - d) / (show - near)
+            elif d < show_eff:
+                fill_n = (show_eff - d) / (show_eff - near_eff)
         if fill_n < 0.0:
             fill_n = 0.0
         if fill_n > 1.0:
@@ -238,7 +252,7 @@ class DriveUi:
             color = Color.RED
         if fill_w > 0:
             rect(bx + 1, by + 1, fill_w, bh - 2, color)
-        print("dist " + self.fmt2(float(pursuer_dist_s)), bx, by + 8, Color.WHITE)
+        print("dist " + self.fmt2(d), bx, by + 8, Color.WHITE)
 
     def fmt2(self, value: float) -> str:
         """Форматирует число с ровно 2 знаками после запятой (без `.format`/`%`).

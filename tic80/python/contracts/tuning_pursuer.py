@@ -18,6 +18,11 @@ class PursuerTuning:
         "boost_pushback_s",
         "body_radius_chase",
         "body_radius_near",
+        "code_shard_radius_inner",
+        "code_shard_radius_outer",
+        "code_shard_up_bias",
+        "code_shard_count_chase",
+        "code_shard_count_near",
         "debug_contact_marker",
         "strike_shake_intensity",
         "near_vignette",
@@ -47,6 +52,11 @@ class PursuerTuning:
         self.boost_pushback_s = 0.0
         self.body_radius_chase = 0.0
         self.body_radius_near = 0.0
+        self.code_shard_radius_inner = 0.0
+        self.code_shard_radius_outer = 0.0
+        self.code_shard_up_bias = 0.0
+        self.code_shard_count_chase = 0
+        self.code_shard_count_near = 0
         self.debug_contact_marker = False
         self.strike_shake_intensity = 0.0
         self.near_vignette = 0.0

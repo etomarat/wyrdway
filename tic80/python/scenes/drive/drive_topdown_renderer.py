@@ -370,29 +370,61 @@ class DriveTopdownRenderer:
             )
             i += 1
 
-        # "Осколки кода" вокруг сущности — только в NEAR, чтобы не засорять экран.
-        if pursuer_state != "NEAR":
+        # Кодовые осколки: единый стиль (как в NEAR), но с разной интенсивностью.
+        # В CHASE рендерим мягче, в NEAR плотнее.
+        if pursuer_state == "FAR":
             return
+        is_near = pursuer_state == "NEAR"
         seed = self._lcg(seed)
-        shards = 2 + int(r * 0.22)
-        spread_x = int(r * 2.1)
-        spread_y = int(r * 1.2)
-        if spread_x < 14:
-            spread_x = 14
-        if spread_y < 10:
-            spread_y = 10
+
+        shards = int(TUNING.PURSUER.code_shard_count_chase)
+        if is_near:
+            shards = int(TUNING.PURSUER.code_shard_count_near)
+        if shards < 1:
+            shards = 1
+
+        inner_r = float(TUNING.PURSUER.code_shard_radius_inner)
+        outer_r = float(TUNING.PURSUER.code_shard_radius_outer)
+        if inner_r < 0.0:
+            inner_r = 0.0
+        if outer_r < 1.0:
+            outer_r = 1.0
+        if outer_r < inner_r:
+            t = inner_r
+            inner_r = outer_r
+            outer_r = t
+        # Осколки должны быть СНАРУЖИ тела преследователя.
+        min_outer_shell = float(r) + 8.0
+        if inner_r < min_outer_shell:
+            inner_r = min_outer_shell
+        if outer_r < inner_r + 8.0:
+            outer_r = inner_r + 8.0
+        up_bias = float(TUNING.PURSUER.code_shard_up_bias)
+        inner2 = inner_r * inner_r
+        outer2 = outer_r * outer_r
+
         j = 0
         while j < shards:
             seed = self._lcg(seed)
-            sx = px + int(seed % (spread_x * 2 + 1)) - spread_x
+            angle = (float(seed & 4095) / 4095.0) * math.pi * 2.0
             seed = self._lcg(seed)
-            sy = py + int(seed % (spread_y * 2 + 1)) - spread_y
+            dist_n = float(seed & 1023) / 1023.0
+            dist = (inner2 + (outer2 - inner2) * dist_n) ** 0.5
+            anchor_x = px + int(math.cos(angle) * dist)
+            anchor_y = py + int(math.sin(angle) * dist - up_bias)
             seed = self._lcg(seed)
             txt = self._code_shard_text(int(seed % 6))
             color = Color.LIGHT_BLUE
-            if (seed & 1) != 0:
+            if is_near and (seed & 1) != 0:
                 color = Color.CYAN
-            print(txt, sx, sy, color)
+            elif (seed & 15) == 0:
+                color = Color.WHITE
+            text_w = len(txt) * 6
+            sx = anchor_x - (text_w // 2)
+            sy = anchor_y
+            if sy >= -6 and sy <= 130:
+                if sx >= -text_w and sx <= 239:
+                    print(txt, sx, sy, color)
             j += 1
 
     def _draw_pursuer_strike_lightning(
