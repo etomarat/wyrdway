@@ -89,16 +89,16 @@ def drive_logic_apply_longitudinal(
 
     if throttle and not brake:
         if v_fwd < 0.0:
-            v_fwd = logic._approach(v_fwd, 0.0, d.brake * dt)
+            v_fwd = _approach(v_fwd, 0.0, d.brake * dt)
         else:
             v_fwd += d.accel * dt
     elif brake and not throttle:
         if v_fwd > 0.0:
-            v_fwd = logic._approach(v_fwd, 0.0, d.brake * dt)
+            v_fwd = _approach(v_fwd, 0.0, d.brake * dt)
         else:
             v_fwd -= d.accel * dt
     else:
-        v_fwd = logic._approach(v_fwd, 0.0, d.coast_decel * dt)
+        v_fwd = _approach(v_fwd, 0.0, d.coast_decel * dt)
 
     if handbrake and d.handbrake_decel > 0.0:
         v_fwd = drive_logic_apply_handbrake_decel(
@@ -133,7 +133,7 @@ def drive_logic_apply_handbrake_decel(
         else:
             hb_decel *= d.handbrake_decel_throttle_straight_mult
     logic._dbg_handbrake_decel = hb_decel
-    return logic._approach(v_fwd, 0.0, hb_decel * dt)
+    return _approach(v_fwd, 0.0, hb_decel * dt)
 
 
 def drive_logic_clamp_v_fwd(logic: DriveLogic, v_fwd: float) -> float:
@@ -144,3 +144,18 @@ def drive_logic_clamp_v_fwd(logic: DriveLogic, v_fwd: float) -> float:
     if d.speed_cap > 0.0 and v_fwd > d.speed_cap:
         v_fwd = d.speed_cap
     return v_fwd
+
+
+def _approach(value: float, target: float, amount: float) -> float:
+    """Сдвигает `value` к `target` максимум на `amount` за шаг."""
+    if value < target:
+        value += amount
+        if value > target:
+            value = target
+        return value
+    if value > target:
+        value -= amount
+        if value < target:
+            value = target
+        return value
+    return value

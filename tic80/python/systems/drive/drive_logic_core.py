@@ -36,6 +36,14 @@ if TYPE_CHECKING:
         drive_logic_apply_offroad_damage,
         drive_logic_apply_zone_boost
     )
+    from .drive_logic_state import (
+        drive_logic_set_zone_grip_mult,
+        drive_logic_set_zone_boost,
+        drive_logic_set_zone_antislip,
+        drive_logic_set_zone_grip_floor,
+        drive_logic_init_on_road_start,
+        drive_logic_rotate_heading
+    )
 
 
 class DriveLogic:
@@ -95,59 +103,35 @@ class DriveLogic:
         self._init_on_road_start()
 
     def set_zone_grip_mult(self, mult: float) -> None:
-        """Задаёт множитель сцепления от дорожной зоны (ускорялки) для следующего кадра.
+        """Задаёт множитель сцепления от дорожной зоны на следующий кадр.
 
-        Мы храним это в логике, чтобы эффект влиял на тот же `effective_grip`, который уже
-        участвует в заносе/боковом трении.
-
-        Важно: сама проверка "в зоне ли игрок" делается снаружи (в сцене), потому что
-        зоны живут в системе объектов дороги.
+        Важно: сама проверка «игрок в зоне или нет» делается во внешнем слое
+        (`drive_zone_effects`), а здесь только применение значения к физике.
         """
-        if mult < 0.0:
-            mult = 0.0
-        self._zone_grip_mult = mult
+        drive_logic_set_zone_grip_mult(self, mult)
 
     def set_zone_boost(self, forward_accel: float, center_accel: float) -> None:
-        """Задаёт параметры ускорялки (boost-zone) для следующего кадра.
+        """Задаёт параметры ускорялки зоны на следующий кадр.
 
-        Параметры задаются в world-space, но в “координатах дороги”:
-        - forward_accel применяется вдоль направления дороги (road_dir),
-        - center_accel применяется по нормали к дороге в сторону центра трассы (d -> 0).
-
-        Это важно: бустер должен толкать “по полосе”, даже если машина едет боком.
+        - `forward_accel`: ускорение вдоль направления дороги.
+        - `center_accel`: ускорение по нормали к центру трассы (`d -> 0`).
         """
-        if forward_accel < 0.0:
-            forward_accel = 0.0
-        if center_accel < 0.0:
-            center_accel = 0.0
-        self._zone_boost_forward = forward_accel
-        self._zone_boost_center = center_accel
-        self._dbg_zone_boost_forward = forward_accel
-        self._dbg_zone_boost_center = center_accel
+        drive_logic_set_zone_boost(self, forward_accel, center_accel)
 
     def set_zone_antislip(self, strength: float) -> None:
-        """Задаёт силу “анти-заноса” от зоны (ускорялки) для следующего кадра.
+        """Задаёт силу анти-заноса от зоны на следующий кадр.
 
-        Это отдельная стабилизация боковой скорости (v_side), чтобы ускорялка
-        ощущалась как “безопасная полоса” на сложном повороте.
-
-        Примечание: по текущим ощущениям эффект слабый и “странный” даже на больших
-        значениях. Возможно, в будущем стоит отказаться от `zone_antislip` совсем.
+        Это дополнительное гашение боковой скорости внутри зоны.
         """
-        if strength < 0.0:
-            strength = 0.0
-        self._zone_antislip = strength
-        self._dbg_zone_antislip = strength
+        drive_logic_set_zone_antislip(self, strength)
 
     def set_zone_grip_floor(self, value: float) -> None:
-        """Задаёт минимальный effective_grip внутри зоны (ускорялки) на следующий кадр.
+        """Задаёт нижнюю границу effective_grip внутри зоны.
 
-        Это “страховка” против ручника: даже если `handbrake_grip_mult` сильно режет
-        сцепление, внутри бустера мы не даём effective_grip падать ниже порога.
+        Нужна как страховка, чтобы сцепление не падало слишком низко (например,
+        при ручнике), пока игрок находится в буст-зоне.
         """
-        if value < 0.0:
-            value = 0.0
-        self._zone_grip_floor = value
+        drive_logic_set_zone_grip_floor(self, value)
 
     @property
     def dbg_zone_boost_forward(self) -> float:
@@ -165,17 +149,8 @@ class DriveLogic:
         return self._dbg_zone_antislip
 
     def _init_on_road_start(self) -> None:
-        """Ставит машину в начало дороги и выравнивает по направлению дороги."""
-        cx, cy = self._road.sample_centerline(0.0)
-        dx, dy = self._road.direction_at(0.0)
-        self._x = cx
-        self._y = cy
-        self._fwd_x = dx
-        self._fwd_y = dy
-        self._vx = 0.0
-        self._vy = 0.0
-        self._road_idx = 0
-        self._update_road_projection()
+        """Ставит машину в начало дороги и выравнивает по направлению трассы."""
+        drive_logic_init_on_road_start(self)
 
     @property
     def x(self) -> float:
@@ -637,27 +612,8 @@ class DriveLogic:
         drive_logic_apply_zone_boost(self, dt)
 
     def _rotate_heading(self, delta: float) -> None:
-        """Поворачивает направление машины на маленький угол `delta` (в радианах).
-
-        Мы избегаем `math.sin/cos`: используем приближение малых углов и затем
-        нормализуем вектор, чтобы он оставался unit-длины.
-        """
-        dx = self._fwd_x
-        dy = self._fwd_y
-
-        c = 1.0 - 0.5 * delta * delta
-        s = delta
-        ndx = dx * c - dy * s
-        ndy = dx * s + dy * c
-
-        l2 = ndx * ndx + ndy * ndy
-        if l2 > 0.0:
-            inv = 1.0 / (l2 ** 0.5)
-            ndx *= inv
-            ndy *= inv
-
-        self._fwd_x = ndx
-        self._fwd_y = ndy
+        """Поворачивает heading на малый угол `delta` (в радианах)."""
+        drive_logic_rotate_heading(self, delta)
 
     def _update_road_projection(self) -> None:
         """Обновляет (road_s, road_d, offroad) по текущей world позиции.
@@ -668,18 +624,3 @@ class DriveLogic:
         - d считаем как проекцию на нормаль “вправо” от дороги.
         """
         drive_update_road_projection(self)
-
-    @staticmethod
-    def _approach(value: float, target: float, amount: float) -> float:
-        """Двигает `value` к `target` не быстрее чем на `amount` за шаг."""
-        if value < target:
-            value += amount
-            if value > target:
-                value = target
-            return value
-        if value > target:
-            value -= amount
-            if value < target:
-                value = target
-            return value
-        return value
