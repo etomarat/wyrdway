@@ -12,6 +12,8 @@ class PursuerTuning:
         "contact_offset_s",
         "strike_cooldown_sec",
         "strike_drain_amount",
+        "strike_enable_fuel_phase",
+        "strike_drain_hp_after_scrap",
         "strike_begin_dist_s",
         "strike_min_speed",
         "follow_gap_s",
@@ -46,6 +48,8 @@ class PursuerTuning:
         self.contact_offset_s = 0.0
         self.strike_cooldown_sec = 0.0
         self.strike_drain_amount = 0
+        self.strike_enable_fuel_phase = False
+        self.strike_drain_hp_after_scrap = True
         self.strike_begin_dist_s = 0.0
         self.strike_min_speed = 0.0
         self.follow_gap_s = 0.0

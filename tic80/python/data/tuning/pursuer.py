@@ -68,6 +68,12 @@ TUNING.PURSUER.contact_offset_s = 32.0
 # - сколько ресурсов снимаем за удар
 TUNING.PURSUER.strike_cooldown_sec = 1.35
 TUNING.PURSUER.strike_drain_amount = 2
+# Если True, преследователь чередует фазы: SCRAP/HP -> FUEL -> SCRAP/HP...
+# Если False, работает только фаза SCRAP/HP.
+TUNING.PURSUER.strike_enable_fuel_phase = False
+# Если True, при нехватке scrap оставшийся drain идёт в HP.
+# Если False, преследователь будет снимать только scrap (без добивания HP).
+TUNING.PURSUER.strike_drain_hp_after_scrap = True
 # Дистанция, с которой укус разрешён. Должна быть заметно меньше near_dist_s,
 # чтобы не было урона "издали", когда преследователь ещё вне кадра.
 TUNING.PURSUER.strike_begin_dist_s = 12.0

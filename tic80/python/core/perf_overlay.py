@@ -17,7 +17,7 @@ class PerfOverlay:
         self._frame_ms = 0
 
         self._fps_int = 0
-        self._text = ""
+        self._lines: list[str] = []
 
     @property
     def enabled(self) -> bool:
@@ -56,20 +56,24 @@ class PerfOverlay:
 
         self._frame += 1
         if (self._frame & 7) == 0:
-            self._text = (
-                "fps="
-                + str(self._fps_int)
-                + " frame="
-                + str(self._frame_ms)
-                + "ms cpu="
-                + str(self._cpu_ms)
-                + "ms"
-            )
+            self._lines = [
+                "fps=" + str(self._fps_int),
+                "frame=" + str(self._frame_ms) + "ms",
+                "cpu=" + str(self._cpu_ms) + "ms"
+            ]
 
     def draw(self, x: int = 1, y: int = 1, color: int = 12) -> None:
         if not self._enabled:
             return
-        if self._text == "":
+        if len(self._lines) <= 0:
             return
-        print(self._text, x, y, color, fixed=True, alt=True)
-
+        i = 0
+        while i < len(self._lines):
+            text = self._lines[i]
+            text_w = len(text) * 4
+            px = 240 - x - text_w
+            if px < 0:
+                px = 0
+            py = y + i * 6
+            print(text, px, py, color, fixed=True, alt=True)
+            i += 1

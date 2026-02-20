@@ -36,7 +36,7 @@ class DriveUi:
             n = 1.0
         rectb(x, y, w, h, Color.WHITE)
         rect(x + 1, y + 1, int((w - 2) * n), h - 2, Color.CYAN)
-        print("spd " + self.fmt2(spd), x + w + 4, y - 1, Color.WHITE)
+        print("spd " + self.fmt2(spd), x + w + 4, y, Color.WHITE)
         y += h + gap
 
         # FUEL
@@ -48,7 +48,7 @@ class DriveUi:
             n = 1.0
         rectb(x, y, w, h, Color.WHITE)
         rect(x + 1, y + 1, int((w - 2) * n), h - 2, Color.YELLOW)
-        print("fuel " + self.fmt2(fuel), x + w + 4, y - 1, Color.WHITE)
+        print("fuel " + self.fmt2(fuel), x + w + 4, y, Color.WHITE)
         y += h + gap
 
         # HP
@@ -60,7 +60,7 @@ class DriveUi:
             n = 1.0
         rectb(x, y, w, h, Color.WHITE)
         rect(x + 1, y + 1, int((w - 2) * n), h - 2, Color.RED)
-        print("hp  " + self.fmt2(hp), x + w + 4, y - 1, Color.WHITE)
+        print("hp  " + self.fmt2(hp), x + w + 4, y, Color.WHITE)
 
     def hud_bars_layout(self) -> tuple[int, int, int, int, int]:
         """Возвращает расположение нижних баров (spd/fuel/hp) в HUD.
@@ -203,25 +203,16 @@ class DriveUi:
     def draw_pursuer_hud(
         self,
         run_scrap: int,
-        fuel: float,
+        start_run_scrap: int,
         pursuer_dist_s: float,
         pursuer_state: str
     ) -> None:
-        print("scrap " + str(int(run_scrap)), 168, 2, Color.LIGHT_GREEN)
-        print("fuel  " + self.fmt2(float(fuel)), 168, 10, Color.YELLOW)
-
-        bx = 168
-        by = 20
-        bw = 68
-        bh = 6
-        rectb(bx, by, bw, bh, Color.WHITE)
-
         show = float(TUNING.PURSUER.show_dist_s)
         near = float(TUNING.PURSUER.near_dist_s)
         strike = float(TUNING.PURSUER.strike_begin_dist_s)
-        gap = float(TUNING.PURSUER.follow_gap_s)
-        if strike < gap:
-            strike = gap
+        follow_gap = float(TUNING.PURSUER.follow_gap_s)
+        if strike < follow_gap:
+            strike = follow_gap
 
         d = float(pursuer_dist_s) - strike
         if d < 0.0:
@@ -244,15 +235,47 @@ class DriveUi:
         if fill_n > 1.0:
             fill_n = 1.0
 
-        fill_w = int((bw - 2) * fill_n)
+        # DIST: большой верхний бар по центру.
+        dist_w = 120
+        dist_h = 7
+        dist_x = int((240 - dist_w) * 0.5)
+        dist_y = 4
+        rectb(dist_x, dist_y, dist_w, dist_h, Color.WHITE)
+        fill_w = int((dist_w - 2) * fill_n)
         color = Color.BLUE
         if pursuer_state == "CHASE":
             color = Color.ORANGE
         elif pursuer_state == "NEAR":
             color = Color.RED
         if fill_w > 0:
-            rect(bx + 1, by + 1, fill_w, bh - 2, color)
-        print("dist " + self.fmt2(d), bx, by + 8, Color.WHITE)
+            rect(dist_x + 1, dist_y + 1, fill_w, dist_h - 2, color)
+        dist_text = "dist " + str(int(d + 0.5))
+        char_w = 6
+        dist_text_x = int((240 - len(dist_text) * char_w) * 0.5)
+        if dist_text_x < 2:
+            dist_text_x = 2
+        print(dist_text, dist_text_x, dist_y + dist_h + 2, Color.WHITE)
+
+        # SCRAP: слева под HP.
+        bars_x, bars_y, bars_w, bars_h, bars_gap = self.hud_bars_layout()
+        hp_y = bars_y + (bars_h + bars_gap) * 2
+        scrap_y = hp_y + bars_h + bars_gap
+        rectb(bars_x, scrap_y, bars_w, bars_h, Color.WHITE)
+        scrap_now = max(0, int(run_scrap))
+        scrap_start = int(start_run_scrap)
+        scrap_n = 0.0
+        if scrap_start > 0:
+            scrap_n = float(scrap_now) / float(scrap_start)
+        if scrap_n < 0.0:
+            scrap_n = 0.0
+        if scrap_n > 1.0:
+            scrap_n = 1.0
+        scrap_fill_w = int((bars_w - 2) * scrap_n)
+        if scrap_fill_w > 0:
+            rect(bars_x + 1, scrap_y + 1, scrap_fill_w,
+                 bars_h - 2, Color.LIGHT_GREEN)
+        print("scrap " + str(scrap_now), bars_x +
+              bars_w + 4, scrap_y, Color.WHITE)
 
     def fmt2(self, value: float) -> str:
         """Форматирует число с ровно 2 знаками после запятой (без `.format`/`%`).

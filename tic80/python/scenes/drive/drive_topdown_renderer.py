@@ -81,6 +81,38 @@ class DriveTopdownRenderer:
             return
         self._shake.notify_hit(float(intensity), TUNING)
 
+    def notify_pursuer_hp_strike_fx(self, logic: DriveLogic, hp_loss: int) -> None:
+        if hp_loss <= 0:
+            return
+        rear_x, rear_y, rear_r, front_x, front_y, front_r = logic.hitbox_world_circles()
+        if rear_r <= 0.0 and front_r <= 0.0:
+            return
+
+        # Спавним FX в фактической точке удара (задний хитбокс машины).
+        fwd_x = float(logic.fwd_x)
+        fwd_y = float(logic.fwd_y)
+        hit_r = rear_r
+        if hit_r <= 0.0:
+            hit_r = 4.0
+
+        impact = float(TUNING.PURSUER.strike_shake_intensity) * 1.8 + float(hp_loss) * 12.0
+        if impact < 36.0:
+            impact = 36.0
+        if impact > 120.0:
+            impact = 120.0
+
+        # Разворачиваем нормаль так, чтобы вылет искр читался "внутрь машины".
+        nx = -fwd_x
+        ny = -fwd_y
+        self._fx_overlay.notify_obstacle_hit(
+            rear_x,
+            rear_y,
+            nx,
+            ny,
+            impact,
+            hit_r
+        )
+
     def draw(
         self,
         road: RoadModel,
@@ -160,7 +192,7 @@ class DriveTopdownRenderer:
         self._draw_car_ttri(pose)
         self._fx_overlay.draw_over_car()
         # Преследователь рисуем ПОСЛЕ машины, чтобы он всегда был поверх кузова.
-        self._draw_pursuer_world(road, proj, pose, pursuer_state, pursuer_s, strike_flash)
+        self._draw_pursuer_world(road, proj, logic, pose, pursuer_state, pursuer_s, strike_flash)
 
         if TUNING.DRIVE.debug_vectors_enabled:
             self._debug_draw.draw_vectors(logic, proj, center_x, center_y)
@@ -171,6 +203,7 @@ class DriveTopdownRenderer:
         self,
         road: RoadModel,
         proj: TopdownProjector,
+        logic: DriveLogic,
         pose: CarPose2D,
         pursuer_state: str | None,
         pursuer_s: float,
@@ -269,7 +302,8 @@ class DriveTopdownRenderer:
             circ(int(csx), int(csy), 2, Color.WHITE)
             circb(int(csx), int(csy), 3, Color.RED)
 
-        car_x, car_y = pose.screen_center()
+        rear_x, rear_y, _, _, _, _ = logic.hitbox_world_circles()
+        hit_sx, hit_sy = proj.world_to_screen(rear_x, rear_y)
         if strike_flash > 0.0:
             flash_dur = float(TUNING.PURSUER.strike_flash_seconds)
             flash_n = 1.0
@@ -282,8 +316,8 @@ class DriveTopdownRenderer:
             self._draw_pursuer_strike_lightning(
                 px,
                 py,
-                int(car_x),
-                int(car_y),
+                int(hit_sx),
+                int(hit_sy),
                 flash_n,
                 seed_base ^ 0x9E3779B9
             )

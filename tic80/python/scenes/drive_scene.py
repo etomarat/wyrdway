@@ -52,6 +52,7 @@ class DriveScene:
         self._ui = DriveUi()
         self._start_car_hp = 0.0
         self._start_car_fuel = 0.0
+        self._start_run_scrap = 0
         self._pursuer = PursuerChase()
         self._popups: list[_DrivePopup] = []
         self._pursuer_fx_time = 0.0
@@ -94,6 +95,7 @@ class DriveScene:
         )
         self._start_car_hp = run.car_hp
         self._start_car_fuel = run.car_fuel
+        self._start_run_scrap = run.run_scrap()
         if self._mode == "extract" and not self._state.playtest_enabled and self._logic is not None:
             self._pursuer.start_return(self._logic.road_s)
         else:
@@ -230,6 +232,8 @@ class DriveScene:
         event = self._pursuer.strike_event
         if event.happened():
             self._renderer.notify_pursuer_strike(float(TUNING.PURSUER.strike_shake_intensity))
+            if event.hp_loss > 0:
+                self._renderer.notify_pursuer_hp_strike_fx(logic, event.hp_loss)
             self._append_strike_popups(event)
 
     def _restart_segment(self) -> None:
@@ -286,7 +290,7 @@ class DriveScene:
         if self._pursuer.active:
             self._ui.draw_pursuer_hud(
                 run.run_scrap(),
-                run.car_fuel,
+                self._start_run_scrap,
                 self._pursuer.distance_s,
                 self._pursuer.state
             )

@@ -173,9 +173,13 @@ class PursuerChase:
         return value
 
     def _apply_strike(self, run: "RunState") -> None:
+        fuel_phase_enabled = bool(TUNING.PURSUER.strike_enable_fuel_phase)
         drain = int(TUNING.PURSUER.strike_drain_amount)
         if drain <= 0:
-            self._phase = "FUEL" if self._phase == "SCRAP_HP" else "SCRAP_HP"
+            if fuel_phase_enabled:
+                self._phase = "FUEL" if self._phase == "SCRAP_HP" else "SCRAP_HP"
+            else:
+                self._phase = "SCRAP_HP"
             self._cooldown = float(TUNING.PURSUER.strike_cooldown_sec)
             self._strike_flash = float(TUNING.PURSUER.strike_flash_seconds)
             self._strike_event.clear()
@@ -184,20 +188,23 @@ class PursuerChase:
         scrap_loss = 0
         fuel_loss = 0
         hp_loss = 0
-        if self._phase == "SCRAP_HP":
-            scrap_loss = run.drain_scrap(drain)
-            rem = drain - scrap_loss
-            if rem > 0:
-                hp_before = float(run.car_hp)
-                run.apply_damage(float(rem))
-                hp_loss = int(hp_before - float(run.car_hp) + 0.0001)
-        else:
+        if self._phase == "FUEL" and fuel_phase_enabled:
             fuel_before = float(run.car_fuel)
             run.consume_fuel(float(drain))
             fuel_loss = int(fuel_before - float(run.car_fuel) + 0.0001)
+        else:
+            scrap_loss = run.drain_scrap(drain)
+            rem = drain - scrap_loss
+            if rem > 0 and bool(TUNING.PURSUER.strike_drain_hp_after_scrap):
+                hp_before = float(run.car_hp)
+                run.apply_damage(float(rem))
+                hp_loss = int(hp_before - float(run.car_hp) + 0.0001)
 
         self._strike_event.set_losses(scrap_loss, fuel_loss, hp_loss)
-        self._phase = "FUEL" if self._phase == "SCRAP_HP" else "SCRAP_HP"
+        if fuel_phase_enabled:
+            self._phase = "FUEL" if self._phase == "SCRAP_HP" else "SCRAP_HP"
+        else:
+            self._phase = "SCRAP_HP"
         self._cooldown = float(TUNING.PURSUER.strike_cooldown_sec)
         self._strike_flash = float(TUNING.PURSUER.strike_flash_seconds)
 
