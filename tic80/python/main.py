@@ -25,19 +25,10 @@ if TYPE_CHECKING:
 
 IS_DRIVE_PLAYTEST = False
 
-include("core.palette")
 include("contracts.__init__")
+include("core.palette")
 include("data.tuning.__init__")
-include("core.debug")
-include("core.input_buttons")
-include("core.perf_overlay")
-include("core.save_system")
-include("core.profile")
-include("core.route_planner")
-include("core.run_state.__init__")
-include("core.game_state")
-include("core.scene_ids")
-include("core.scene_manager")
+include("core.__init__")
 include("systems.fx.__init__")
 include("systems.drive.__init__")
 include("scenes.drive.__init__")
