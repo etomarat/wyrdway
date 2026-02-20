@@ -1,0 +1,17 @@
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from tic80 import include
+
+
+include("scenes.drive.topdown_road_draw")
+include("scenes.drive.topdown_obstacles_draw")
+include("scenes.drive.car_pose2d")
+include("scenes.drive.topdown_skid_marks")
+include("scenes.drive.topdown_debug_draw")
+include("scenes.drive.topdown_fx_overlay_runtime")
+include("scenes.drive.topdown_fx_overlay_emit")
+include("scenes.drive.topdown_fx_overlay")
+include("scenes.drive.drive_topdown_renderer")
+include("scenes.drive.drive_ui")
+include("scenes.drive.pursuer_screen_fx")
