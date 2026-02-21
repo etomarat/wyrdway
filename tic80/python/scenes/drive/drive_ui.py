@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from tic80 import circb, line, print, rect, rectb
 
+    from ...contracts import PursuerVariantTuning
     from ...core.palette import Color
     from ...core.run_state import RunState
     from ...data.tuning import TUNING
@@ -205,12 +206,14 @@ class DriveUi:
         run_scrap: int,
         start_run_scrap: int,
         pursuer_dist_s: float,
-        pursuer_state: str
+        pursuer_state: str,
+        profile: PursuerVariantTuning,
+        pursuer_name: str
     ) -> None:
-        show = float(TUNING.PURSUER.show_dist_s)
-        near = float(TUNING.PURSUER.near_dist_s)
-        strike = float(TUNING.PURSUER.strike_begin_dist_s)
-        follow_gap = float(TUNING.PURSUER.follow_gap_s)
+        show = float(profile.show_dist_s)
+        near = float(profile.near_dist_s)
+        strike = float(profile.strike_begin_dist_s)
+        follow_gap = float(profile.follow_gap_s)
         if strike < follow_gap:
             strike = follow_gap
 
@@ -259,6 +262,11 @@ class DriveUi:
         if dist_text_x < 2:
             dist_text_x = 2
         print(dist_text, dist_text_x, dist_y + dist_h + 2, Color.WHITE)
+        name_text = str(pursuer_name)
+        name_text_x = int((240 - len(name_text) * char_w) * 0.5)
+        if name_text_x < 2:
+            name_text_x = 2
+        print(name_text, name_text_x, dist_y + dist_h + 8, Color.LIGHT_GREY)
 
         # SCRAP: слева под HP.
         bars_x, bars_y, bars_w, bars_h, bars_gap = self.hud_bars_layout()

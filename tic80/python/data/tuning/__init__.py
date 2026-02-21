@@ -13,6 +13,7 @@ TUNING.tuning_version = 23
 include("data.tuning.core")
 include("data.tuning.profile")
 include("data.tuning.poi")
+include("data.tuning.pursuers.__init__")
 include("data.tuning.pursuer")
 include("data.tuning.debug")
 include("data.tuning.drive.physics")

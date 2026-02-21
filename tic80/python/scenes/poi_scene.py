@@ -3,12 +3,18 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from tic80 import btnp, cls, print
 
-    from ..contracts import DriveEnterParams, ResultEnterParams, SceneEnterParams, SceneNavigator
+    from ..contracts import (
+        DriveEnterParams,
+        ResultEnterParams,
+        SceneEnterParams,
+        SceneNavigator
+    )
     from ..core.input_buttons import Button
     from ..core.palette import Color
     from ..core.run_state import EscapeOutcome, PoiAction
     from ..core.scene_ids import SceneId
     from ..data.tuning import TUNING
+    from ..systems.drive.pursuers.registry import active_pursuer_name
 
 
 class PoiScene:
@@ -21,12 +27,14 @@ class PoiScene:
         self._loot_summary_active = False
         self._loot_scrap = 0
         self._loot_fuel = 0
+        self._pursuer_name = active_pursuer_name()
 
     def enter(self, params: SceneEnterParams = None) -> None:
         self.timer = TUNING.POI.timer_seconds
         self._loot_summary_active = False
         self._loot_scrap = 0
         self._loot_fuel = 0
+        self._pursuer_name = active_pursuer_name()
 
     def _poi_type_label(self, poi_type: str) -> str:
         if poi_type == "gas_station":
@@ -99,9 +107,10 @@ class PoiScene:
         if self._loot_summary_active:
             print("LOOT SECURED", 78, 24, Color.WHITE)
             print("you took what wasn't yours", 42, 40, Color.LIGHT_GREY)
-            print("stolen scrap +" + str(self._loot_scrap), 58, 56, Color.LIGHT_GREEN)
+            print("stolen scrap +" + str(self._loot_scrap),
+                  58, 56, Color.LIGHT_GREEN)
             print("stolen fuel  +" + str(self._loot_fuel), 58, 64, Color.YELLOW)
-            print("the Entity is in pursuit", 54, 82, Color.RED)
+            print(self._pursuer_name + " is in pursuit", 44, 82, Color.RED)
             print("return to base immediately", 46, 90, Color.WHITE)
             print("Z = BEGIN RETURN", 74, 112, Color.WHITE)
             return
@@ -114,8 +123,10 @@ class PoiScene:
             segment = run.active_segment
             if segment is not None:
                 rewards = segment.rewards
-                print("type=" + self._poi_type_label(segment.poi_type), 74, 68, Color.WHITE)
-                print("reward: +" + str(rewards.scrap) + " scrap, +" + str(rewards.fuel) + " fuel", 40, 76, Color.WHITE)
+                print("type=" + self._poi_type_label(segment.poi_type),
+                      74, 68, Color.WHITE)
+                print("reward: +" + str(rewards.scrap) + " scrap, +" +
+                      str(rewards.fuel) + " fuel", 40, 76, Color.WHITE)
         print("Z = LOOT", 90, 96, Color.WHITE)
         print("X = LEAVE", 88, 104, Color.WHITE)
 

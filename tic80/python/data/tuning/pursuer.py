@@ -1,20 +1,15 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from ...contracts import PursuerVariantId
     from ...data.tuning import TUNING
 
 
-# PURSUER (m1.8)
+# PURSUER
 #
-# Единицы:
-# - расстояния/скорости в road-space units (те же, что у road_s / max_speed)
-# - время в секундах
-#
-# Все ручки можно отключать:
-# - enabled=False выключает механику целиком
-# - offroad_catchup=0 выключает бонус догоняния за оффроад
-# - boost_pushback_s=0 выключает отталкивание от бустеров
-# - strike_min_speed=0 отключает порог минимальной скорости для укуса
+# Варианты:
+# - entity: базовая "малая" сущность (дефолт)
+# - prime_entity: усиленная финальная версия
 
 # Главный флаг системы погони.
 TUNING.PURSUER.enabled = True
@@ -26,101 +21,5 @@ TUNING.PURSUER.enabled = True
 TUNING.PURSUER.grace_meters = 20.0
 TUNING.PURSUER.grace_seconds_cap = 4.0
 
-# Базовое отставание преследователя от машины в момент старта погони.
-# Во время grace удерживаем этот gap стабильным, чтобы не было "рывка" дистанции.
-TUNING.PURSUER.start_gap_s = 150.0
-
-# Скорость преследователя:
-# pursuer_speed = base_speed + slow_factor*slow_catchup + offroad_bonus
-# где slow_factor = clamp(1 - speed/max_speed, 0..1)
-#
-# Примеры при max_speed=100:
-# - speed=120: slow_factor=0.0 -> pursuer_speed=base_speed
-# - speed=100: slow_factor=0.0 -> pursuer_speed=base_speed
-# - speed=60:  slow_factor=0.4 -> pursuer_speed=base_speed + 0.4*slow_catchup
-# - speed=0:   slow_factor=1.0 -> pursuer_speed=base_speed + slow_catchup
-#
-# Базовый смысл:
-# - base_speed — "крейсерская" скорость погони;
-# - slow_catchup — добавка, насколько сильнее догоняет при медленной езде игрока;
-# - offroad_catchup — дополнительная прибавка, если игрок ушёл в оффроад.
-TUNING.PURSUER.base_speed = 100.0
-TUNING.PURSUER.slow_catchup = 0.0
-TUNING.PURSUER.offroad_catchup = 0.0
-
-# Пороги состояний:
-# - FAR:   d > show_dist_s
-# - CHASE: near_dist_s < d <= show_dist_s
-# - NEAR:  d <= near_dist_s
-#
-# Бар HUD строится по диапазону [near..show], поэтому увеличение show делает
-# нарастание более "плавным" и заметным заранее.
-TUNING.PURSUER.show_dist_s = 240.0
-# Поднимаем NEAR, чтобы тревога и визуальный акцент начинались раньше,
-# заметно до фактической дистанции укуса.
-TUNING.PURSUER.near_dist_s = 24.0
-# Визуальный сдвиг тела преследователя назад относительно "контактной" точки.
-# Важно: это только рендер-смещение, не влияет на логику догона/укуса.
-TUNING.PURSUER.contact_offset_s = 32.0
-
-# Strike:
-# - cooldown между укусами
-# - сколько ресурсов снимаем за удар
-TUNING.PURSUER.strike_cooldown_sec = 1.35
-TUNING.PURSUER.strike_drain_amount = 2
-# Если True, преследователь чередует фазы: SCRAP/HP -> FUEL -> SCRAP/HP...
-# Если False, работает только фаза SCRAP/HP.
-TUNING.PURSUER.strike_enable_fuel_phase = False
-# Если True, при нехватке scrap оставшийся drain идёт в HP.
-# Если False, преследователь будет снимать только scrap (без добивания HP).
-TUNING.PURSUER.strike_drain_hp_after_scrap = True
-# Дистанция, с которой укус разрешён. Должна быть заметно меньше near_dist_s,
-# чтобы не было урона "издали", когда преследователь ещё вне кадра.
-TUNING.PURSUER.strike_begin_dist_s = 12.0
-
-# Минимальная скорость машины для срабатывания укуса.
-# 0 = укусы возможны даже при почти нулевой скорости (более агрессивная погоня).
-TUNING.PURSUER.strike_min_speed = 0.0
-
-# Минимальная дистанция, ближе которой преследователь не подъезжает.
-# Держим её небольшой, чтобы враг был "на хвосте", но не закрывал машину.
-TUNING.PURSUER.follow_gap_s = 11.0
-
-# Насколько дорожный бустер отталкивает преследователя назад по s.
-TUNING.PURSUER.boost_pushback_s = 22.0
-
-# Размер glitch-сущности.
-TUNING.PURSUER.body_radius_chase = 9.0
-TUNING.PURSUER.body_radius_near = 13.0
-
-# Кодовые осколки вокруг преследователя:
-# - спавним в кольце [inner..outer], а не в квадрате
-# - inner/outer дополнительно ограничиваются в рендере, чтобы осколки не попадали внутрь тела
-# - up_bias приподнимает ореол над центром
-# - count_* управляет плотностью в CHASE/NEAR
-TUNING.PURSUER.code_shard_radius_inner = 24.0
-TUNING.PURSUER.code_shard_radius_outer = 50.0
-TUNING.PURSUER.code_shard_up_bias = 0.0
-TUNING.PURSUER.code_shard_count_chase = 4
-TUNING.PURSUER.code_shard_count_near = 8
-
-# Временная дебаг-метка контактной точки (white+red dot).
-TUNING.PURSUER.debug_contact_marker = False
-
-# Визуальные множители.
-# strike_shake_intensity прокидывается как "impact" в общий shake-hit канал.
-# Важно: в shake используется квадратичная кривая trauma^2, поэтому маленькие
-# значения почти незаметны. Для укуса держим impact выше "обычного удара".
-TUNING.PURSUER.strike_shake_intensity = 24.0
-TUNING.PURSUER.near_vignette = 0.25
-TUNING.PURSUER.near_noise = 0.5
-# Доп. усиление шума, когда преследователь уже в контакте (дистанция укуса).
-# 1.0 = без усиления, 2.0 = вдвое сильнее базового near_noise.
-TUNING.PURSUER.contact_noise_mult = 10
-# Краткий буст шума именно в момент укуса (пока живёт strike_flash).
-# 0.0 = выключено, 1.0 = +100% к текущему уровню шума.
-TUNING.PURSUER.strike_noise_boost = 20
-# Насколько сильно "ломаем" картинку всего экрана во время укуса.
-# 0.0 = выключено, 1.0 = базовый эффект, >1.0 = более агрессивный.
-TUNING.PURSUER.strike_meltdown_intensity = 1.0
-TUNING.PURSUER.strike_flash_seconds = 0.22
+# Текущий активный вариант ("entity" или "prime_entity").
+TUNING.PURSUER.active_variant = PursuerVariantId.ENTITY

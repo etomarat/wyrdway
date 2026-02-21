@@ -4,12 +4,14 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from tic80 import circ, circb, line, print, ttri
 
+    from ...contracts import PursuerVariantTuning
     from ...core.palette import Color
     from ...data.tuning import TUNING
     from ...systems.drive.drive_fx import TopdownProjector
     from ...systems.drive.drive_logic_core import DriveLogic
     from ...systems.drive.rng import lcg_next_u32
     from ...systems.drive.drive_objects import DriveObjects, DriveZone
+    from ...systems.drive.pursuers.archetypes import PursuerArchetype
     from ...systems.drive.drive_screen_shake import DriveScreenShake
     from ...systems.drive.road_model import RoadModel
     from .car_pose2d import CarPose2D
@@ -86,7 +88,12 @@ class DriveTopdownRenderer:
             return
         self._shake.notify_hit(float(intensity), TUNING)
 
-    def notify_pursuer_hp_strike_fx(self, logic: DriveLogic, hp_loss: int) -> None:
+    def notify_pursuer_hp_strike_fx(
+        self,
+        logic: DriveLogic,
+        hp_loss: int,
+        strike_shake_intensity: float
+    ) -> None:
         if hp_loss <= 0:
             return
         rear_x, rear_y, rear_r, front_x, front_y, front_r = logic.hitbox_world_circles()
@@ -100,7 +107,7 @@ class DriveTopdownRenderer:
         if hit_r <= 0.0:
             hit_r = 4.0
 
-        impact = float(TUNING.PURSUER.strike_shake_intensity) * 1.8 + float(hp_loss) * 12.0
+        impact = float(strike_shake_intensity) * 1.8 + float(hp_loss) * 12.0
         if impact < 36.0:
             impact = 36.0
         if impact > 120.0:
@@ -124,6 +131,7 @@ class DriveTopdownRenderer:
         logic: DriveLogic,
         objects: DriveObjects,
         active_zone: DriveZone | None,
+        pursuer_archetype: PursuerArchetype | None = None,
         pursuer_state: str | None = None,
         pursuer_s: float = 0.0,
         strike_flash: float = 0.0
@@ -197,7 +205,16 @@ class DriveTopdownRenderer:
         self._draw_car_ttri(pose)
         self._fx_overlay.draw_over_car()
         # Преследователь рисуем ПОСЛЕ машины, чтобы он всегда был поверх кузова.
-        self._draw_pursuer_world(road, proj, logic, pose, pursuer_state, pursuer_s, strike_flash)
+        self._draw_pursuer_world(
+            road,
+            proj,
+            logic,
+            pose,
+            pursuer_archetype,
+            pursuer_state,
+            pursuer_s,
+            strike_flash
+        )
 
         if TUNING.DRIVE.debug_vectors_enabled:
             self._debug_draw.draw_vectors(logic, proj, center_x, center_y)
@@ -210,24 +227,26 @@ class DriveTopdownRenderer:
         proj: TopdownProjector,
         logic: DriveLogic,
         pose: CarPose2D,
+        pursuer_archetype: PursuerArchetype | None,
         pursuer_state: str | None,
         pursuer_s: float,
         strike_flash: float
     ) -> None:
-        if pursuer_state is None or pursuer_state == "FAR":
+        if pursuer_state is None or pursuer_state == "FAR" or pursuer_archetype is None:
             self._pursuer_draw_inited = False
             self._pursuer_screen_inited = False
             self._pursuer_intro_active = False
             self._pursuer_intro_t = 0.0
             return
 
+        profile = pursuer_archetype.profile
         contact_s = float(pursuer_s)
         if contact_s < 0.0:
             contact_s = 0.0
         if contact_s > road.segment_total_length:
             contact_s = road.segment_total_length
         s = contact_s
-        visual_offset = float(TUNING.PURSUER.contact_offset_s)
+        visual_offset = float(profile.contact_offset_s)
         if visual_offset > 0.0:
             s -= visual_offset
         if s < 0.0:
@@ -316,8 +335,15 @@ class DriveTopdownRenderer:
             cy + right_y * half_w
         )
         road_half_px = ((rx - sx) * (rx - sx) + (ry - sy) * (ry - sy)) ** 0.5
-        self._draw_pursuer_glitch_body(px, py, pursuer_state, seed_base, road_half_px)
-        if TUNING.PURSUER.debug_contact_marker:
+        pursuer_archetype.draw_body(
+            self,
+            px,
+            py,
+            pursuer_state,
+            seed_base,
+            road_half_px
+        )
+        if profile.debug_contact_marker:
             # TEMP: яркая метка в логической контактной точке (до visual contact_offset_s).
             # Нужна для настройки offset относительно тела преследователя.
             ccx, ccy = road.sample_centerline(contact_s)
@@ -341,7 +367,7 @@ class DriveTopdownRenderer:
         rear_x, rear_y, _, _, _, _ = logic.hitbox_world_circles()
         hit_sx, hit_sy = proj.world_to_screen(rear_x, rear_y)
         if strike_flash > 0.0:
-            flash_dur = float(TUNING.PURSUER.strike_flash_seconds)
+            flash_dur = float(profile.strike_flash_seconds)
             flash_n = 1.0
             if flash_dur > 0.0001:
                 flash_n = strike_flash / flash_dur
@@ -349,7 +375,8 @@ class DriveTopdownRenderer:
                 flash_n = 0.0
             if flash_n > 1.0:
                 flash_n = 1.0
-            self._draw_pursuer_strike_lightning(
+            pursuer_archetype.draw_strike(
+                self,
                 px,
                 py,
                 int(hit_sx),
@@ -374,20 +401,63 @@ class DriveTopdownRenderer:
             return "mem"
         return "xor"
 
+    def draw_glitch_pursuer_body(
+        self,
+        px: int,
+        py: int,
+        pursuer_state: str,
+        seed_base: int,
+        road_half_px: float,
+        profile: PursuerVariantTuning
+    ) -> None:
+        self._draw_pursuer_glitch_body(
+            px,
+            py,
+            pursuer_state,
+            seed_base,
+            road_half_px,
+            profile,
+            False
+        )
+
+    def draw_prime_pursuer_body(
+        self,
+        px: int,
+        py: int,
+        pursuer_state: str,
+        seed_base: int,
+        road_half_px: float,
+        profile: PursuerVariantTuning
+    ) -> None:
+        # Prime Entity должен снова вести себя как "большой босс":
+        # визуальный радиус не может быть меньше ширины дороги.
+        self._draw_pursuer_glitch_body(
+            px,
+            py,
+            pursuer_state,
+            seed_base,
+            road_half_px,
+            profile,
+            True
+        )
+
     def _draw_pursuer_glitch_body(
         self,
         px: int,
         py: int,
         pursuer_state: str,
         seed_base: int,
-        road_half_px: float
+        road_half_px: float,
+        profile: PursuerVariantTuning,
+        clamp_to_road: bool
     ) -> None:
-        r = int(TUNING.PURSUER.body_radius_chase)
+        r = int(profile.body_radius_chase)
         if pursuer_state == "NEAR":
-            r = int(TUNING.PURSUER.body_radius_near)
-        min_by_road = int(road_half_px * 1.08)
-        if min_by_road > r:
-            r = min_by_road
+            r = int(profile.body_radius_near)
+        if clamp_to_road:
+            min_by_road = int(road_half_px * 1.08)
+            if min_by_road > r:
+                r = min_by_road
         if r < 3:
             r = 3
 
@@ -447,14 +517,14 @@ class DriveTopdownRenderer:
         is_near = pursuer_state == "NEAR"
         seed = self._lcg(seed)
 
-        shards = int(TUNING.PURSUER.code_shard_count_chase)
+        shards = int(profile.code_shard_count_chase)
         if is_near:
-            shards = int(TUNING.PURSUER.code_shard_count_near)
+            shards = int(profile.code_shard_count_near)
         if shards < 1:
             shards = 1
 
-        inner_r = float(TUNING.PURSUER.code_shard_radius_inner)
-        outer_r = float(TUNING.PURSUER.code_shard_radius_outer)
+        inner_r = float(profile.code_shard_radius_inner)
+        outer_r = float(profile.code_shard_radius_outer)
         if inner_r < 0.0:
             inner_r = 0.0
         if outer_r < 1.0:
@@ -469,7 +539,7 @@ class DriveTopdownRenderer:
             inner_r = min_outer_shell
         if outer_r < inner_r + 8.0:
             outer_r = inner_r + 8.0
-        up_bias = float(TUNING.PURSUER.code_shard_up_bias)
+        up_bias = float(profile.code_shard_up_bias)
         inner2 = inner_r * inner_r
         outer2 = outer_r * outer_r
 
@@ -496,6 +566,103 @@ class DriveTopdownRenderer:
                 if sx >= -text_w and sx <= 239:
                     print(txt, sx, sy, color)
             j += 1
+
+    def draw_entity_pursuer_body(
+        self,
+        px: int,
+        py: int,
+        pursuer_state: str,
+        seed_base: int,
+        profile: PursuerVariantTuning
+    ) -> None:
+        r = int(profile.body_radius_chase)
+        if pursuer_state == "NEAR":
+            r = int(profile.body_radius_near)
+        if r < 3:
+            r = 3
+
+        core_color = Color.DARK_BLUE
+        if pursuer_state == "NEAR":
+            core_color = Color.BLUE
+        circ(px, py, r, core_color)
+        inner = r - 2
+        if inner < 2:
+            inner = 2
+        circ(px, py, inner, Color.CYAN)
+        ring_color = Color.CYAN
+        if pursuer_state == "NEAR":
+            ring_color = Color.WHITE
+        circb(px, py, r + 1, ring_color)
+        eye_half = 1
+        if r >= 6:
+            eye_half = 2
+        line(px - eye_half, py, px + eye_half, py, Color.WHITE)
+
+        seed = seed_base
+        trail_n = 3
+        if pursuer_state == "NEAR":
+            trail_n = 5
+        i = 0
+        while i < trail_n:
+            seed = self._lcg(seed)
+            x_off = int(seed % 3) - 1
+            y0 = py + r + 1 + i * 2
+            y1 = y0 + 1
+            c = Color.DARK_BLUE
+            if (seed & 1) != 0:
+                c = Color.BLUE
+            line(px + x_off, y0, px + x_off, y1, c)
+            i += 1
+
+    def draw_entity_pursuer_strike(
+        self,
+        px: int,
+        py: int,
+        tx: int,
+        ty: int,
+        flash_n: float,
+        seed_base: int
+    ) -> None:
+        dx = float(tx - px)
+        dy = float(ty - py)
+        d2 = dx * dx + dy * dy
+        if d2 <= 0.0001:
+            return
+        inv = 1.0 / (d2 ** 0.5)
+        nx = -dy * inv
+        ny = dx * inv
+        segs = 4
+        seed = seed_base
+        prev_x = float(px)
+        prev_y = float(py)
+        i = 1
+        while i <= segs:
+            t = float(i) / float(segs)
+            x = float(px) + dx * t
+            y = float(py) + dy * t
+            if i < segs:
+                seed = self._lcg(seed)
+                jitter = ((float(seed & 255) / 255.0) * 2.0 - 1.0)
+                amp = 1.0 + 4.0 * flash_n
+                x += nx * jitter * amp
+                y += ny * jitter * amp
+            line(int(prev_x), int(prev_y), int(x), int(y), Color.LIGHT_BLUE)
+            if flash_n > 0.45:
+                line(int(prev_x), int(prev_y) + 1, int(x), int(y) + 1, Color.WHITE)
+            prev_x = x
+            prev_y = y
+            i += 1
+
+    def draw_glitch_pursuer_strike(
+        self,
+        px: int,
+        py: int,
+        tx: int,
+        ty: int,
+        flash_n: float,
+        seed_base: int
+    ) -> None:
+        self._draw_pursuer_strike_lightning(px, py, tx, ty, flash_n, seed_base)
 
     def _draw_pursuer_strike_lightning(
         self,

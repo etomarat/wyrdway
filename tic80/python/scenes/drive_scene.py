@@ -17,6 +17,8 @@ if TYPE_CHECKING:
     from ..systems.drive.drive_debug_lines import drive_debug_lines
     from ..systems.drive.drive_zone_effects import apply_zone_effects
     from ..systems.drive.drive_zones import zone_at_hitboxes
+    from ..systems.drive.pursuers.archetypes import PursuerArchetype
+    from ..systems.drive.pursuers.registry import create_active_pursuer_archetype
     from ..systems.drive.road_model import RoadModel
     from .drive.pursuer_screen_fx import PursuerScreenFx
     from .drive.drive_topdown_renderer import DriveTopdownRenderer
@@ -54,12 +56,14 @@ class DriveScene:
         self._start_car_fuel = 0.0
         self._start_run_scrap = 0
         self._pursuer = PursuerChase()
+        self._pursuer_archetype: PursuerArchetype = create_active_pursuer_archetype()
         self._popups: list[_DrivePopup] = []
         self._pursuer_fx_time = 0.0
 
     def enter(self, params: SceneEnterParams = None) -> None:
         if not isinstance(params, DriveEnterParams):
             raise TypeError("DriveScene.enter expects DriveEnterParams")
+        self._pursuer_archetype = create_active_pursuer_archetype()
         self._mode = params.mode
         self._variant = params.variant
         self._evacuated = False
@@ -97,7 +101,7 @@ class DriveScene:
         self._start_car_fuel = run.car_fuel
         self._start_run_scrap = run.run_scrap()
         if self._mode == "extract" and not self._state.playtest_enabled and self._logic is not None:
-            self._pursuer.start_return(self._logic.road_s)
+            self._pursuer.start_return(self._logic.road_s, self._pursuer_archetype.profile)
         else:
             self._pursuer.disable()
 
@@ -231,9 +235,10 @@ class DriveScene:
         self._pursuer.update(dt, run, logic, pushback_event)
         event = self._pursuer.strike_event
         if event.happened():
-            self._renderer.notify_pursuer_strike(float(TUNING.PURSUER.strike_shake_intensity))
+            intensity = float(self._pursuer_archetype.profile.strike_shake_intensity)
+            self._renderer.notify_pursuer_strike(intensity)
             if event.hp_loss > 0:
-                self._renderer.notify_pursuer_hp_strike_fx(logic, event.hp_loss)
+                self._renderer.notify_pursuer_hp_strike_fx(logic, event.hp_loss, intensity)
             self._append_strike_popups(event)
 
     def _restart_segment(self) -> None:
@@ -277,13 +282,19 @@ class DriveScene:
             logic,
             objects,
             self._active_zone,
+            self._pursuer_archetype,
             pursuer_state,
             pursuer_s,
             strike_flash
         )
         if self._pursuer.active:
             # FX погони (виньетка/шум) рисуем ПОД HUD.
-            self._pursuer_screen_fx.draw(logic, self._pursuer, self._pursuer_fx_time)
+            self._pursuer_screen_fx.draw(
+                logic,
+                self._pursuer,
+                self._pursuer_fx_time,
+                self._pursuer_archetype.profile
+            )
         self._ui.draw_stats(run, logic)
         self._ui.draw_steer_wheel(logic)
         self._ui.draw_slip_bar(logic)
@@ -292,7 +303,9 @@ class DriveScene:
                 run.run_scrap(),
                 self._start_run_scrap,
                 self._pursuer.distance_s,
-                self._pursuer.state
+                self._pursuer.state,
+                self._pursuer_archetype.profile,
+                self._pursuer_archetype.display_name()
             )
         self._draw_popups()
         if logic.finished():

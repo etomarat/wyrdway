@@ -1,8 +1,11 @@
-class PursuerTuning:
+class PursuerVariantId:
+    ENTITY = "entity"
+    PRIME_ENTITY = "prime_entity"
+
+
+class PursuerVariantTuning:
     __slots__ = (
-        "enabled",
-        "grace_meters",
-        "grace_seconds_cap",
+        "name",
         "start_gap_s",
         "base_speed",
         "slow_catchup",
@@ -36,9 +39,7 @@ class PursuerTuning:
     )
 
     def __init__(self) -> None:
-        self.enabled = False
-        self.grace_meters = 0.0
-        self.grace_seconds_cap = 0.0
+        self.name = ""
         self.start_gap_s = 0.0
         self.base_speed = 0.0
         self.slow_catchup = 0.0
@@ -69,3 +70,18 @@ class PursuerTuning:
         self.strike_noise_boost = 0.0
         self.strike_meltdown_intensity = 0.0
         self.strike_flash_seconds = 0.0
+
+
+class PursuerTuning:
+    __slots__ = (
+        "enabled",
+        "grace_meters",
+        "grace_seconds_cap",
+        "active_variant"
+    )
+
+    def __init__(self) -> None:
+        self.enabled = False
+        self.grace_meters = 0.0
+        self.grace_seconds_cap = 0.0
+        self.active_variant = PursuerVariantId.ENTITY

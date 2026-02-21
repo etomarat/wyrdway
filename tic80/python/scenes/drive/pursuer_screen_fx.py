@@ -4,26 +4,32 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from tic80 import line, pix
 
+    from ...contracts import PursuerVariantTuning
     from ...core.palette import Color
-    from ...data.tuning import TUNING
     from ...systems.drive.drive_logic_core import DriveLogic
     from ...systems.drive.pursuer_chase import PursuerChase
     from ...systems.drive.rng import lcg_next_u32
 
 
 class PursuerScreenFx:
-    def draw(self, logic: DriveLogic, pursuer: PursuerChase, fx_time: float) -> None:
+    def draw(
+        self,
+        logic: DriveLogic,
+        pursuer: PursuerChase,
+        fx_time: float,
+        profile: PursuerVariantTuning
+    ) -> None:
         intensity = pursuer.near_intensity()
         if intensity <= 0.0:
             return
-        strike_dist = float(TUNING.PURSUER.strike_begin_dist_s)
-        gap = float(TUNING.PURSUER.follow_gap_s)
+        strike_dist = float(profile.strike_begin_dist_s)
+        gap = float(profile.follow_gap_s)
         if strike_dist < gap:
             strike_dist = gap
         caught = pursuer.distance_s <= strike_dist
         pulse = (1.0 + math.sin(fx_time * 8.0)) * 0.5
 
-        vig = intensity * float(TUNING.PURSUER.near_vignette) * (1.0 + 0.25 * pulse)
+        vig = intensity * float(profile.near_vignette) * (1.0 + 0.25 * pulse)
         if vig > 0.0:
             thick = int(vig * 16.0 + 0.5)
             if thick > 8:
@@ -43,14 +49,14 @@ class PursuerScreenFx:
                 line(x1, y0, x1, y1, color)
                 i += 1
 
-        noise = intensity * float(TUNING.PURSUER.near_noise) * (1.0 + 0.35 * pulse)
+        noise = intensity * float(profile.near_noise) * (1.0 + 0.35 * pulse)
         if caught:
-            contact_mult = float(TUNING.PURSUER.contact_noise_mult)
+            contact_mult = float(profile.contact_noise_mult)
             if contact_mult > 0.0:
                 noise *= contact_mult
         flash_n = 0.0
         if pursuer.strike_flash > 0.0:
-            flash_t = float(TUNING.PURSUER.strike_flash_seconds)
+            flash_t = float(profile.strike_flash_seconds)
             flash_n = 1.0
             if flash_t > 0.0001:
                 flash_n = pursuer.strike_flash / flash_t
@@ -58,11 +64,11 @@ class PursuerScreenFx:
                 flash_n = 0.0
             if flash_n > 1.0:
                 flash_n = 1.0
-            noise *= 1.0 + float(TUNING.PURSUER.strike_noise_boost) * flash_n
+            noise *= 1.0 + float(profile.strike_noise_boost) * flash_n
         dots = int(noise * 110.0)
         if dots <= 0:
             if flash_n > 0.0:
-                self._draw_strike_meltdown(flash_n, 0)
+                self._draw_strike_meltdown(flash_n, 0, profile)
             return
         seed = int(
             logic.road_s * 13.0
@@ -92,12 +98,17 @@ class PursuerScreenFx:
             pix(x, y, c)
             i += 1
         if flash_n > 0.0:
-            self._draw_strike_meltdown(flash_n, seed)
+            self._draw_strike_meltdown(flash_n, seed, profile)
 
-    def _draw_strike_meltdown(self, flash_n: float, seed_base: int) -> None:
+    def _draw_strike_meltdown(
+        self,
+        flash_n: float,
+        seed_base: int,
+        profile: PursuerVariantTuning
+    ) -> None:
         if flash_n <= 0.0:
             return
-        strength = flash_n * float(TUNING.PURSUER.strike_meltdown_intensity)
+        strength = flash_n * float(profile.strike_meltdown_intensity)
         if strength <= 0.0:
             return
         if strength > 1.0:
