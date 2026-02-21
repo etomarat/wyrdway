@@ -35,7 +35,6 @@ class DriveTopdownRenderer:
     _CAR_SRC_Y0 = 0.0
     _CAR_SRC_X1 = 24.0
     _CAR_SRC_Y1 = 32.0
-    _PURSUER_ENTRY_SECONDS = 0.75
     # Internal compensation for atlas repack: old 32x32 sprite had 8px empty left column.
     # Not gameplay tuning; keeps existing anchor-aligned geometry unchanged.
     _CAR_SOURCE_REPACK_SHIFT_X = 8.0
@@ -290,7 +289,9 @@ class DriveTopdownRenderer:
         sx, sy = proj.world_to_screen(wx, wy)
 
         if not self._pursuer_screen_inited:
-            entry_y = 164.0
+            entry_y = float(profile.intro_entry_screen_y)
+            if entry_y <= 0.0:
+                entry_y = 164.0
             self._pursuer_screen_x = sx
             self._pursuer_screen_y = entry_y
             self._pursuer_screen_inited = True
@@ -305,8 +306,11 @@ class DriveTopdownRenderer:
         if self._pursuer_intro_active:
             self._pursuer_intro_t += float(TUNING.CORE.dt)
             n = 1.0
-            if self._PURSUER_ENTRY_SECONDS > 0.0001:
-                n = self._pursuer_intro_t / self._PURSUER_ENTRY_SECONDS
+            entry_seconds = float(profile.intro_entry_seconds)
+            if entry_seconds <= 0.0:
+                entry_seconds = 0.75
+            if entry_seconds > 0.0001:
+                n = self._pursuer_intro_t / entry_seconds
             if n < 0.0:
                 n = 0.0
             if n > 1.0:

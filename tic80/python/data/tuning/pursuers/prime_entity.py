@@ -30,6 +30,10 @@ p.near_dist_s = 24.0
 # Visual alignment.
 # contact_offset_s: shifts visual body behind logical contact point.
 p.contact_offset_s = 32.0
+# intro_entry_screen_y: initial off-screen Y for intro arrival animation (px).
+# intro_entry_seconds: intro arrival duration (sec).
+p.intro_entry_screen_y = 164.0
+p.intro_entry_seconds = 0.75
 
 # Strike cadence and damage model.
 # strike_cooldown_sec: delay between consecutive strikes.

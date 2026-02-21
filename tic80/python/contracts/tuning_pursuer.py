@@ -35,7 +35,9 @@ class PursuerVariantTuning:
         "contact_noise_mult",
         "strike_noise_boost",
         "strike_meltdown_intensity",
-        "strike_flash_seconds"
+        "strike_flash_seconds",
+        "intro_entry_seconds",
+        "intro_entry_screen_y"
     )
 
     def __init__(self) -> None:
@@ -70,6 +72,8 @@ class PursuerVariantTuning:
         self.strike_noise_boost = 0.0
         self.strike_meltdown_intensity = 0.0
         self.strike_flash_seconds = 0.0
+        self.intro_entry_seconds = 0.0
+        self.intro_entry_screen_y = 0.0
 
 
 class PursuerTuning:
