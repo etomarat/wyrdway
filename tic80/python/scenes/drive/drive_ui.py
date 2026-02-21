@@ -243,7 +243,11 @@ class DriveUi:
         rectb(dist_x, dist_y, dist_w, dist_h, Color.WHITE)
         fill_w = int((dist_w - 2) * fill_n)
         color = Color.BLUE
-        if pursuer_state == "CHASE":
+        if pursuer_state == "FAR":
+            color = Color.GREEN
+        elif d > 100.0:
+            color = Color.BLUE
+        elif pursuer_state == "CHASE":
             color = Color.ORANGE
         elif pursuer_state == "NEAR":
             color = Color.RED

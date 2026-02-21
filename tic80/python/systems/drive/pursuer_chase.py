@@ -51,6 +51,7 @@ class PursuerChase:
         "_phase",
         "_grace_start_s",
         "_grace_elapsed",
+        "_grace_active",
         "_pursuer_s",
         "_dist_s",
         "_cooldown",
@@ -65,6 +66,7 @@ class PursuerChase:
         self._phase: StrikePhase = "SCRAP_HP"
         self._grace_start_s = 0.0
         self._grace_elapsed = 0.0
+        self._grace_active = False
         self._pursuer_s = 0.0
         self._dist_s = 9999.0
         self._cooldown = 0.0
@@ -83,6 +85,18 @@ class PursuerChase:
     @property
     def phase(self) -> StrikePhase:
         return self._phase
+
+    @property
+    def grace_start_s(self) -> float:
+        return self._grace_start_s
+
+    @property
+    def grace_elapsed(self) -> float:
+        return self._grace_elapsed
+
+    @property
+    def in_grace(self) -> bool:
+        return self._grace_active
 
     @property
     def distance_s(self) -> float:
@@ -132,6 +146,7 @@ class PursuerChase:
         self._phase = "SCRAP_HP"
         self._grace_start_s = float(car_s)
         self._grace_elapsed = 0.0
+        self._grace_active = True
         self._pursuer_s = float(car_s) - float(TUNING.PURSUER.start_gap_s)
         self._dist_s = float(TUNING.PURSUER.start_gap_s)
         self._cooldown = 0.0
@@ -142,6 +157,7 @@ class PursuerChase:
     def disable(self) -> None:
         self._active = False
         self._state = "FAR"
+        self._grace_active = False
         self._dist_s = 9999.0
         self._cooldown = 0.0
         self._strike_flash = 0.0
@@ -217,6 +233,7 @@ class PursuerChase:
     ) -> None:
         self._strike_event.clear()
         if not self._active:
+            self._grace_active = False
             return
 
         self._grace_elapsed += dt
@@ -230,7 +247,8 @@ class PursuerChase:
                 self._strike_flash = 0.0
 
         car_s = float(logic.road_s)
-        if self._in_grace(car_s):
+        self._grace_active = self._in_grace(car_s)
+        if self._grace_active:
             self._pursuer_s = car_s - float(TUNING.PURSUER.start_gap_s)
             self._state = "FAR"
             self._dist_s = float(TUNING.PURSUER.start_gap_s)

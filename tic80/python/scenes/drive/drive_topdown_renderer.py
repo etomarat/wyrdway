@@ -33,6 +33,7 @@ class DriveTopdownRenderer:
     _CAR_SRC_Y0 = 0.0
     _CAR_SRC_X1 = 24.0
     _CAR_SRC_Y1 = 32.0
+    _PURSUER_ENTRY_SECONDS = 0.75
     # Internal compensation for atlas repack: old 32x32 sprite had 8px empty left column.
     # Not gameplay tuning; keeps existing anchor-aligned geometry unchanged.
     _CAR_SOURCE_REPACK_SHIFT_X = 8.0
@@ -56,6 +57,10 @@ class DriveTopdownRenderer:
         self._pursuer_screen_x = 0.0
         self._pursuer_screen_y = 0.0
         self._pursuer_screen_inited = False
+        self._pursuer_intro_active = False
+        self._pursuer_intro_t = 0.0
+        self._pursuer_intro_start_x = 0.0
+        self._pursuer_intro_start_y = 0.0
 
     def notify_obstacle_hit(
         self,
@@ -212,6 +217,8 @@ class DriveTopdownRenderer:
         if pursuer_state is None or pursuer_state == "FAR":
             self._pursuer_draw_inited = False
             self._pursuer_screen_inited = False
+            self._pursuer_intro_active = False
+            self._pursuer_intro_t = 0.0
             return
 
         contact_s = float(pursuer_s)
@@ -255,10 +262,39 @@ class DriveTopdownRenderer:
         wy = cy + right_y * wobble
         sx, sy = proj.world_to_screen(wx, wy)
 
-        if (not self._pursuer_screen_inited) or (abs(sx - self._pursuer_screen_x) + abs(sy - self._pursuer_screen_y) > 80.0):
+        if not self._pursuer_screen_inited:
+            entry_y = 164.0
+            self._pursuer_screen_x = sx
+            self._pursuer_screen_y = entry_y
+            self._pursuer_screen_inited = True
+            self._pursuer_intro_active = True
+            self._pursuer_intro_t = 0.0
+            self._pursuer_intro_start_x = sx
+            self._pursuer_intro_start_y = entry_y
+        elif (abs(sx - self._pursuer_screen_x) + abs(sy - self._pursuer_screen_y) > 80.0) and (not self._pursuer_intro_active):
             self._pursuer_screen_x = sx
             self._pursuer_screen_y = sy
-            self._pursuer_screen_inited = True
+
+        if self._pursuer_intro_active:
+            self._pursuer_intro_t += float(TUNING.CORE.dt)
+            n = 1.0
+            if self._PURSUER_ENTRY_SECONDS > 0.0001:
+                n = self._pursuer_intro_t / self._PURSUER_ENTRY_SECONDS
+            if n < 0.0:
+                n = 0.0
+            if n > 1.0:
+                n = 1.0
+            ease = n * n * (3.0 - 2.0 * n)
+            self._pursuer_screen_x = (
+                self._pursuer_intro_start_x
+                + (sx - self._pursuer_intro_start_x) * ease
+            )
+            self._pursuer_screen_y = (
+                self._pursuer_intro_start_y
+                + (sy - self._pursuer_intro_start_y) * ease
+            )
+            if n >= 1.0:
+                self._pursuer_intro_active = False
         else:
             screen_lerp = 0.14
             if pursuer_state == "NEAR":
