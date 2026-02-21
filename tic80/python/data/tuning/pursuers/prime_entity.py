@@ -37,7 +37,7 @@ p.contact_offset_s = 32.0
 # strike_enable_fuel_phase: alternate SCRAP/HP and FUEL phases if True.
 # strike_drain_hp_after_scrap: when scrap is empty, remaining damage goes to HP.
 p.strike_cooldown_sec = 1.35
-p.strike_drain_amount = 2
+p.strike_drain_amount = 4
 p.strike_enable_fuel_phase = False
 p.strike_drain_hp_after_scrap = True
 
@@ -45,7 +45,7 @@ p.strike_drain_hp_after_scrap = True
 # strike_begin_dist_s: desired strike start distance.
 # strike_min_speed: minimal player speed required for strikes (0 = always).
 # follow_gap_s: hard minimum distance between pursuer and player.
-# NOTE: actual strike distance is max(strike_begin_dist_s, follow_gap_s).
+# NOTE: keep strike_begin_dist_s >= follow_gap_s to avoid unreachable strike range.
 p.strike_begin_dist_s = 12.0
 p.strike_min_speed = 0.0
 p.follow_gap_s = 11.0
@@ -66,7 +66,7 @@ p.code_shard_count_near = 8
 
 # Debug.
 # Shows logical contact point marker to tune contact_offset_s.
-p.debug_contact_marker = False
+p.debug_contact_marker = True
 
 # Hit FX intensity.
 p.strike_shake_intensity = 24.0

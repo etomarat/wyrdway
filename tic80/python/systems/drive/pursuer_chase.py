@@ -318,8 +318,6 @@ class PursuerChase:
         if min_speed > 0.0:
             speed_ok = float(logic.speed) >= min_speed
         strike_dist = float(p.strike_begin_dist_s)
-        if strike_dist < gap:
-            strike_dist = gap
         close_enough = self._dist_s <= strike_dist
         if close_enough and self._cooldown <= 0.0 and speed_ok:
             self._apply_strike(run)

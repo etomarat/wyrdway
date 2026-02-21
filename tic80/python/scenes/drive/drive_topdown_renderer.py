@@ -220,6 +220,14 @@ class DriveTopdownRenderer:
             self._debug_draw.draw_vectors(logic, proj, center_x, center_y)
         if TUNING.DRIVE.debug_hitboxes_enabled:
             self._debug_draw.draw_hitboxes(logic, proj)
+            if pursuer_archetype is not None:
+                profile = pursuer_archetype.profile
+                self._debug_draw.draw_pursuer_strike_range(
+                    road,
+                    proj,
+                    float(logic.road_s),
+                    float(profile.strike_begin_dist_s)
+                )
 
     def _draw_pursuer_world(
         self,

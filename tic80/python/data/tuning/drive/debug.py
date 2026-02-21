@@ -18,7 +18,7 @@ TUNING.DRIVE.debug_vectors_accel_scale = 0.2
 TUNING.DRIVE.debug_zones_enabled = True
 
 # Визуализация хитбоксов машины (для настройки коллизий).
-TUNING.DRIVE.debug_hitboxes_enabled = False
+TUNING.DRIVE.debug_hitboxes_enabled = True
 
 # Телеметрия DRIVE (для отладки управления).
 #

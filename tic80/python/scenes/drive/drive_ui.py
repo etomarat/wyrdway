@@ -213,9 +213,6 @@ class DriveUi:
         show = float(profile.show_dist_s)
         near = float(profile.near_dist_s)
         strike = float(profile.strike_begin_dist_s)
-        follow_gap = float(profile.follow_gap_s)
-        if strike < follow_gap:
-            strike = follow_gap
 
         d = float(pursuer_dist_s) - strike
         if d < 0.0:

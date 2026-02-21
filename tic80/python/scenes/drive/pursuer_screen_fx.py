@@ -23,9 +23,6 @@ class PursuerScreenFx:
         if intensity <= 0.0:
             return
         strike_dist = float(profile.strike_begin_dist_s)
-        gap = float(profile.follow_gap_s)
-        if strike_dist < gap:
-            strike_dist = gap
         caught = pursuer.distance_s <= strike_dist
         pulse = (1.0 + math.sin(fx_time * 8.0)) * 0.5
 
