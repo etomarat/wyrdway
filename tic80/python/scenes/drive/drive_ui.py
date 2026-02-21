@@ -253,7 +253,7 @@ class DriveUi:
             color = Color.RED
         if fill_w > 0:
             rect(dist_x + 1, dist_y + 1, fill_w, dist_h - 2, color)
-        dist_text = "dist " + str(int(d + 0.5))
+        dist_text = "ENTITY THREAT"
         char_w = 6
         dist_text_x = int((240 - len(dist_text) * char_w) * 0.5)
         if dist_text_x < 2:

@@ -18,9 +18,15 @@ class PoiScene:
         self._nav = nav
         self._state = nav.state
         self.timer = TUNING.POI.timer_seconds
+        self._loot_summary_active = False
+        self._loot_scrap = 0
+        self._loot_fuel = 0
 
     def enter(self, params: SceneEnterParams = None) -> None:
         self.timer = TUNING.POI.timer_seconds
+        self._loot_summary_active = False
+        self._loot_scrap = 0
+        self._loot_fuel = 0
 
     def _poi_type_label(self, poi_type: str) -> str:
         if poi_type == "gas_station":
@@ -43,16 +49,6 @@ class PoiScene:
         delta.set_poi_action(action)
         if escape_outcome is not None:
             delta.set_escape_outcome(escape_outcome)
-        if action == "loot":
-            segment = run.active_segment
-            if segment is not None:
-                rewards = segment.rewards
-                if rewards.scrap > 0:
-                    item = run.add_item("scrap", rewards.scrap)
-                    delta.add_item_gained(item)
-                if rewards.fuel > 0:
-                    run.add_fuel(rewards.fuel)
-                    delta.add_fuel_gained(rewards.fuel)
 
         if go_result:
             if message is None:
@@ -63,10 +59,36 @@ class PoiScene:
         run.ensure_return_from_active_outbound()
         self._nav.go(SceneId.DRIVE, DriveEnterParams("extract"))
 
+    def _start_loot_summary(self) -> None:
+        run = self._state.require_run()
+        delta = run.ensure_delta(run.node_id)
+        delta.set_poi_action("loot")
+
+        self._loot_scrap = 0
+        self._loot_fuel = 0
+        segment = run.active_segment
+        if segment is not None:
+            rewards = segment.rewards
+            self._loot_scrap = max(0, int(rewards.scrap))
+            self._loot_fuel = max(0, int(rewards.fuel))
+            if self._loot_scrap > 0:
+                item = run.add_item("scrap", self._loot_scrap)
+                delta.add_item_gained(item)
+            if self._loot_fuel > 0:
+                run.add_fuel(self._loot_fuel)
+                delta.add_fuel_gained(self._loot_fuel)
+
+        self._loot_summary_active = True
+
     def update(self, dt: float) -> None:
+        if self._loot_summary_active:
+            if btnp(Button.A):
+                self._leave("loot")
+            return
+
         self.timer = max(0.0, self.timer - dt)
         if btnp(Button.A):
-            self._leave("loot")
+            self._start_loot_summary()
         elif btnp(Button.B):
             self._leave("leave")
         elif self.timer <= 0.0:
@@ -74,6 +96,16 @@ class PoiScene:
 
     def draw(self) -> None:
         cls(Color.BLACK)
+        if self._loot_summary_active:
+            print("LOOT SECURED", 78, 24, Color.WHITE)
+            print("you took what wasn't yours", 42, 40, Color.LIGHT_GREY)
+            print("stolen scrap +" + str(self._loot_scrap), 58, 56, Color.LIGHT_GREEN)
+            print("stolen fuel  +" + str(self._loot_fuel), 58, 64, Color.YELLOW)
+            print("the Entity is in pursuit", 54, 82, Color.RED)
+            print("return to base immediately", 46, 90, Color.WHITE)
+            print("Z = BEGIN RETURN", 74, 112, Color.WHITE)
+            return
+
         print("POI", 112, 30, Color.WHITE)
         print("timer=" + f"{self.timer:.2f}", 82, 50, Color.WHITE)
         run = self._state.run
