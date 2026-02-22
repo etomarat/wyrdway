@@ -46,12 +46,10 @@ class PursuerScreenFx:
         self,
         intensity: float,
         pursuer: PursuerChase,
-        fx_time: float,
+        pulse: float,
+        caught: bool,
         profile: PursuerVariantTuning
-    ) -> tuple[float, float, bool]:
-        strike_dist = float(profile.strike_begin_dist_s)
-        caught = pursuer.distance_s <= strike_dist
-        pulse = (1.0 + math.sin(fx_time * 8.0)) * 0.5
+    ) -> tuple[float, float]:
         noise = intensity * float(profile.near_noise) * (1.0 + 0.35 * pulse)
         if caught:
             contact_mult = float(profile.contact_noise_mult)
@@ -68,16 +66,7 @@ class PursuerScreenFx:
             if flash_n > 1.0:
                 flash_n = 1.0
             noise *= 1.0 + float(profile.strike_noise_boost) * flash_n
-        return noise, flash_n, caught
-
-    def is_glitch_active(
-        self,
-        pursuer: PursuerChase,
-        fx_time: float,
-        profile: PursuerVariantTuning
-    ) -> bool:
-        frame_state = self.build_frame_state(pursuer, fx_time, profile)
-        return frame_state.glitch_active
+        return noise, flash_n
 
     def build_frame_state(
         self,
@@ -90,12 +79,19 @@ class PursuerScreenFx:
             return PursuerScreenFxFrameState(0.0, 0.0, 0.0, 0, 0.0, False, False)
         pulse = (1.0 + math.sin(fx_time * 8.0)) * 0.5
         vig = intensity * float(profile.near_vignette) * (1.0 + 0.25 * pulse)
-        noise, flash_n, _ = self._glitch_noise_and_flash(intensity, pursuer, fx_time, profile)
+        strike_dist = float(profile.strike_begin_dist_s)
+        caught = pursuer.distance_s <= strike_dist
+        noise, flash_n = self._glitch_noise_and_flash(
+            intensity,
+            pursuer,
+            pulse,
+            caught,
+            profile
+        )
         dots = int(noise * 110.0)
         glitch_active = dots > 0
         if flash_n > 0.0 and float(profile.strike_meltdown_intensity) > 0.0:
             glitch_active = True
-        caught = pursuer.distance_s <= float(profile.strike_begin_dist_s)
         return PursuerScreenFxFrameState(
             intensity,
             pulse,
