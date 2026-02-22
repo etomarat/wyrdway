@@ -22,10 +22,17 @@ if TYPE_CHECKING:
         drive_logic_apply_zone_antislip,
         drive_logic_apply_side_recovery
     )
+    from .drive_logic_projection import (
+        drive_hitbox_road_circles,
+        drive_hitbox_world_circles,
+        drive_project_world_to_road_near_idx,
+        drive_update_road_projection
+    )
     from .drive_logic_post_step import (
         drive_logic_apply_drag,
         drive_logic_apply_fuel,
-        drive_logic_apply_offroad_damage
+        drive_logic_apply_offroad_damage,
+        drive_logic_apply_zone_boost
     )
     from .drive_logic_state import (
         drive_logic_set_zone_grip_mult,
@@ -34,38 +41,6 @@ if TYPE_CHECKING:
         drive_logic_set_zone_grip_floor,
         drive_logic_init_on_road_start,
         drive_logic_rotate_heading
-    )
-    from .drive_logic_accessors import (
-        drive_logic_dbg_zone_boost_forward,
-        drive_logic_dbg_zone_boost_center,
-        drive_logic_dbg_zone_antislip,
-        drive_logic_x,
-        drive_logic_y,
-        drive_logic_fwd_x,
-        drive_logic_fwd_y,
-        drive_logic_vx,
-        drive_logic_vy,
-        drive_logic_speed,
-        drive_logic_v_forward,
-        drive_logic_v_side,
-        drive_logic_road_s,
-        drive_logic_road_d,
-        drive_logic_offroad,
-        drive_logic_steer_input,
-        drive_logic_dbg_speed_factor,
-        drive_logic_dbg_steer_scale,
-        drive_logic_dbg_effective_grip,
-        drive_logic_dbg_side_damp,
-        drive_logic_dbg_side_accel,
-        drive_logic_dbg_fuel_per_sec,
-        drive_logic_dbg_handbrake_decel,
-        drive_logic_dbg_side_recovery,
-        drive_logic_finished,
-        drive_logic_hitbox_world,
-        drive_logic_hitbox_road,
-        drive_logic_project_world_to_road,
-        drive_logic_apply_zone_boost_proxy,
-        drive_logic_update_road_projection_proxy
     )
 
 
@@ -158,15 +133,15 @@ class DriveLogic:
 
     @property
     def dbg_zone_boost_forward(self) -> float:
-        return drive_logic_dbg_zone_boost_forward(self)
+        return self._dbg_zone_boost_forward
 
     @property
     def dbg_zone_boost_center(self) -> float:
-        return drive_logic_dbg_zone_boost_center(self)
+        return self._dbg_zone_boost_center
 
     @property
     def dbg_zone_antislip(self) -> float:
-        return drive_logic_dbg_zone_antislip(self)
+        return self._dbg_zone_antislip
 
     def _init_on_road_start(self) -> None:
         """Ставит машину в начало дороги и выравнивает по направлению трассы."""
@@ -174,39 +149,42 @@ class DriveLogic:
 
     @property
     def x(self) -> float:
-        return drive_logic_x(self)
+        return self._x
 
     @property
     def y(self) -> float:
-        return drive_logic_y(self)
+        return self._y
 
     @property
     def fwd_x(self) -> float:
-        return drive_logic_fwd_x(self)
+        return self._fwd_x
 
     @property
     def fwd_y(self) -> float:
-        return drive_logic_fwd_y(self)
+        return self._fwd_y
 
     @property
     def vx(self) -> float:
-        return drive_logic_vx(self)
+        return self._vx
 
     @property
     def vy(self) -> float:
-        return drive_logic_vy(self)
+        return self._vy
 
     @property
     def speed(self) -> float:
-        return drive_logic_speed(self)
+        v2 = self._vx * self._vx + self._vy * self._vy
+        return float(v2 ** 0.5)
 
     @property
     def v_forward(self) -> float:
-        return drive_logic_v_forward(self)
+        return self._vx * self._fwd_x + self._vy * self._fwd_y
 
     @property
     def v_side(self) -> float:
-        return drive_logic_v_side(self)
+        right_x = -self._fwd_y
+        right_y = self._fwd_x
+        return self._vx * right_x + self._vy * right_y
 
     def estimated_vmax_road(self) -> float:
         """Оценивает "крейсерскую максималку" (плато) на дороге.
@@ -223,51 +201,51 @@ class DriveLogic:
 
     @property
     def road_s(self) -> float:
-        return drive_logic_road_s(self)
+        return self._road_s
 
     @property
     def road_d(self) -> float:
-        return drive_logic_road_d(self)
+        return self._road_d
 
     @property
     def offroad(self) -> bool:
-        return drive_logic_offroad(self)
+        return self._offroad
 
     @property
     def steer_input(self) -> int:
-        return drive_logic_steer_input(self)
+        return self._steer_input
 
     @property
     def dbg_speed_factor(self) -> float:
-        return drive_logic_dbg_speed_factor(self)
+        return self._dbg_speed_factor
 
     @property
     def dbg_steer_scale(self) -> float:
-        return drive_logic_dbg_steer_scale(self)
+        return self._dbg_steer_scale
 
     @property
     def dbg_effective_grip(self) -> float:
-        return drive_logic_dbg_effective_grip(self)
+        return self._dbg_effective_grip
 
     @property
     def dbg_side_damp(self) -> float:
-        return drive_logic_dbg_side_damp(self)
+        return self._dbg_side_damp
 
     @property
     def dbg_side_accel(self) -> float:
-        return drive_logic_dbg_side_accel(self)
+        return self._dbg_side_accel
 
     @property
     def dbg_fuel_per_sec(self) -> float:
-        return drive_logic_dbg_fuel_per_sec(self)
+        return self._dbg_fuel_per_sec
 
     @property
     def dbg_handbrake_decel(self) -> float:
-        return drive_logic_dbg_handbrake_decel(self)
+        return self._dbg_handbrake_decel
 
     @property
     def dbg_side_recovery(self) -> float:
-        return drive_logic_dbg_side_recovery(self)
+        return self._dbg_side_recovery
 
     def update(
         self,
@@ -364,12 +342,12 @@ class DriveLogic:
         self._vx = fwd_x * v_fwd + right_x * v_side
         self._vy = fwd_y * v_fwd + right_y * v_side
 
-        drive_logic_apply_zone_boost_proxy(self, dt)
+        drive_logic_apply_zone_boost(self, dt)
 
         self._x += self._vx * dt
         self._y += self._vy * dt
 
-        drive_logic_update_road_projection_proxy(self)
+        drive_update_road_projection(self)
 
         drive_logic_apply_drag(self, dt)
         drive_logic_apply_fuel(self, dt, throttle)
@@ -377,20 +355,20 @@ class DriveLogic:
 
     def finished(self) -> bool:
         """True, если игрок доехал по дороге до конца сегмента."""
-        return drive_logic_finished(self)
+        return self._road_s >= self._road.segment_total_length
 
     def hitbox_world_circles(self) -> tuple[float, float, float, float, float, float]:
-        return drive_logic_hitbox_world(self)
+        return drive_hitbox_world_circles(self)
 
     def hitbox_road_circles(self) -> tuple[float, float, float, float, float, float]:
-        return drive_logic_hitbox_road(self)
+        return drive_hitbox_road_circles(self)
 
     def _project_world_to_road_near_idx(self, x: float, y: float, idx_guess: int) -> tuple[float, float]:
-        return drive_logic_project_world_to_road(self, x, y, idx_guess)
+        return drive_project_world_to_road_near_idx(self, x, y, idx_guess)
 
     def _rotate_heading(self, delta: float) -> None:
         """Поворачивает heading на малый угол `delta` (в радианах)."""
         drive_logic_rotate_heading(self, delta)
 
     def _update_road_projection(self) -> None:
-        drive_logic_update_road_projection_proxy(self)
+        drive_update_road_projection(self)
