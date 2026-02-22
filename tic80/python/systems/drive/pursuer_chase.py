@@ -62,6 +62,9 @@ class PursuerStrikeDelta:
 
 
 class PursuerChase:
+    _EPS = 0.0001
+    _FAR_DIST_S = 9999.0
+
     __slots__ = (
         "_active",
         "_state",
@@ -86,7 +89,7 @@ class PursuerChase:
         self._grace_elapsed = 0.0
         self._grace_active = False
         self._pursuer_s = 0.0
-        self._dist_s = 9999.0
+        self._dist_s = self._FAR_DIST_S
         self._cooldown = 0.0
         self._strike_flash = 0.0
         self._last_speed = 0.0
@@ -142,7 +145,7 @@ class PursuerChase:
         return self._strike_delta
 
     def near_intensity(self) -> float:
-        p = self._active_profile()
+        p = self._profile
         show = float(p.show_dist_s)
         near = float(p.near_dist_s)
         d = self._dist_s
@@ -151,7 +154,7 @@ class PursuerChase:
         if d <= near:
             return 1.0
         span = show - near
-        if span <= 0.0001:
+        if span <= self._EPS:
             return 0.0
         n = (show - d) / span
         if n < 0.0:
@@ -160,14 +163,15 @@ class PursuerChase:
             return 1.0
         return n
 
-    def _active_profile(self) -> PursuerVariantTuning:
-        if self._profile is None:
-            return pursuer_profile_for_variant(PursuerVariantId.ENTITY)
-        return self._profile
+    def _reset_runtime_effects(self) -> None:
+        self._cooldown = 0.0
+        self._strike_flash = 0.0
+        self._last_speed = 0.0
+        self._strike_delta.clear()
 
     def start_return(self, car_s: float, profile: PursuerVariantTuning) -> None:
         self._profile = profile
-        p = self._active_profile()
+        p = self._profile
         self._active = bool(TUNING.PURSUER.enabled)
         self._state = PursuerStateId.FAR
         self._phase = "SCRAP_HP"
@@ -176,20 +180,14 @@ class PursuerChase:
         self._grace_active = True
         self._pursuer_s = float(car_s) - float(p.start_gap_s)
         self._dist_s = float(p.start_gap_s)
-        self._cooldown = 0.0
-        self._strike_flash = 0.0
-        self._last_speed = 0.0
-        self._strike_delta.clear()
+        self._reset_runtime_effects()
 
     def disable(self) -> None:
         self._active = False
         self._state = PursuerStateId.FAR
         self._grace_active = False
-        self._dist_s = 9999.0
-        self._cooldown = 0.0
-        self._strike_flash = 0.0
-        self._last_speed = 0.0
-        self._strike_delta.clear()
+        self._dist_s = self._FAR_DIST_S
+        self._reset_runtime_effects()
 
     def _in_grace(self, car_s: float) -> bool:
         grace_m = float(TUNING.PURSUER.grace_meters)
@@ -216,7 +214,7 @@ class PursuerChase:
         return value
 
     def _build_strike_delta(self, run: "RunState") -> None:
-        p = self._active_profile()
+        p = self._profile
         fuel_phase_enabled = bool(p.strike_enable_fuel_phase)
         drain = int(p.strike_drain_amount)
         if drain <= 0:
@@ -283,7 +281,7 @@ class PursuerChase:
 
         car_s = float(logic.road_s)
         self._grace_active = self._in_grace(car_s)
-        p = self._active_profile()
+        p = self._profile
         if self._grace_active:
             self._pursuer_s = car_s - float(p.start_gap_s)
             self._state = PursuerStateId.FAR
@@ -292,7 +290,7 @@ class PursuerChase:
 
         max_speed = float(TUNING.DRIVE.max_speed)
         speed_factor = 0.0
-        if max_speed > 0.0001:
+        if max_speed > self._EPS:
             speed_factor = float(logic.speed) / max_speed
         if speed_factor < 0.0:
             speed_factor = 0.0
