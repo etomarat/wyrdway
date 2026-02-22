@@ -4,6 +4,7 @@ if TYPE_CHECKING:
     from tic80 import btnp, print, time
 
     from .input_buttons import Button
+    from .text_layout import text_right_x
 
 
 class PerfOverlay:
@@ -70,10 +71,7 @@ class PerfOverlay:
         i = 0
         while i < len(self._lines):
             text = self._lines[i]
-            text_w = len(text) * 4
-            px = 240 - x - text_w
-            if px < 0:
-                px = 0
+            px = text_right_x(text, 239 - x, 4, 0)
             py = y + i * 6
             print(text, px, py, color, fixed=True, alt=True)
             i += 1

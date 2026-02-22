@@ -13,6 +13,7 @@ if TYPE_CHECKING:
     from ..core.palette import Color
     from ..core.run_state import EscapeOutcome, PoiAction
     from ..core.scene_ids import SceneId
+    from ..core.text_layout import text_center_x
     from ..data.tuning import TUNING
     from ..systems.drive.pursuers.registry import active_pursuer_name
 
@@ -105,14 +106,19 @@ class PoiScene:
     def draw(self) -> None:
         cls(Color.BLACK)
         if self._loot_summary_active:
-            print("LOOT SECURED", 78, 24, Color.WHITE)
-            print("you took what wasn't yours", 42, 40, Color.LIGHT_GREY)
+            line = "LOOT SECURED"
+            print(line, text_center_x(line, margin_x=2), 24, Color.WHITE, True)
+            line = "you took what wasn't yours"
+            print(line, text_center_x(line, margin_x=2), 40, Color.LIGHT_GREY, True)
             print("stolen scrap +" + str(self._loot_scrap),
-                  58, 56, Color.LIGHT_GREEN)
-            print("stolen fuel  +" + str(self._loot_fuel), 58, 64, Color.YELLOW)
-            print(self._pursuer_name + " is in pursuit", 44, 82, Color.RED)
-            print("return to base immediately", 46, 90, Color.WHITE)
-            print("Z = BEGIN RETURN", 74, 112, Color.WHITE)
+                  72, 56, Color.LIGHT_GREEN)
+            print("stolen fuel   +" + str(self._loot_fuel), 72, 64, Color.YELLOW)
+            pursuit_text = self._pursuer_name + " is in pursuit"
+            print(pursuit_text, text_center_x(pursuit_text, margin_x=2), 82, Color.RED, True)
+            line = "return to base immediately"
+            print(line, text_center_x(line, margin_x=2), 90, Color.WHITE, True)
+            line = "Z = BEGIN RETURN"
+            print(line, text_center_x(line, margin_x=2), 112, Color.WHITE, True)
             return
 
         print("POI", 112, 30, Color.WHITE)

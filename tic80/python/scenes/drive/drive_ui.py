@@ -6,6 +6,7 @@ if TYPE_CHECKING:
     from ...contracts import PursuerVariantTuning
     from ...core.palette import Color
     from ...core.run_state import RunState
+    from ...core.text_layout import text_center_x, text_max_chars, text_trim, text_width
     from ...data.tuning import TUNING
     from ...systems.drive.drive_logic_core import DriveLogic
 
@@ -253,17 +254,26 @@ class DriveUi:
             color = Color.RED
         if fill_w > 0:
             rect(dist_x + 1, dist_y + 1, fill_w, dist_h - 2, color)
-        dist_text = "ENTITY THREAT"
         char_w = 6
-        dist_text_x = int((240 - len(dist_text) * char_w) * 0.5)
-        if dist_text_x < 2:
-            dist_text_x = 2
-        print(dist_text, dist_text_x, dist_y + dist_h + 2, Color.WHITE)
-        name_text = str(pursuer_name)
-        name_text_x = int((240 - len(name_text) * char_w) * 0.5)
-        if name_text_x < 2:
-            name_text_x = 2
-        print(name_text, name_text_x, dist_y + dist_h + 8, Color.LIGHT_GREY)
+        shown_dist_m = int(d + 0.5)
+        if shown_dist_m < 0:
+            shown_dist_m = 0
+        title_prefix = "ANOMALY//"
+        name_text = str(pursuer_name).strip()
+        title_suffix = "//" + str(shown_dist_m) + "m"
+        max_chars = text_max_chars(240, char_w, 2)
+        name_max = max_chars - len(title_prefix) - len(title_suffix)
+        if name_max < 1:
+            name_max = 1
+        name_text = text_trim(name_text, name_max, True)
+        title_text = title_prefix + name_text + title_suffix
+        title_x = text_center_x(title_text, 240, char_w, 2)
+        title_y = dist_y + dist_h + 2
+        print(title_prefix, title_x, title_y, Color.WHITE, True)
+        name_x = title_x + text_width(title_prefix, char_w)
+        print(name_text, name_x, title_y, Color.LIGHT_GREY, True)
+        suffix_x = name_x + text_width(name_text, char_w)
+        print(title_suffix, suffix_x, title_y, Color.WHITE, True)
 
         # SCRAP: слева под HP.
         bars_x, bars_y, bars_w, bars_h, bars_gap = self.hud_bars_layout()

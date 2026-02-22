@@ -6,6 +6,7 @@ if TYPE_CHECKING:
 
     from ...contracts import PursuerVariantTuning
     from ...core.palette import Color
+    from ...core.text_layout import text_right_x, text_width
     from ...data.tuning import TUNING
     from ...systems.drive.drive_fx import TopdownProjector
     from ...systems.drive.drive_logic_core import DriveLogic
@@ -554,10 +555,7 @@ class DriveTopdownRenderer:
         txt = self._pursuer_error_text
         if txt == "":
             return
-        text_w = len(txt) * 6
-        tx = 239 - 4 - text_w
-        if tx < 0:
-            tx = 0
+        tx = text_right_x(txt, 239 - 4, 6, 0)
         ty = 136 - 4 - 6
         color = self._pursuer_error_color
         print(txt, tx, ty, color, True, 1, False)
@@ -720,7 +718,7 @@ class DriveTopdownRenderer:
                 color = Color.CYAN
             elif (seed & 15) == 0:
                 color = Color.WHITE
-            text_w = len(txt) * 6
+            text_w = text_width(txt, 6)
             sx = anchor_x - (text_w // 2)
             sy = anchor_y
             if sy >= -6 and sy <= 130:
@@ -798,7 +796,7 @@ class DriveTopdownRenderer:
                 color = Color.CYAN
             elif (seed & 31) == 0:
                 color = Color.WHITE
-            text_w = len(txt) * 5
+            text_w = text_width(txt, 5)
             sx = ax - (text_w // 2)
             sy = ay
             if sy >= -6 and sy <= 130:
