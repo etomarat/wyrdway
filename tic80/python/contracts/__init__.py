@@ -5,7 +5,6 @@ if TYPE_CHECKING:
 
     from .scene import (
         DriveMode as DriveMode,
-        DriveVariant as DriveVariant,
         DriveEnterParams as DriveEnterParams,
         ResultEnterParams as ResultEnterParams,
         SceneEnterParams as SceneEnterParams,

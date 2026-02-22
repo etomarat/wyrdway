@@ -5,23 +5,17 @@ if TYPE_CHECKING:
 
 
 DriveMode = Literal["travel", "extract"]
-DriveVariant = Literal["topdown", "cockpit"]
 
 
 class DriveEnterParams:
-    __slots__ = ("_mode", "_variant")
+    __slots__ = ("_mode",)
 
-    def __init__(self, mode: DriveMode, variant: DriveVariant = "topdown") -> None:
+    def __init__(self, mode: DriveMode) -> None:
         self._mode: DriveMode = mode
-        self._variant: DriveVariant = variant
 
     @property
     def mode(self) -> DriveMode:
         return self._mode
-
-    @property
-    def variant(self) -> DriveVariant:
-        return self._variant
 
 
 class ResultEnterParams:

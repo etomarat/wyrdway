@@ -42,7 +42,6 @@ class DriveScene:
         self._nav = nav
         self._state = nav.state
         self._mode = "travel"
-        self._variant = "topdown"
         self._road: RoadModel | None = None
         self._logic: DriveLogic | None = None
         self._objects: DriveObjects | None = None
@@ -65,7 +64,6 @@ class DriveScene:
             raise TypeError("DriveScene.enter expects DriveEnterParams")
         self._pursuer_archetype = create_active_pursuer_archetype()
         self._mode = params.mode
-        self._variant = params.variant
         self._evacuated = False
         self._road = None
         self._logic = None
@@ -110,7 +108,7 @@ class DriveScene:
                 int(TUNING.DRIVE.telemetry_every_frames),
                 int(TUNING.DRIVE.telemetry_max_lines)
             )
-            self._telemetry.begin(run.seed, self._mode, self._variant, TUNING)
+            self._telemetry.begin(run.seed, self._mode, TUNING)
         else:
             self._telemetry = None
 
@@ -271,10 +269,7 @@ class DriveScene:
         mode: Literal["travel", "extract"] = "travel"
         if self._mode == "extract":
             mode = "extract"
-        variant: Literal["topdown", "cockpit"] = "topdown"
-        if self._variant == "cockpit":
-            variant = "cockpit"
-        self.enter(DriveEnterParams(mode, variant))
+        self.enter(DriveEnterParams(mode))
 
     def draw(self) -> None:
         cls(Color.BLACK)
@@ -289,8 +284,7 @@ class DriveScene:
         if logic is None or road is None or run is None or objects is None:
             return
 
-        # Рендер держим отдельно от сцены, чтобы позже легко подключить второй вид (cockpit)
-        # и не раздувать DriveScene.
+        # Рендер держим отдельно от сцены, чтобы не раздувать DriveScene.
         pursuer_state: PursuerState | None = None
         pursuer_s = 0.0
         strike_flash = 0.0

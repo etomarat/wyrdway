@@ -177,7 +177,7 @@ class DrivePresetScene:
         if test_scrap < 20:
             run.add_item("scrap", 20 - test_scrap)
         trace("drive preset: chase test start")
-        self._nav.go(SceneId.DRIVE, DriveEnterParams("extract", "topdown"))
+        self._nav.go(SceneId.DRIVE, DriveEnterParams("extract"))
 
     def update(self, dt: float) -> None:
         if btnp(Button.LEFT) or btnp(Button.UP):
@@ -188,7 +188,7 @@ class DrivePresetScene:
             if not self._apply_selected_preset():
                 return
             if self._state.playtest_enabled:
-                self._nav.go(SceneId.DRIVE, DriveEnterParams("travel", "topdown"))
+                self._nav.go(SceneId.DRIVE, DriveEnterParams("travel"))
                 return
             self._nav.go(SceneId.GARAGE)
         elif btnp(Button.B):
