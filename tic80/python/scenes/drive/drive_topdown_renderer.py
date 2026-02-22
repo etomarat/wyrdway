@@ -135,6 +135,8 @@ class DriveTopdownRenderer:
         self._pursuer_anim_t = 0.0
         self._pursuer_draw_s = 0.0
         self._pursuer_draw_inited = False
+        self._pursuer_draw_d = 0.0
+        self._pursuer_draw_d_inited = False
         self._pursuer_screen_x = 0.0
         self._pursuer_screen_y = 0.0
         self._pursuer_screen_inited = False
@@ -334,6 +336,8 @@ class DriveTopdownRenderer:
     ) -> None:
         if pursuer_state is None or pursuer_state == "FAR" or pursuer_archetype is None:
             self._pursuer_draw_inited = False
+            self._pursuer_draw_d = 0.0
+            self._pursuer_draw_d_inited = False
             self._pursuer_screen_inited = False
             self._pursuer_intro_active = False
             self._pursuer_intro_t = 0.0
@@ -368,6 +372,22 @@ class DriveTopdownRenderer:
         dir_x, dir_y = road.direction_at(draw_s)
         right_x = -dir_y
         right_y = dir_x
+        half_w = road.width_at(draw_s) * 0.5
+        max_follow_d = half_w * 0.92
+        target_d = float(logic.road_d)
+        if target_d > max_follow_d:
+            target_d = max_follow_d
+        if target_d < -max_follow_d:
+            target_d = -max_follow_d
+        if (not self._pursuer_draw_d_inited) or abs(target_d - self._pursuer_draw_d) > half_w * 0.9:
+            self._pursuer_draw_d = target_d
+            self._pursuer_draw_d_inited = True
+        else:
+            d_lerp = 0.16
+            if pursuer_state == "NEAR":
+                d_lerp = 0.10
+            self._pursuer_draw_d += (target_d - self._pursuer_draw_d) * d_lerp
+
         t = self._pursuer_anim_t
         wobble = 1.4
         if pursuer_state == "NEAR":
@@ -377,8 +397,9 @@ class DriveTopdownRenderer:
             0.60 * math.sin(t * 4.5 + phase + self._cam_angle * 1.6)
             + 0.40 * math.sin(t * 2.7 + phase * 1.3)
         )
-        wx = cx + right_x * wobble
-        wy = cy + right_y * wobble
+        lateral_d = self._pursuer_draw_d + wobble
+        wx = cx + right_x * lateral_d
+        wy = cy + right_y * lateral_d
         sx, sy = proj.world_to_screen(wx, wy)
 
         if not self._pursuer_screen_inited:
@@ -434,12 +455,12 @@ class DriveTopdownRenderer:
             ^ int(draw_s * 17.0)
             ^ int(self._pursuer_anim_t * 1000.0)
         ) & 0xFFFFFFFF
-        half_w = road.width_at(draw_s) * 0.5
+        c_sx, c_sy = proj.world_to_screen(cx, cy)
         rx, ry = proj.world_to_screen(
             cx + right_x * half_w,
             cy + right_y * half_w
         )
-        road_half_px = ((rx - sx) * (rx - sx) + (ry - sy) * (ry - sy)) ** 0.5
+        road_half_px = ((rx - c_sx) * (rx - c_sx) + (ry - c_sy) * (ry - c_sy)) ** 0.5
         pursuer_archetype.draw_body(
             self,
             px,
@@ -463,9 +484,10 @@ class DriveTopdownRenderer:
                 0.60 * math.sin(t * 4.5 + phase + self._cam_angle * 1.6)
                 + 0.40 * math.sin(t * 2.7 + phase * 1.3)
             )
+            clateral_d = self._pursuer_draw_d + cwobble
             csx, csy = proj.world_to_screen(
-                ccx + crx * cwobble,
-                ccy + cry * cwobble
+                ccx + crx * clateral_d,
+                ccy + cry * clateral_d
             )
             circ(int(csx), int(csy), 2, Color.WHITE)
             circb(int(csx), int(csy), 3, Color.RED)
