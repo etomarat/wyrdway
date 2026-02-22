@@ -18,6 +18,7 @@ if TYPE_CHECKING:
     from .pursuer_body_renderer import PursuerBodyRenderer
     from .pursuer_screen_tracker import PursuerScreenTracker
     from .pursuer_strike_renderer import PursuerStrikeRenderer
+    from .pursuer_strike_flash import pursuer_strike_flash_n as pursuer_strike_flash_n
     from .pursuer_text_bank import PursuerTextBank
     from .pursuer_text_overlay import PursuerTextOverlay
     from .topdown_debug_draw import TopdownDebugDraw
@@ -344,15 +345,8 @@ class DriveTopdownRenderer:
 
         rear_x, rear_y, _, _, _, _ = logic.hitbox_world_circles()
         hit_sx, hit_sy = proj.world_to_screen(rear_x, rear_y)
-        if strike_flash > 0.0:
-            flash_dur = float(profile.strike_flash_seconds)
-            flash_n = 1.0
-            if flash_dur > 0.0001:
-                flash_n = strike_flash / flash_dur
-            if flash_n < 0.0:
-                flash_n = 0.0
-            if flash_n > 1.0:
-                flash_n = 1.0
+        flash_n = pursuer_strike_flash_n(strike_flash, float(profile.strike_flash_seconds))
+        if flash_n > 0.0:
             pursuer_archetype.draw_strike(
                 self,
                 px,

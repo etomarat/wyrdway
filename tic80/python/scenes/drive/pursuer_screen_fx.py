@@ -9,6 +9,7 @@ if TYPE_CHECKING:
     from ...systems.drive.drive_logic_core import DriveLogic
     from ...systems.drive.pursuer_chase import PursuerChase
     from ...systems.drive.rng import lcg_next_u32
+    from .pursuer_strike_flash import pursuer_strike_flash_n as pursuer_strike_flash_n
 
 
 class PursuerScreenFxFrameState:
@@ -57,14 +58,10 @@ class PursuerScreenFx:
                 noise *= contact_mult
         flash_n = 0.0
         if pursuer.strike_flash > 0.0:
-            flash_t = float(profile.strike_flash_seconds)
-            flash_n = 1.0
-            if flash_t > 0.0001:
-                flash_n = pursuer.strike_flash / flash_t
-            if flash_n < 0.0:
-                flash_n = 0.0
-            if flash_n > 1.0:
-                flash_n = 1.0
+            flash_n = pursuer_strike_flash_n(
+                pursuer.strike_flash,
+                float(profile.strike_flash_seconds)
+            )
             noise *= 1.0 + float(profile.strike_noise_boost) * flash_n
         return noise, flash_n
 
