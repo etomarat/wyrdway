@@ -7,6 +7,7 @@ if TYPE_CHECKING:
 include("scenes.drive.topdown_road_draw")
 include("scenes.drive.topdown_obstacles_draw")
 include("scenes.drive.car_pose2d")
+include("scenes.drive.topdown_camera_rig")
 include("scenes.drive.topdown_skid_marks")
 include("scenes.drive.topdown_debug_draw")
 include("scenes.drive.topdown_fx_overlay")
