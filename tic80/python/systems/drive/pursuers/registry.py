@@ -10,18 +10,34 @@ if TYPE_CHECKING:
     from .archetypes import PursuerArchetype
 
 
-def _profile_for_variant(variant: str) -> PursuerVariantTuning:
-    profile: PursuerVariantTuning = pursuer_profile_for_variant(variant)
-    return profile
+def _create_entity_archetype(profile: PursuerVariantTuning) -> PursuerArchetype:
+    archetype: PursuerArchetype = EntityPursuerArchetype(profile)
+    return archetype
+
+
+def _create_prime_entity_archetype(profile: PursuerVariantTuning) -> PursuerArchetype:
+    archetype: PursuerArchetype = PrimeEntityPursuerArchetype(profile)
+    return archetype
+
+
+_ARCHETYPE_FACTORIES = {
+    PursuerVariantId.ENTITY: _create_entity_archetype,
+    PursuerVariantId.PRIME_ENTITY: _create_prime_entity_archetype
+}
+
+
+def _create_for_variant(variant: str, profile: PursuerVariantTuning) -> PursuerArchetype:
+    key = str(variant)
+    factory = _ARCHETYPE_FACTORIES.get(key)
+    if factory is None:
+        factory = _ARCHETYPE_FACTORIES[PursuerVariantId.ENTITY]
+    archetype: PursuerArchetype = factory(profile)
+    return archetype
 
 
 def create_pursuer_archetype(variant: str) -> PursuerArchetype:
-    profile = _profile_for_variant(variant)
-    if variant == PursuerVariantId.PRIME_ENTITY:
-        prime_archetype: PursuerArchetype = PrimeEntityPursuerArchetype(profile)
-        return prime_archetype
-    entity_archetype: PursuerArchetype = EntityPursuerArchetype(profile)
-    return entity_archetype
+    profile = pursuer_profile_for_variant(variant)
+    return _create_for_variant(variant, profile)
 
 
 def create_active_pursuer_archetype() -> PursuerArchetype:
