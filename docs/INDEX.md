@@ -24,6 +24,8 @@ docs/
 - `10_milestones/m1_5/m_1_5_drive_physics_tuning_plan.md` — план улучшения управления/физики DRIVE.
 - `10_milestones/m1_6/m_1_6_drift_readability_plan.md` — план экспериментов по читаемости дрифта.
 - `10_milestones/m1_6/m_1_6_drift_readability_log.md` — журнал решений и результатов по веткам `drift/*`.
+- `10_milestones/m1_7/m_1_7_playable_loop_v_0_plan.md` — минимальная петля с route/return.
+- `10_milestones/m1_8/m_1_8_pursuer_chase_v_0_plan.md` — погоня на return, варианты сущности, текущий HUD/FX.
 - Если при запуске сразу попадаешь в `DRIVE_PRESET`, проверь `IS_DRIVE_PLAYTEST` в `tic80/python/main.py`.
 
 2) **Спека (источник правды по системам)**

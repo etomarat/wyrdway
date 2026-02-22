@@ -4,19 +4,21 @@
 Документ описывает, **как должна работать система TUNING** (набор «ручек» баланса) в игре **Wyrdway**.
 
 Дополнение: в этом файле есть “целевое” описание (на будущее), но мы также фиксируем
-**как TUNING устроен в коде сейчас** (M1–M1.6), чтобы не было расхождений спеки и реализации.
+**как TUNING устроен в коде сейчас** (M1–M1.8), чтобы не было расхождений спеки и реализации.
 
 ## 1.1 Как устроено сейчас (as-is в коде)
 
 Источник правды:
-- `tic80/python/contracts.py` — структура `Tuning` (контракт полей).
+- `tic80/python/contracts/` — структуры `Tuning` и под-контрактов (контракт полей).
 - `tic80/python/data/tuning/__init__.py` — создание `TUNING` и `tuning_version`.
-- `tic80/python/data/tuning/*.py` и `tic80/python/data/tuning/drive/*.py` — значения.
+- `tic80/python/data/tuning/*.py`, `tic80/python/data/tuning/pursuers/*.py` и `tic80/python/data/tuning/drive/*.py` — значения.
 
 Текущее разбиение (модули подключаются через `include(...)`):
 - `data.tuning.core`
 - `data.tuning.profile`
 - `data.tuning.poi`
+- `data.tuning.pursuers.__init__` (профили вариантов преследователя)
+- `data.tuning.pursuer` (глобальные параметры системы погони)
 - `data.tuning.debug`
 - `data.tuning.drive.physics`
 - `data.tuning.drive.track`

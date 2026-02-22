@@ -71,7 +71,7 @@
 - `BOOT()` вызывает `GameState.load_profile()`.
 - `GarageScene` по `A` делает `save_profile()` и `start_run()`.
 - `RegionMapScene` выбирает `node_id`, создаёт outbound-сегмент и вызывает `run.ensure_delta(node_id)`.
-- `DriveScene` обновляет вождение и меняет `run.car_hp/run.car_fuel`.
+- `DriveScene` обновляет вождение и меняет `run.car_hp/run.car_fuel`; на extract‑погоне также может дренить `run_scrap` при укусах преследователя.
 - `PoiScene` выставляет `delta.poi_action`, добавляет лут в ран, при тайм‑ауте ставит `escape_outcome="fail"`.
 - `ResultScene` по `A` вызывает `GameState.apply_run_results()` и возвращает в `GarageScene`.
 
@@ -103,8 +103,9 @@
 
 ### 3.3 DriveScene
 Файл: `tic80/python/scenes/drive_scene.py`
-- Меняет только `run.car_hp` и `run.car_fuel` (через `RunState.apply_damage()` и `RunState.consume_fuel()` внутри drive‑логики).
-- Для `active_segment.leg_kind == "RETURN"` строит ту же базовую дорогу в обратном порядке и отключает threats.
+- Меняет `run.car_hp` и `run.car_fuel` (через `RunState.apply_damage()` и `RunState.consume_fuel()` внутри drive‑логики).
+- На extract‑погоне может менять и `run_scrap` (через дрен укусами преследователя).
+- Для `active_segment.leg_kind == "RETURN"` строит ту же базовую дорогу в обратном порядке и отключает обычные дорожные threats; преследователь при этом активируется в обычной игре.
 - По эвакуации выставляет `delta.escape_outcome="fail"` и уходит в RESULT.
 - По успешному extract выставляет `delta.escape_outcome="ok"` и уходит в RESULT.
 

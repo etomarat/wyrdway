@@ -11,8 +11,9 @@
 
 Точка входа: `tic80/python/main.py`.
 
-Режим включается флагом:
-- `IS_DRIVE_PLAYTEST = True`
+Режим управляется флагом:
+- по умолчанию: `IS_DRIVE_PLAYTEST = False`
+- для плейтеста: `IS_DRIVE_PLAYTEST = True`
 
 Поведение:
 - сейв профиля не грузится,
