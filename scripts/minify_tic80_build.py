@@ -74,23 +74,6 @@ def strip_docstring_from_body(body: list[ast.stmt]) -> list[ast.stmt]:
     return body
 
 
-def strip_slots_from_class_body(body: list[ast.stmt]) -> list[ast.stmt]:
-    out: list[ast.stmt] = []
-    for stmt in body:
-        if isinstance(stmt, ast.Assign):
-            drop = False
-            for t in stmt.targets:
-                if is_name(t, "__slots__"):
-                    drop = True
-                    break
-            if drop:
-                continue
-        if isinstance(stmt, ast.AnnAssign) and is_name(stmt.target, "__slots__"):
-            continue
-        out.append(stmt)
-    return out
-
-
 def strip_annotations_from_args(args: ast.arguments) -> None:
     for a in args.posonlyargs:
         a.annotation = None
@@ -170,7 +153,6 @@ class BundleStripper(ast.NodeTransformer):
         # does not require typing.Protocol.
         node.bases = [b for b in node.bases if not is_name(b, "Protocol")]
         node.body = strip_docstring_from_body(node.body)
-        node.body = strip_slots_from_class_body(node.body)
         if not node.body:
             node.body = [ast.Pass()]
         return node
