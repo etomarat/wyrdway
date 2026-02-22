@@ -20,7 +20,7 @@ if TYPE_CHECKING:
     from ..systems.drive.pursuers.archetypes import PursuerArchetype
     from ..systems.drive.pursuers.registry import create_active_pursuer_archetype
     from ..systems.drive.road_model import RoadModel
-    from .drive.pursuer_screen_fx import PursuerScreenFx
+    from .drive.pursuer_screen_fx import PursuerScreenFx, PursuerScreenFxFrameState
     from .drive.drive_topdown_renderer import DriveTopdownRenderer
     from .drive.drive_ui import DriveUi
 
@@ -273,15 +273,17 @@ class DriveScene:
         pursuer_s = 0.0
         strike_flash = 0.0
         screen_glitch_active = False
+        pursuer_fx_state: PursuerScreenFxFrameState | None = None
         if self._pursuer.active:
             pursuer_state = self._pursuer.state
             pursuer_s = self._pursuer.pursuer_s
             strike_flash = self._pursuer.strike_flash
-            screen_glitch_active = self._pursuer_screen_fx.is_glitch_active(
+            pursuer_fx_state = self._pursuer_screen_fx.build_frame_state(
                 self._pursuer,
                 self._pursuer_fx_time,
                 self._pursuer_archetype.profile
             )
+            screen_glitch_active = pursuer_fx_state.glitch_active
 
         self._renderer.draw(
             road,
@@ -300,7 +302,8 @@ class DriveScene:
                 logic,
                 self._pursuer,
                 self._pursuer_fx_time,
-                self._pursuer_archetype.profile
+                self._pursuer_archetype.profile,
+                pursuer_fx_state
             )
         self._ui.draw_stats(run, logic)
         self._ui.draw_steer_wheel(logic)

@@ -11,6 +11,36 @@ if TYPE_CHECKING:
     from ...systems.drive.rng import lcg_next_u32
 
 
+class PursuerScreenFxFrameState:
+    __slots__ = (
+        "intensity",
+        "pulse",
+        "vig",
+        "dots",
+        "flash_n",
+        "caught",
+        "glitch_active"
+    )
+
+    def __init__(
+        self,
+        intensity: float,
+        pulse: float,
+        vig: float,
+        dots: int,
+        flash_n: float,
+        caught: bool,
+        glitch_active: bool
+    ) -> None:
+        self.intensity = intensity
+        self.pulse = pulse
+        self.vig = vig
+        self.dots = dots
+        self.flash_n = flash_n
+        self.caught = caught
+        self.glitch_active = glitch_active
+
+
 class PursuerScreenFx:
     def _glitch_noise_and_flash(
         self,
@@ -46,29 +76,51 @@ class PursuerScreenFx:
         fx_time: float,
         profile: PursuerVariantTuning
     ) -> bool:
+        frame_state = self.build_frame_state(pursuer, fx_time, profile)
+        return frame_state.glitch_active
+
+    def build_frame_state(
+        self,
+        pursuer: PursuerChase,
+        fx_time: float,
+        profile: PursuerVariantTuning
+    ) -> PursuerScreenFxFrameState:
         intensity = pursuer.near_intensity()
         if intensity <= 0.0:
-            return False
+            return PursuerScreenFxFrameState(0.0, 0.0, 0.0, 0, 0.0, False, False)
+        pulse = (1.0 + math.sin(fx_time * 8.0)) * 0.5
+        vig = intensity * float(profile.near_vignette) * (1.0 + 0.25 * pulse)
         noise, flash_n, _ = self._glitch_noise_and_flash(intensity, pursuer, fx_time, profile)
-        if int(noise * 110.0) > 0:
-            return True
+        dots = int(noise * 110.0)
+        glitch_active = dots > 0
         if flash_n > 0.0 and float(profile.strike_meltdown_intensity) > 0.0:
-            return True
-        return False
+            glitch_active = True
+        caught = pursuer.distance_s <= float(profile.strike_begin_dist_s)
+        return PursuerScreenFxFrameState(
+            intensity,
+            pulse,
+            vig,
+            dots,
+            flash_n,
+            caught,
+            glitch_active
+        )
 
     def draw(
         self,
         logic: DriveLogic,
         pursuer: PursuerChase,
         fx_time: float,
-        profile: PursuerVariantTuning
+        profile: PursuerVariantTuning,
+        frame_state: PursuerScreenFxFrameState | None = None
     ) -> None:
-        intensity = pursuer.near_intensity()
-        if intensity <= 0.0:
+        fx = frame_state
+        if fx is None:
+            fx = self.build_frame_state(pursuer, fx_time, profile)
+        if fx.intensity <= 0.0:
             return
-        pulse = (1.0 + math.sin(fx_time * 8.0)) * 0.5
 
-        vig = intensity * float(profile.near_vignette) * (1.0 + 0.25 * pulse)
+        vig = fx.vig
         if vig > 0.0:
             thick = int(vig * 16.0 + 0.5)
             if thick > 8:
@@ -88,8 +140,9 @@ class PursuerScreenFx:
                 line(x1, y0, x1, y1, color)
                 i += 1
 
-        noise, flash_n, caught = self._glitch_noise_and_flash(intensity, pursuer, fx_time, profile)
-        dots = int(noise * 110.0)
+        flash_n = fx.flash_n
+        caught = fx.caught
+        dots = fx.dots
         if dots <= 0:
             if flash_n > 0.0:
                 self._draw_strike_meltdown(flash_n, 0, profile)
