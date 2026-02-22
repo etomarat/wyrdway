@@ -1,6 +1,12 @@
+from typing import Literal
+
+
+PursuerVariantIdValue = Literal["entity", "prime_entity"]
+
+
 class PursuerVariantId:
-    ENTITY = "entity"
-    PRIME_ENTITY = "prime_entity"
+    ENTITY: Literal["entity"] = "entity"
+    PRIME_ENTITY: Literal["prime_entity"] = "prime_entity"
 
 
 class PursuerVariantTuning:
@@ -88,4 +94,4 @@ class PursuerTuning:
         self.enabled = False
         self.grace_meters = 0.0
         self.grace_seconds_cap = 0.0
-        self.active_variant = PursuerVariantId.ENTITY
+        self.active_variant: PursuerVariantIdValue = PursuerVariantId.ENTITY

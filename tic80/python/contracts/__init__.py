@@ -22,6 +22,7 @@ if TYPE_CHECKING:
         DriveTuning as DriveTuning,
         PoiTuning as PoiTuning,
         PursuerVariantId as PursuerVariantId,
+        PursuerVariantIdValue as PursuerVariantIdValue,
         PursuerVariantTuning as PursuerVariantTuning,
         PursuerTuning as PursuerTuning,
         Tuning as Tuning

@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ....contracts import PursuerVariantId
+    from ....contracts import PursuerVariantIdValue
     from ....contracts import PursuerVariantTuning
     from ....data.tuning import TUNING
     from ....data.tuning.pursuers import pursuer_profile_for_variant as pursuer_profile_for_variant
@@ -26,22 +27,24 @@ _ARCHETYPE_FACTORIES = {
 }
 
 
-def _create_for_variant(variant: str, profile: PursuerVariantTuning) -> PursuerArchetype:
-    key = str(variant)
-    factory = _ARCHETYPE_FACTORIES.get(key)
+def _create_for_variant(
+    variant: PursuerVariantIdValue,
+    profile: PursuerVariantTuning
+) -> PursuerArchetype:
+    factory = _ARCHETYPE_FACTORIES.get(variant)
     if factory is None:
         factory = _ARCHETYPE_FACTORIES[PursuerVariantId.ENTITY]
     archetype: PursuerArchetype = factory(profile)
     return archetype
 
 
-def create_pursuer_archetype(variant: str) -> PursuerArchetype:
+def create_pursuer_archetype(variant: PursuerVariantIdValue) -> PursuerArchetype:
     profile = pursuer_profile_for_variant(variant)
     return _create_for_variant(variant, profile)
 
 
 def create_active_pursuer_archetype() -> PursuerArchetype:
-    return create_pursuer_archetype(str(TUNING.PURSUER.active_variant))
+    return create_pursuer_archetype(TUNING.PURSUER.active_variant)
 
 
 def active_pursuer_name() -> str:

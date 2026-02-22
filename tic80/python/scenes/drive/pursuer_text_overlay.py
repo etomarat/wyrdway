@@ -4,6 +4,7 @@ if TYPE_CHECKING:
     from tic80 import print
 
     from ...contracts import PursuerVariantId
+    from ...contracts import PursuerVariantIdValue
     from ...core.palette import Color
     from ...core.text_layout import text_right_x
     from ...systems.drive.rng import lcg_next_u32
@@ -38,7 +39,7 @@ class PursuerTextOverlay:
             self._error_t = 0.0
             self._error_text = ""
 
-    def queue_error_text(self, variant_id: str, anim_t: float) -> None:
+    def queue_error_text(self, variant_id: PursuerVariantIdValue, anim_t: float) -> None:
         seed = self._error_seed ^ int(anim_t * 1000.0)
         seed = self._lcg(seed)
         self._error_seed = seed

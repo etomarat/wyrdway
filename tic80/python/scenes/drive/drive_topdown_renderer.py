@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from tic80 import circ, circb, line, print, ttri
 
+    from ...contracts import PursuerVariantIdValue
     from ...contracts import PursuerVariantTuning
     from ...core.palette import Color
     from ...data.tuning import TUNING
@@ -80,11 +81,11 @@ class DriveTopdownRenderer:
         )
         self._shake.notify_hit(impact, TUNING)
 
-    def notify_pursuer_strike(self, intensity: float, variant_id: str) -> None:
+    def notify_pursuer_strike(self, intensity: float, variant_id: PursuerVariantIdValue) -> None:
         if intensity <= 0.0:
             return
         self._shake.notify_hit(float(intensity), TUNING)
-        self._pursuer_text_overlay.queue_error_text(str(variant_id), self._pursuer_anim_t)
+        self._pursuer_text_overlay.queue_error_text(variant_id, self._pursuer_anim_t)
 
     def notify_pursuer_hp_strike_fx(
         self,

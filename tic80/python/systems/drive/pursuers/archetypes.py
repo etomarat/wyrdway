@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ....contracts import PursuerVariantId
+    from ....contracts import PursuerVariantIdValue
     from ....contracts import PursuerVariantTuning
     from ..pursuer_chase import PursuerState
     from ....scenes.drive.drive_topdown_renderer import DriveTopdownRenderer
@@ -10,8 +11,8 @@ if TYPE_CHECKING:
 class PursuerArchetype:
     __slots__ = ("variant_id", "profile")
 
-    def __init__(self, variant_id: str, profile: PursuerVariantTuning) -> None:
-        self.variant_id = variant_id
+    def __init__(self, variant_id: PursuerVariantIdValue, profile: PursuerVariantTuning) -> None:
+        self.variant_id: PursuerVariantIdValue = variant_id
         self.profile = profile
 
     def display_name(self) -> str:

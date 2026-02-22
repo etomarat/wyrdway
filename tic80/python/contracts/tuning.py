@@ -9,6 +9,7 @@ if TYPE_CHECKING:
     from .tuning_drive import DriveTuning as DriveTuning
     from .tuning_poi import PoiTuning as PoiTuning
     from .tuning_pursuer import PursuerVariantId as PursuerVariantId
+    from .tuning_pursuer import PursuerVariantIdValue as PursuerVariantIdValue
     from .tuning_pursuer import PursuerVariantTuning as PursuerVariantTuning
     from .tuning_pursuer import PursuerTuning as PursuerTuning
     from .tuning_root import Tuning as Tuning

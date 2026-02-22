@@ -4,6 +4,7 @@ if TYPE_CHECKING:
     from tic80 import include
 
     from ....contracts import PursuerVariantId
+    from ....contracts import PursuerVariantIdValue
     from ....contracts import PursuerVariantTuning
     from .texts import PURSUER_ENTITY_ERRORS as PURSUER_ENTITY_ERRORS
     from .texts import PURSUER_ENTITY_WORDS as PURSUER_ENTITY_WORDS
@@ -20,7 +21,7 @@ include("data.tuning.pursuers.entity")
 include("data.tuning.pursuers.prime_entity")
 
 
-def _base_pursuer_profile_for_variant(variant: str) -> PursuerVariantTuning:
+def _base_pursuer_profile_for_variant(variant: PursuerVariantIdValue) -> PursuerVariantTuning:
     if variant == PursuerVariantId.PRIME_ENTITY:
         return PRIME_ENTITY_PURSUER_PROFILE
     return ENTITY_PURSUER_PROFILE
@@ -37,6 +38,6 @@ def clone_pursuer_profile(profile: PursuerVariantTuning) -> PursuerVariantTuning
     return clone
 
 
-def pursuer_profile_for_variant(variant: str) -> PursuerVariantTuning:
+def pursuer_profile_for_variant(variant: PursuerVariantIdValue) -> PursuerVariantTuning:
     base = _base_pursuer_profile_for_variant(variant)
     return clone_pursuer_profile(base)
