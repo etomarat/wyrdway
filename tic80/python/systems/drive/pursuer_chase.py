@@ -11,13 +11,18 @@ if TYPE_CHECKING:
 PursuerState = Literal["FAR", "CHASE", "NEAR"]
 StrikePhase = Literal["SCRAP_HP", "FUEL"]
 
-class PursuerStrikeEvent:
-    __slots__ = ("_scrap_loss", "_fuel_loss", "_hp_loss")
+
+class PursuerStrikeDelta:
+    __slots__ = (
+        "_scrap_loss",
+        "_fuel_drain",
+        "_hp_damage"
+    )
 
     def __init__(self) -> None:
         self._scrap_loss = 0
-        self._fuel_loss = 0
-        self._hp_loss = 0
+        self._fuel_drain = 0.0
+        self._hp_damage = 0.0
 
     @property
     def scrap_loss(self) -> int:
@@ -25,24 +30,40 @@ class PursuerStrikeEvent:
 
     @property
     def fuel_loss(self) -> int:
-        return self._fuel_loss
+        return int(self._fuel_drain + 0.0001)
 
     @property
     def hp_loss(self) -> int:
-        return self._hp_loss
+        return int(self._hp_damage + 0.0001)
+
+    @property
+    def fuel_drain(self) -> float:
+        return self._fuel_drain
+
+    @property
+    def hp_damage(self) -> float:
+        return self._hp_damage
 
     def clear(self) -> None:
         self._scrap_loss = 0
-        self._fuel_loss = 0
-        self._hp_loss = 0
+        self._fuel_drain = 0.0
+        self._hp_damage = 0.0
 
-    def set_losses(self, scrap_loss: int, fuel_loss: int, hp_loss: int) -> None:
+    def set_losses(
+        self,
+        scrap_loss: int,
+        fuel_drain: float,
+        hp_damage: float
+    ) -> None:
         self._scrap_loss = max(0, int(scrap_loss))
-        self._fuel_loss = max(0, int(fuel_loss))
-        self._hp_loss = max(0, int(hp_loss))
+        self._fuel_drain = max(0.0, float(fuel_drain))
+        self._hp_damage = max(0.0, float(hp_damage))
 
     def happened(self) -> bool:
-        return self._scrap_loss > 0 or self._fuel_loss > 0 or self._hp_loss > 0
+        return self._scrap_loss > 0 or self.fuel_loss > 0 or self.hp_loss > 0
+
+    def has_runtime_effect(self) -> bool:
+        return self._scrap_loss > 0 or self._fuel_drain > 0.0 or self._hp_damage > 0.0
 
 
 class PursuerChase:
@@ -58,7 +79,7 @@ class PursuerChase:
         "_cooldown",
         "_strike_flash",
         "_last_speed",
-        "_strike_event",
+        "_strike_delta",
         "_profile"
     )
 
@@ -74,7 +95,7 @@ class PursuerChase:
         self._cooldown = 0.0
         self._strike_flash = 0.0
         self._last_speed = 0.0
-        self._strike_event = PursuerStrikeEvent()
+        self._strike_delta = PursuerStrikeDelta()
         self._profile = pursuer_profile_for_variant(PursuerVariantId.ENTITY)
 
     @property
@@ -122,8 +143,8 @@ class PursuerChase:
         return self._last_speed
 
     @property
-    def strike_event(self) -> PursuerStrikeEvent:
-        return self._strike_event
+    def strike_delta(self) -> PursuerStrikeDelta:
+        return self._strike_delta
 
     def near_intensity(self) -> float:
         p = self._active_profile()
@@ -163,7 +184,7 @@ class PursuerChase:
         self._cooldown = 0.0
         self._strike_flash = 0.0
         self._last_speed = 0.0
-        self._strike_event.clear()
+        self._strike_delta.clear()
 
     def disable(self) -> None:
         self._active = False
@@ -173,7 +194,7 @@ class PursuerChase:
         self._cooldown = 0.0
         self._strike_flash = 0.0
         self._last_speed = 0.0
-        self._strike_event.clear()
+        self._strike_delta.clear()
 
     def _in_grace(self, car_s: float) -> bool:
         grace_m = float(TUNING.PURSUER.grace_meters)
@@ -199,7 +220,7 @@ class PursuerChase:
             return 1.0
         return value
 
-    def _apply_strike(self, run: "RunState") -> None:
+    def _build_strike_delta(self, run: "RunState") -> None:
         p = self._active_profile()
         fuel_phase_enabled = bool(p.strike_enable_fuel_phase)
         drain = int(p.strike_drain_amount)
@@ -210,25 +231,32 @@ class PursuerChase:
                 self._phase = "SCRAP_HP"
             self._cooldown = float(p.strike_cooldown_sec)
             self._strike_flash = float(p.strike_flash_seconds)
-            self._strike_event.clear()
+            self._strike_delta.clear()
             return
 
         scrap_loss = 0
-        fuel_loss = 0
-        hp_loss = 0
+        fuel_drain = 0.0
+        hp_damage = 0.0
         if self._phase == "FUEL" and fuel_phase_enabled:
             fuel_before = float(run.car_fuel)
-            run.consume_fuel(float(drain))
-            fuel_loss = int(fuel_before - float(run.car_fuel) + 0.0001)
+            fuel_after = fuel_before - float(drain)
+            if fuel_after < 0.0:
+                fuel_after = 0.0
+            fuel_drain = fuel_before - fuel_after
         else:
-            scrap_loss = run.drain_scrap(drain)
+            scrap_now = int(run.run_scrap())
+            scrap_loss = drain
+            if scrap_loss > scrap_now:
+                scrap_loss = scrap_now
             rem = drain - scrap_loss
             if rem > 0 and bool(p.strike_drain_hp_after_scrap):
                 hp_before = float(run.car_hp)
-                run.apply_damage(float(rem))
-                hp_loss = int(hp_before - float(run.car_hp) + 0.0001)
+                hp_after = hp_before - float(rem)
+                if hp_after < 0.0:
+                    hp_after = 0.0
+                hp_damage = hp_before - hp_after
 
-        self._strike_event.set_losses(scrap_loss, fuel_loss, hp_loss)
+        self._strike_delta.set_losses(scrap_loss, fuel_drain, hp_damage)
         if fuel_phase_enabled:
             self._phase = "FUEL" if self._phase == "SCRAP_HP" else "SCRAP_HP"
         else:
@@ -242,11 +270,11 @@ class PursuerChase:
         run: "RunState",
         logic: "DriveLogic",
         boost_pushback_event: bool
-    ) -> None:
-        self._strike_event.clear()
+    ) -> PursuerStrikeDelta:
+        self._strike_delta.clear()
         if not self._active:
             self._grace_active = False
-            return
+            return self._strike_delta
 
         self._grace_elapsed += dt
         if self._cooldown > 0.0:
@@ -265,7 +293,7 @@ class PursuerChase:
             self._pursuer_s = car_s - float(p.start_gap_s)
             self._state = "FAR"
             self._dist_s = float(p.start_gap_s)
-            return
+            return self._strike_delta
 
         max_speed = float(TUNING.DRIVE.max_speed)
         speed_factor = 0.0
@@ -320,4 +348,5 @@ class PursuerChase:
         strike_dist = float(p.strike_begin_dist_s)
         close_enough = self._dist_s <= strike_dist
         if close_enough and self._cooldown <= 0.0 and speed_ok:
-            self._apply_strike(run)
+            self._build_strike_delta(run)
+        return self._strike_delta

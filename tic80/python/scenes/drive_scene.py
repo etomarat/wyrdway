@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from ..systems.drive.drive_logic_core import DriveLogic
     from ..systems.drive.drive_obstacle_hits import apply_obstacle_hits
     from ..systems.drive.drive_objects import DriveObjects, DriveZone
-    from ..systems.drive.pursuer_chase import PursuerChase, PursuerStrikeEvent
+    from ..systems.drive.pursuer_chase import PursuerChase, PursuerStrikeDelta
     from ..systems.drive.drive_telemetry import DriveTelemetry
     from ..systems.drive.drive_debug_lines import drive_debug_lines
     from ..systems.drive.drive_zone_effects import apply_zone_effects
@@ -200,13 +200,21 @@ class DriveScene:
     def _append_popup(self, text: str, color: int) -> None:
         self._popups.append(_DrivePopup(text, color))
 
-    def _append_strike_popups(self, event: PursuerStrikeEvent) -> None:
-        if event.scrap_loss > 0:
-            self._append_popup("-" + str(event.scrap_loss) + " SCRAP", Color.LIGHT_GREEN)
-        if event.fuel_loss > 0:
-            self._append_popup("-" + str(event.fuel_loss) + " FUEL", Color.YELLOW)
-        if event.hp_loss > 0:
-            self._append_popup("-" + str(event.hp_loss) + " HP", Color.RED)
+    def _append_strike_popups(self, strike_delta: PursuerStrikeDelta) -> None:
+        if strike_delta.scrap_loss > 0:
+            self._append_popup("-" + str(strike_delta.scrap_loss) + " SCRAP", Color.LIGHT_GREEN)
+        if strike_delta.fuel_loss > 0:
+            self._append_popup("-" + str(strike_delta.fuel_loss) + " FUEL", Color.YELLOW)
+        if strike_delta.hp_loss > 0:
+            self._append_popup("-" + str(strike_delta.hp_loss) + " HP", Color.RED)
+
+    def _apply_pursuer_strike_delta(self, run: RunState, strike_delta: PursuerStrikeDelta) -> None:
+        if strike_delta.scrap_loss > 0:
+            run.drain_scrap(strike_delta.scrap_loss)
+        if strike_delta.fuel_drain > 0.0:
+            run.consume_fuel(strike_delta.fuel_drain)
+        if strike_delta.hp_damage > 0.0:
+            run.apply_damage(strike_delta.hp_damage)
 
     def _update_popups(self, dt: float) -> None:
         i = len(self._popups) - 1
@@ -232,14 +240,15 @@ class DriveScene:
             return
         self._pursuer_fx_time += dt
         pushback_event = self._boost_pushback_event(z_before, z_after)
-        self._pursuer.update(dt, run, logic, pushback_event)
-        event = self._pursuer.strike_event
-        if event.happened():
+        strike_delta = self._pursuer.update(dt, run, logic, pushback_event)
+        if strike_delta.has_runtime_effect():
+            self._apply_pursuer_strike_delta(run, strike_delta)
+        if strike_delta.happened():
             intensity = float(self._pursuer_archetype.profile.strike_shake_intensity)
             self._renderer.notify_pursuer_strike(intensity, self._pursuer_archetype.variant_id)
-            if event.hp_loss > 0:
-                self._renderer.notify_pursuer_hp_strike_fx(logic, event.hp_loss, intensity)
-            self._append_strike_popups(event)
+            if strike_delta.hp_loss > 0:
+                self._renderer.notify_pursuer_hp_strike_fx(logic, strike_delta.hp_loss, intensity)
+            self._append_strike_popups(strike_delta)
 
     def _restart_segment(self) -> None:
         run = self._state.run
