@@ -5,10 +5,15 @@ if TYPE_CHECKING:
 
     from ....contracts import PursuerVariantId
     from ....contracts import PursuerVariantTuning
+    from .texts import PURSUER_ENTITY_ERRORS as PURSUER_ENTITY_ERRORS
+    from .texts import PURSUER_ENTITY_WORDS as PURSUER_ENTITY_WORDS
+    from .texts import PURSUER_PRIME_ERRORS as PURSUER_PRIME_ERRORS
+    from .texts import PURSUER_PRIME_WORDS as PURSUER_PRIME_WORDS
     from .entity import ENTITY_PURSUER_PROFILE as ENTITY_PURSUER_PROFILE
     from .prime_entity import PRIME_ENTITY_PURSUER_PROFILE as PRIME_ENTITY_PURSUER_PROFILE
 
 
+include("data.tuning.pursuers.texts")
 include("data.tuning.pursuers.entity")
 include("data.tuning.pursuers.prime_entity")
 
