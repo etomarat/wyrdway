@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from ....contracts import PursuerVariantId
     from ....contracts import PursuerVariantTuning
+    from ..pursuer_chase import PursuerState
     from ....scenes.drive.drive_topdown_renderer import DriveTopdownRenderer
 
 
@@ -21,7 +22,7 @@ class PursuerArchetype:
         renderer: DriveTopdownRenderer,
         px: int,
         py: int,
-        pursuer_state: str,
+        pursuer_state: PursuerState,
         seed_base: int,
         road_half_px: float
     ) -> None:
@@ -65,7 +66,7 @@ class EntityPursuerArchetype(PursuerArchetype):
         renderer: DriveTopdownRenderer,
         px: int,
         py: int,
-        pursuer_state: str,
+        pursuer_state: PursuerState,
         seed_base: int,
         road_half_px: float
     ) -> None:
@@ -108,7 +109,7 @@ class PrimeEntityPursuerArchetype(PursuerArchetype):
         renderer: DriveTopdownRenderer,
         px: int,
         py: int,
-        pursuer_state: str,
+        pursuer_state: PursuerState,
         seed_base: int,
         road_half_px: float
     ) -> None:

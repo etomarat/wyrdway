@@ -12,6 +12,12 @@ PursuerState = Literal["FAR", "CHASE", "NEAR"]
 StrikePhase = Literal["SCRAP_HP", "FUEL"]
 
 
+class PursuerStateId:
+    FAR: Literal["FAR"] = "FAR"
+    CHASE: Literal["CHASE"] = "CHASE"
+    NEAR: Literal["NEAR"] = "NEAR"
+
+
 class PursuerStrikeDelta:
     __slots__ = (
         "_scrap_loss",
@@ -85,7 +91,7 @@ class PursuerChase:
 
     def __init__(self) -> None:
         self._active = False
-        self._state: PursuerState = "FAR"
+        self._state: PursuerState = PursuerStateId.FAR
         self._phase: StrikePhase = "SCRAP_HP"
         self._grace_start_s = 0.0
         self._grace_elapsed = 0.0
@@ -174,7 +180,7 @@ class PursuerChase:
         self._profile = profile
         p = self._active_profile()
         self._active = bool(TUNING.PURSUER.enabled)
-        self._state = "FAR"
+        self._state = PursuerStateId.FAR
         self._phase = "SCRAP_HP"
         self._grace_start_s = float(car_s)
         self._grace_elapsed = 0.0
@@ -188,7 +194,7 @@ class PursuerChase:
 
     def disable(self) -> None:
         self._active = False
-        self._state = "FAR"
+        self._state = PursuerStateId.FAR
         self._grace_active = False
         self._dist_s = 9999.0
         self._cooldown = 0.0
@@ -291,7 +297,7 @@ class PursuerChase:
         p = self._active_profile()
         if self._grace_active:
             self._pursuer_s = car_s - float(p.start_gap_s)
-            self._state = "FAR"
+            self._state = PursuerStateId.FAR
             self._dist_s = float(p.start_gap_s)
             return self._strike_delta
 
@@ -335,11 +341,11 @@ class PursuerChase:
 
         self._dist_s = dist
         if dist > show:
-            self._state = "FAR"
+            self._state = PursuerStateId.FAR
         elif dist > near:
-            self._state = "CHASE"
+            self._state = PursuerStateId.CHASE
         else:
-            self._state = "NEAR"
+            self._state = PursuerStateId.NEAR
 
         min_speed = float(p.strike_min_speed)
         speed_ok = True

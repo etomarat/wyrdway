@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from ..systems.drive.drive_logic_core import DriveLogic
     from ..systems.drive.drive_obstacle_hits import apply_obstacle_hits
     from ..systems.drive.drive_objects import DriveObjects, DriveZone
-    from ..systems.drive.pursuer_chase import PursuerChase, PursuerStrikeDelta
+    from ..systems.drive.pursuer_chase import PursuerChase, PursuerState, PursuerStrikeDelta
     from ..systems.drive.drive_telemetry import DriveTelemetry
     from ..systems.drive.drive_debug_lines import drive_debug_lines
     from ..systems.drive.drive_zone_effects import apply_zone_effects
@@ -278,7 +278,7 @@ class DriveScene:
 
         # Рендер держим отдельно от сцены, чтобы позже легко подключить второй вид (cockpit)
         # и не раздувать DriveScene.
-        pursuer_state: str | None = None
+        pursuer_state: PursuerState | None = None
         pursuer_s = 0.0
         strike_flash = 0.0
         screen_glitch_active = False

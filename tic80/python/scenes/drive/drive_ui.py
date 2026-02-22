@@ -9,6 +9,7 @@ if TYPE_CHECKING:
     from ...core.text_layout import text_center_x, text_max_chars, text_trim, text_width
     from ...data.tuning import TUNING
     from ...systems.drive.drive_logic_core import DriveLogic
+    from ...systems.drive.pursuer_chase import PursuerState, PursuerStateId
 
 
 class DriveUi:
@@ -207,7 +208,7 @@ class DriveUi:
         run_scrap: int,
         start_run_scrap: int,
         pursuer_dist_s: float,
-        pursuer_state: str,
+        pursuer_state: PursuerState,
         profile: PursuerVariantTuning,
         pursuer_name: str
     ) -> None:
@@ -244,13 +245,13 @@ class DriveUi:
         rectb(dist_x, dist_y, dist_w, dist_h, Color.WHITE)
         fill_w = int((dist_w - 2) * fill_n)
         color = Color.BLUE
-        if pursuer_state == "FAR":
+        if pursuer_state == PursuerStateId.FAR:
             color = Color.GREEN
         elif d > 100.0:
             color = Color.BLUE
-        elif pursuer_state == "CHASE":
+        elif pursuer_state == PursuerStateId.CHASE:
             color = Color.ORANGE
-        elif pursuer_state == "NEAR":
+        elif pursuer_state == PursuerStateId.NEAR:
             color = Color.RED
         if fill_w > 0:
             rect(dist_x + 1, dist_y + 1, fill_w, dist_h - 2, color)

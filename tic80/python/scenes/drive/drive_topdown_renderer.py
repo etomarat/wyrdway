@@ -10,6 +10,7 @@ if TYPE_CHECKING:
     from ...systems.drive.drive_fx import TopdownProjector
     from ...systems.drive.drive_logic_core import DriveLogic
     from ...systems.drive.drive_objects import DriveObjects, DriveZone
+    from ...systems.drive.pursuer_chase import PursuerState, PursuerStateId
     from ...systems.drive.drive_screen_shake import DriveScreenShake
     from ...systems.drive.pursuers.archetypes import PursuerArchetype
     from ...systems.drive.road_model import RoadModel
@@ -133,7 +134,7 @@ class DriveTopdownRenderer:
         objects: DriveObjects,
         active_zone: DriveZone | None,
         pursuer_archetype: PursuerArchetype | None = None,
-        pursuer_state: str | None = None,
+        pursuer_state: PursuerState | None = None,
         pursuer_s: float = 0.0,
         strike_flash: float = 0.0,
         screen_glitch_active: bool = False
@@ -240,12 +241,12 @@ class DriveTopdownRenderer:
         logic: DriveLogic,
         pose: CarPose2D,
         pursuer_archetype: PursuerArchetype | None,
-        pursuer_state: str | None,
+        pursuer_state: PursuerState | None,
         pursuer_s: float,
         strike_flash: float,
         screen_glitch_active: bool
     ) -> None:
-        if pursuer_state is None or pursuer_state == "FAR" or pursuer_archetype is None:
+        if pursuer_state is None or pursuer_state == PursuerStateId.FAR or pursuer_archetype is None:
             self._pursuer_screen_tracker.reset()
             return
 
@@ -280,7 +281,7 @@ class DriveTopdownRenderer:
 
         t = self._pursuer_anim_t
         wobble = 1.4
-        if pursuer_state == "NEAR":
+        if pursuer_state == PursuerStateId.NEAR:
             wobble = 2.2
         phase = float(road.seed & 1023) * 0.01
         wobble *= (
@@ -327,7 +328,7 @@ class DriveTopdownRenderer:
             crx = -cdir_y
             cry = cdir_x
             cwobble = 1.4
-            if pursuer_state == "NEAR":
+            if pursuer_state == PursuerStateId.NEAR:
                 cwobble = 2.2
             cwobble *= (
                 0.60 * math.sin(t * 4.5 + phase + self._cam_angle * 1.6)
@@ -366,7 +367,7 @@ class DriveTopdownRenderer:
         self,
         px: int,
         py: int,
-        pursuer_state: str,
+        pursuer_state: PursuerState,
         seed_base: int,
         road_half_px: float,
         profile: PursuerVariantTuning
@@ -386,7 +387,7 @@ class DriveTopdownRenderer:
         self,
         px: int,
         py: int,
-        pursuer_state: str,
+        pursuer_state: PursuerState,
         seed_base: int,
         road_half_px: float,
         profile: PursuerVariantTuning
@@ -406,7 +407,7 @@ class DriveTopdownRenderer:
         self,
         px: int,
         py: int,
-        pursuer_state: str,
+        pursuer_state: PursuerState,
         seed_base: int,
         profile: PursuerVariantTuning
     ) -> None:

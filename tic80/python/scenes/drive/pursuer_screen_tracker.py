@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ...contracts import PursuerVariantTuning
+    from ...systems.drive.pursuer_chase import PursuerState, PursuerStateId
 
 
 class PursuerScreenTracker:
@@ -49,13 +50,13 @@ class PursuerScreenTracker:
         self._draw_s += (target_s - self._draw_s) * lerp
         return self._draw_s
 
-    def smooth_draw_d(self, target_d: float, half_w: float, pursuer_state: str) -> float:
+    def smooth_draw_d(self, target_d: float, half_w: float, pursuer_state: PursuerState) -> float:
         if (not self._draw_d_inited) or abs(target_d - self._draw_d) > half_w * 0.9:
             self._draw_d = target_d
             self._draw_d_inited = True
             return self._draw_d
         d_lerp = 0.16
-        if pursuer_state == "NEAR":
+        if pursuer_state == PursuerStateId.NEAR:
             d_lerp = 0.10
         self._draw_d += (target_d - self._draw_d) * d_lerp
         return self._draw_d
@@ -68,7 +69,7 @@ class PursuerScreenTracker:
         sx: float,
         sy: float,
         profile: PursuerVariantTuning,
-        pursuer_state: str,
+        pursuer_state: PursuerState,
         dt: float
     ) -> tuple[int, int]:
         if not self._screen_inited:
@@ -107,7 +108,7 @@ class PursuerScreenTracker:
                 self._intro_active = False
         else:
             screen_lerp = 0.14
-            if pursuer_state == "NEAR":
+            if pursuer_state == PursuerStateId.NEAR:
                 screen_lerp = 0.09
             self._screen_x += (sx - self._screen_x) * screen_lerp
             self._screen_y += (sy - self._screen_y) * screen_lerp

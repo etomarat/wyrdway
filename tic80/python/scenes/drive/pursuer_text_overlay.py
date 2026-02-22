@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from tic80 import print
 
+    from ...contracts import PursuerVariantId
     from ...core.palette import Color
     from ...core.text_layout import text_right_x
     from ...systems.drive.rng import lcg_next_u32
@@ -41,7 +42,7 @@ class PursuerTextOverlay:
         seed = self._error_seed ^ int(anim_t * 1000.0)
         seed = self._lcg(seed)
         self._error_seed = seed
-        if variant_id == "entity":
+        if variant_id == PursuerVariantId.ENTITY:
             self._error_text = self._text_bank.entity_error_text(seed)
             self._error_color = Color.ORANGE
         else:
