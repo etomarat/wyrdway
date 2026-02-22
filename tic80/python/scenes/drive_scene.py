@@ -236,7 +236,7 @@ class DriveScene:
         event = self._pursuer.strike_event
         if event.happened():
             intensity = float(self._pursuer_archetype.profile.strike_shake_intensity)
-            self._renderer.notify_pursuer_strike(intensity)
+            self._renderer.notify_pursuer_strike(intensity, self._pursuer_archetype.variant_id)
             if event.hp_loss > 0:
                 self._renderer.notify_pursuer_hp_strike_fx(logic, event.hp_loss, intensity)
             self._append_strike_popups(event)
@@ -272,10 +272,16 @@ class DriveScene:
         pursuer_state: str | None = None
         pursuer_s = 0.0
         strike_flash = 0.0
+        screen_glitch_active = False
         if self._pursuer.active:
             pursuer_state = self._pursuer.state
             pursuer_s = self._pursuer.pursuer_s
             strike_flash = self._pursuer.strike_flash
+            screen_glitch_active = self._pursuer_screen_fx.is_glitch_active(
+                self._pursuer,
+                self._pursuer_fx_time,
+                self._pursuer_archetype.profile
+            )
 
         self._renderer.draw(
             road,
@@ -285,7 +291,8 @@ class DriveScene:
             self._pursuer_archetype,
             pursuer_state,
             pursuer_s,
-            strike_flash
+            strike_flash,
+            screen_glitch_active
         )
         if self._pursuer.active:
             # FX погони (виньетка/шум) рисуем ПОД HUD.

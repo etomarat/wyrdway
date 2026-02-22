@@ -12,6 +12,50 @@ if TYPE_CHECKING:
 
 
 class PursuerScreenFx:
+    def _glitch_noise_and_flash(
+        self,
+        intensity: float,
+        pursuer: PursuerChase,
+        fx_time: float,
+        profile: PursuerVariantTuning
+    ) -> tuple[float, float, bool]:
+        strike_dist = float(profile.strike_begin_dist_s)
+        caught = pursuer.distance_s <= strike_dist
+        pulse = (1.0 + math.sin(fx_time * 8.0)) * 0.5
+        noise = intensity * float(profile.near_noise) * (1.0 + 0.35 * pulse)
+        if caught:
+            contact_mult = float(profile.contact_noise_mult)
+            if contact_mult > 0.0:
+                noise *= contact_mult
+        flash_n = 0.0
+        if pursuer.strike_flash > 0.0:
+            flash_t = float(profile.strike_flash_seconds)
+            flash_n = 1.0
+            if flash_t > 0.0001:
+                flash_n = pursuer.strike_flash / flash_t
+            if flash_n < 0.0:
+                flash_n = 0.0
+            if flash_n > 1.0:
+                flash_n = 1.0
+            noise *= 1.0 + float(profile.strike_noise_boost) * flash_n
+        return noise, flash_n, caught
+
+    def is_glitch_active(
+        self,
+        pursuer: PursuerChase,
+        fx_time: float,
+        profile: PursuerVariantTuning
+    ) -> bool:
+        intensity = pursuer.near_intensity()
+        if intensity <= 0.0:
+            return False
+        noise, flash_n, _ = self._glitch_noise_and_flash(intensity, pursuer, fx_time, profile)
+        if int(noise * 110.0) > 0:
+            return True
+        if flash_n > 0.0 and float(profile.strike_meltdown_intensity) > 0.0:
+            return True
+        return False
+
     def draw(
         self,
         logic: DriveLogic,
@@ -22,8 +66,6 @@ class PursuerScreenFx:
         intensity = pursuer.near_intensity()
         if intensity <= 0.0:
             return
-        strike_dist = float(profile.strike_begin_dist_s)
-        caught = pursuer.distance_s <= strike_dist
         pulse = (1.0 + math.sin(fx_time * 8.0)) * 0.5
 
         vig = intensity * float(profile.near_vignette) * (1.0 + 0.25 * pulse)
@@ -46,22 +88,7 @@ class PursuerScreenFx:
                 line(x1, y0, x1, y1, color)
                 i += 1
 
-        noise = intensity * float(profile.near_noise) * (1.0 + 0.35 * pulse)
-        if caught:
-            contact_mult = float(profile.contact_noise_mult)
-            if contact_mult > 0.0:
-                noise *= contact_mult
-        flash_n = 0.0
-        if pursuer.strike_flash > 0.0:
-            flash_t = float(profile.strike_flash_seconds)
-            flash_n = 1.0
-            if flash_t > 0.0001:
-                flash_n = pursuer.strike_flash / flash_t
-            if flash_n < 0.0:
-                flash_n = 0.0
-            if flash_n > 1.0:
-                flash_n = 1.0
-            noise *= 1.0 + float(profile.strike_noise_boost) * flash_n
+        noise, flash_n, caught = self._glitch_noise_and_flash(intensity, pursuer, fx_time, profile)
         dots = int(noise * 110.0)
         if dots <= 0:
             if flash_n > 0.0:

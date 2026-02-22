@@ -63,7 +63,7 @@ p.body_radius_near = 8.0
 
 # Debug.
 # Shows logical contact point marker to tune contact_offset_s.
-p.debug_contact_marker = True
+p.debug_contact_marker = False
 
 # Hit FX intensity.
 p.strike_shake_intensity = 12.0

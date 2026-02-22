@@ -9,10 +9,10 @@ if TYPE_CHECKING:
     from ...data.tuning import TUNING
     from ...systems.drive.drive_fx import TopdownProjector
     from ...systems.drive.drive_logic_core import DriveLogic
-    from ...systems.drive.rng import lcg_next_u32
     from ...systems.drive.drive_objects import DriveObjects, DriveZone
-    from ...systems.drive.pursuers.archetypes import PursuerArchetype
     from ...systems.drive.drive_screen_shake import DriveScreenShake
+    from ...systems.drive.pursuers.archetypes import PursuerArchetype
+    from ...systems.drive.rng import lcg_next_u32
     from ...systems.drive.road_model import RoadModel
     from .car_pose2d import CarPose2D
     from .topdown_debug_draw import TopdownDebugDraw
@@ -35,6 +35,86 @@ class DriveTopdownRenderer:
     _CAR_SRC_Y0 = 0.0
     _CAR_SRC_X1 = 24.0
     _CAR_SRC_Y1 = 32.0
+    _PRIME_WORDS = [
+        "void",
+        "def",
+        "class",
+        "struct",
+        "typedef",
+        "enum",
+        "union",
+        "static",
+        "extern",
+        "const",
+        "volatile",
+        "return",
+        "sizeof",
+        "NULL",
+        "malloc",
+        "free",
+        "import",
+        "lambda",
+        "async",
+        "await",
+        "protocol",
+        "module",
+        "sentinel",
+        "oracle"
+    ]
+    _ENTITY_WORDS = [
+        "0x00",
+        "0x1F",
+        "0x2A",
+        "0x3C",
+        "0x7E",
+        "0xA0",
+        "0xB7",
+        "0xFF",
+        "jmp",
+        "mov",
+        "xor",
+        "and",
+        "or",
+        "shl",
+        "shr",
+        "irq",
+        "nmi",
+        "ptr",
+        "reg",
+        "eax",
+        "rsp",
+        "seg",
+        "addr",
+        "bus"
+    ]
+    _ENTITY_ERRORS = [
+        "SIGSEGV",
+        "SEGFAULT",
+        # "PAGE FAULT",
+        # "BUS ERROR",
+        "ILLEGAL OPCODE",
+        "STACK SMASH",
+        "NULL PTR",
+        "BAD ADDR",
+        "IRQ LOST",
+        "TRAP 0x0D",
+        "RING VIOLATION",
+        # "MMU FAULT"
+    ]
+    _PRIME_ERRORS = [
+        "ACCESS VIOLATION",
+        "UNHANDLED EXCEPTION",
+        "HEAP CORRUPTION",
+        "STACK OVERFLOW",
+        "INTEGRITY FAILURE",
+        "FORBIDDEN CALL",
+        "STATE CORRUPTED",
+        "THREAD DEADLOCK",
+        "WATCHDOG TIMEOUT",
+        "SYSTEM HALTED",
+        "MEMORY POISONED",
+        "PANIC: NO RETURN"
+    ]
     # Internal compensation for atlas repack: old 32x32 sprite had 8px empty left column.
     # Not gameplay tuning; keeps existing anchor-aligned geometry unchanged.
     _CAR_SOURCE_REPACK_SHIFT_X = 8.0
@@ -62,6 +142,10 @@ class DriveTopdownRenderer:
         self._pursuer_intro_t = 0.0
         self._pursuer_intro_start_x = 0.0
         self._pursuer_intro_start_y = 0.0
+        self._pursuer_error_text = ""
+        self._pursuer_error_t = 0.0
+        self._pursuer_error_color = Color.RED
+        self._pursuer_error_seed = 0x13579BDF
 
     def notify_obstacle_hit(
         self,
@@ -82,10 +166,11 @@ class DriveTopdownRenderer:
         )
         self._shake.notify_hit(impact, TUNING)
 
-    def notify_pursuer_strike(self, intensity: float) -> None:
+    def notify_pursuer_strike(self, intensity: float, variant_id: str) -> None:
         if intensity <= 0.0:
             return
         self._shake.notify_hit(float(intensity), TUNING)
+        self._queue_pursuer_error_text(str(variant_id))
 
     def notify_pursuer_hp_strike_fx(
         self,
@@ -133,10 +218,16 @@ class DriveTopdownRenderer:
         pursuer_archetype: PursuerArchetype | None = None,
         pursuer_state: str | None = None,
         pursuer_s: float = 0.0,
-        strike_flash: float = 0.0
+        strike_flash: float = 0.0,
+        screen_glitch_active: bool = False
     ) -> None:
         self._shake.ensure_seed(road.seed)
         self._pursuer_anim_t += float(TUNING.CORE.dt)
+        if self._pursuer_error_t > 0.0:
+            self._pursuer_error_t -= float(TUNING.CORE.dt)
+            if self._pursuer_error_t <= 0.0:
+                self._pursuer_error_t = 0.0
+                self._pursuer_error_text = ""
         shake_x, shake_y = self._shake.update(
             float(TUNING.CORE.dt),
             logic.offroad,
@@ -212,7 +303,8 @@ class DriveTopdownRenderer:
             pursuer_archetype,
             pursuer_state,
             pursuer_s,
-            strike_flash
+            strike_flash,
+            screen_glitch_active
         )
 
         if TUNING.DRIVE.debug_vectors_enabled:
@@ -237,7 +329,8 @@ class DriveTopdownRenderer:
         pursuer_archetype: PursuerArchetype | None,
         pursuer_state: str | None,
         pursuer_s: float,
-        strike_flash: float
+        strike_flash: float,
+        screen_glitch_active: bool
     ) -> None:
         if pursuer_state is None or pursuer_state == "FAR" or pursuer_archetype is None:
             self._pursuer_draw_inited = False
@@ -355,6 +448,7 @@ class DriveTopdownRenderer:
             seed_base,
             road_half_px
         )
+        self._draw_pursuer_error_overlay(screen_glitch_active)
         if profile.debug_contact_marker:
             # TEMP: яркая метка в логической контактной точке (до visual contact_offset_s).
             # Нужна для настройки offset относительно тела преследователя.
@@ -400,18 +494,51 @@ class DriveTopdownRenderer:
     def _lcg(self, seed: int) -> int:
         return lcg_next_u32(seed)
 
+    def _pick_text(self, items: list[str], idx: int) -> str:
+        n = len(items)
+        if n <= 0:
+            return ""
+        return items[idx % n]
+
     def _code_shard_text(self, idx: int) -> str:
-        if idx == 0:
-            return "def"
-        if idx == 1:
-            return "0x"
-        if idx == 2:
-            return "ret"
-        if idx == 3:
-            return "NULL"
-        if idx == 4:
-            return "mem"
-        return "xor"
+        return self._pick_text(self._PRIME_WORDS, idx)
+
+    def _entity_whisper_text(self, idx: int) -> str:
+        return self._pick_text(self._ENTITY_WORDS, idx)
+
+    def _entity_error_text(self, idx: int) -> str:
+        return self._pick_text(self._ENTITY_ERRORS, idx)
+
+    def _prime_error_text(self, idx: int) -> str:
+        return self._pick_text(self._PRIME_ERRORS, idx)
+
+    def _queue_pursuer_error_text(self, variant_id: str) -> None:
+        seed = self._pursuer_error_seed ^ int(self._pursuer_anim_t * 1000.0)
+        seed = self._lcg(seed)
+        self._pursuer_error_seed = seed
+        if variant_id == "entity":
+            self._pursuer_error_text = self._entity_error_text(seed)
+            self._pursuer_error_color = Color.ORANGE
+        else:
+            self._pursuer_error_text = self._prime_error_text(seed)
+            self._pursuer_error_color = Color.RED
+        self._pursuer_error_t = 0.55
+
+    def _draw_pursuer_error_overlay(self, screen_glitch_active: bool) -> None:
+        if not screen_glitch_active:
+            return
+        if self._pursuer_error_t <= 0.0:
+            return
+        txt = self._pursuer_error_text
+        if txt == "":
+            return
+        text_w = len(txt) * 6
+        tx = 239 - 4 - text_w
+        if tx < 0:
+            tx = 0
+        ty = 136 - 4 - 6
+        color = self._pursuer_error_color
+        print(txt, tx, ty, color, True, 1, False)
 
     def draw_glitch_pursuer_body(
         self,
@@ -565,7 +692,7 @@ class DriveTopdownRenderer:
             anchor_x = px + int(math.cos(angle) * dist)
             anchor_y = py + int(math.sin(angle) * dist - up_bias)
             seed = self._lcg(seed)
-            txt = self._code_shard_text(int(seed % 6))
+            txt = self._code_shard_text(seed)
             color = Color.LIGHT_BLUE
             if is_near and (seed & 1) != 0:
                 color = Color.CYAN
@@ -625,6 +752,37 @@ class DriveTopdownRenderer:
                 c = Color.BLUE
             line(px + x_off, y0, px + x_off, y1, c)
             i += 1
+
+        labels_n = 2
+        if pursuer_state == "NEAR":
+            labels_n = 3
+        orbit_r = float(r) + 13.0
+        if pursuer_state == "NEAR":
+            orbit_r += 3.0
+        t = self._pursuer_anim_t
+        j = 0
+        while j < labels_n:
+            seed = self._lcg(seed)
+            txt = self._entity_whisper_text(seed)
+            seed = self._lcg(seed)
+            a = (float(seed & 4095) / 4095.0) * math.pi * 2.0
+            a += t * 0.65 + float(j) * 1.2
+            wobble = 1.2 * math.sin(t * 2.4 + float(seed & 255) * 0.03)
+            dist = orbit_r + wobble
+            ax = px + int(math.cos(a) * dist)
+            ay = py + int(math.sin(a) * dist * 0.72 - 4.0)
+            color = Color.LIGHT_BLUE
+            if pursuer_state == "NEAR" and (seed & 1) != 0:
+                color = Color.CYAN
+            elif (seed & 31) == 0:
+                color = Color.WHITE
+            text_w = len(txt) * 5
+            sx = ax - (text_w // 2)
+            sy = ay
+            if sy >= -6 and sy <= 130:
+                if sx >= -text_w and sx <= 239:
+                    print(txt, sx, sy, color, True, 1, True)
+            j += 1
 
     def draw_entity_pursuer_strike(
         self,
