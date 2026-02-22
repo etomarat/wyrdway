@@ -11,7 +11,7 @@ if TYPE_CHECKING:
     from ...systems.drive.drive_fx import TopdownProjector
     from ...systems.drive.drive_logic_core import DriveLogic
     from ...systems.drive.drive_objects import DriveObjects, DriveZone
-    from ...systems.drive.pursuer_chase import PursuerState, PursuerStateId
+    from ...systems.drive.pursuer_chase import PURSUER_STATE_FAR, PURSUER_STATE_NEAR, PursuerState
     from ...systems.drive.drive_screen_shake import DriveScreenShake
     from ...systems.drive.pursuers.archetypes import PursuerArchetype
     from ...systems.drive.road_model import RoadModel
@@ -243,7 +243,7 @@ class DriveTopdownRenderer:
         strike_flash: float,
         screen_glitch_active: bool
     ) -> None:
-        if pursuer_state is None or pursuer_state == PursuerStateId.FAR or pursuer_archetype is None:
+        if pursuer_state is None or pursuer_state == PURSUER_STATE_FAR or pursuer_archetype is None:
             self._pursuer_screen_tracker.reset()
             return
 
@@ -279,7 +279,7 @@ class DriveTopdownRenderer:
         t = self._pursuer_anim_t
         cam_angle = self._camera.angle()
         wobble = 1.4
-        if pursuer_state == PursuerStateId.NEAR:
+        if pursuer_state == PURSUER_STATE_NEAR:
             wobble = 2.2
         phase = float(road.seed & 1023) * 0.01
         wobble *= (
@@ -326,7 +326,7 @@ class DriveTopdownRenderer:
             crx = -cdir_y
             cry = cdir_x
             cwobble = 1.4
-            if pursuer_state == PursuerStateId.NEAR:
+            if pursuer_state == PURSUER_STATE_NEAR:
                 cwobble = 2.2
             cwobble *= (
                 0.60 * math.sin(t * 4.5 + phase + cam_angle * 1.6)

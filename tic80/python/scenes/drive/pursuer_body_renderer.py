@@ -6,7 +6,7 @@ if TYPE_CHECKING:
 
     from ...contracts import PursuerVariantTuning
     from ...core.palette import Color
-    from ...systems.drive.pursuer_chase import PursuerState, PursuerStateId
+    from ...systems.drive.pursuer_chase import PURSUER_STATE_FAR, PURSUER_STATE_NEAR, PursuerState
     from ...core.text_layout import text_width
     from ...systems.drive.rng import lcg_next_u32
     from .pursuer_text_bank import PursuerTextBank
@@ -81,7 +81,7 @@ class PursuerBodyRenderer:
         clamp_to_road: bool
     ) -> None:
         r = int(profile.body_radius_chase)
-        if pursuer_state == PursuerStateId.NEAR:
+        if pursuer_state == PURSUER_STATE_NEAR:
             r = int(profile.body_radius_near)
         if clamp_to_road:
             min_by_road = int(road_half_px * 1.08)
@@ -91,7 +91,7 @@ class PursuerBodyRenderer:
             r = 3
 
         core_color = Color.DARK_BLUE
-        if pursuer_state == PursuerStateId.NEAR:
+        if pursuer_state == PURSUER_STATE_NEAR:
             core_color = Color.BLUE
         circ(px, py, r, core_color)
         core_r = r - 4
@@ -104,12 +104,12 @@ class PursuerBodyRenderer:
 
         seed = seed_base
         lines_n = 7 + int(r * 0.55)
-        if pursuer_state == PursuerStateId.NEAR:
+        if pursuer_state == PURSUER_STATE_NEAR:
             lines_n += int(r * 0.35)
         i = 0
         while i < lines_n:
             seed = self._lcg(seed)
-            if pursuer_state != PursuerStateId.NEAR and (seed & 3) == 0:
+            if pursuer_state != PURSUER_STATE_NEAR and (seed & 3) == 0:
                 i += 1
                 continue
             y_off = int(seed % (r * 2 + 3)) - (r + 1)
@@ -136,9 +136,9 @@ class PursuerBodyRenderer:
             )
             i += 1
 
-        if pursuer_state == PursuerStateId.FAR:
+        if pursuer_state == PURSUER_STATE_FAR:
             return
-        is_near = pursuer_state == PursuerStateId.NEAR
+        is_near = pursuer_state == PURSUER_STATE_NEAR
         seed = self._lcg(seed)
 
         shards = int(profile.code_shard_count_chase)
@@ -200,13 +200,13 @@ class PursuerBodyRenderer:
         anim_t: float
     ) -> None:
         r = int(profile.body_radius_chase)
-        if pursuer_state == PursuerStateId.NEAR:
+        if pursuer_state == PURSUER_STATE_NEAR:
             r = int(profile.body_radius_near)
         if r < 3:
             r = 3
 
         core_color = Color.DARK_BLUE
-        if pursuer_state == PursuerStateId.NEAR:
+        if pursuer_state == PURSUER_STATE_NEAR:
             core_color = Color.BLUE
         circ(px, py, r, core_color)
         inner = r - 2
@@ -214,7 +214,7 @@ class PursuerBodyRenderer:
             inner = 2
         circ(px, py, inner, Color.CYAN)
         ring_color = Color.CYAN
-        if pursuer_state == PursuerStateId.NEAR:
+        if pursuer_state == PURSUER_STATE_NEAR:
             ring_color = Color.WHITE
         circb(px, py, r + 1, ring_color)
         eye_half = 1
@@ -224,7 +224,7 @@ class PursuerBodyRenderer:
 
         seed = seed_base
         trail_n = 3
-        if pursuer_state == PursuerStateId.NEAR:
+        if pursuer_state == PURSUER_STATE_NEAR:
             trail_n = 5
         i = 0
         while i < trail_n:
@@ -239,10 +239,10 @@ class PursuerBodyRenderer:
             i += 1
 
         labels_n = 2
-        if pursuer_state == PursuerStateId.NEAR:
+        if pursuer_state == PURSUER_STATE_NEAR:
             labels_n = 3
         orbit_r = float(r) + 13.0
-        if pursuer_state == PursuerStateId.NEAR:
+        if pursuer_state == PURSUER_STATE_NEAR:
             orbit_r += 3.0
         j = 0
         while j < labels_n:
@@ -256,7 +256,7 @@ class PursuerBodyRenderer:
             ax = px + int(math.cos(a) * dist)
             ay = py + int(math.sin(a) * dist * 0.72 - 4.0)
             color = Color.LIGHT_BLUE
-            if pursuer_state == PursuerStateId.NEAR and (seed & 1) != 0:
+            if pursuer_state == PURSUER_STATE_NEAR and (seed & 1) != 0:
                 color = Color.CYAN
             elif (seed & 31) == 0:
                 color = Color.WHITE

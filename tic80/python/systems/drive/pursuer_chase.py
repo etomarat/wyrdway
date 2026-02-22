@@ -12,10 +12,9 @@ PursuerState = Literal["FAR", "CHASE", "NEAR"]
 StrikePhase = Literal["SCRAP_HP", "FUEL"]
 
 
-class PursuerStateId:
-    FAR: Literal["FAR"] = "FAR"
-    CHASE: Literal["CHASE"] = "CHASE"
-    NEAR: Literal["NEAR"] = "NEAR"
+PURSUER_STATE_FAR: PursuerState = "FAR"
+PURSUER_STATE_CHASE: PursuerState = "CHASE"
+PURSUER_STATE_NEAR: PursuerState = "NEAR"
 
 
 class PursuerStrikeDelta:
@@ -83,7 +82,7 @@ class PursuerChase:
 
     def __init__(self) -> None:
         self._active = False
-        self._state: PursuerState = PursuerStateId.FAR
+        self._state: PursuerState = PURSUER_STATE_FAR
         self._phase: StrikePhase = "SCRAP_HP"
         self._grace_start_s = 0.0
         self._grace_elapsed = 0.0
@@ -173,7 +172,7 @@ class PursuerChase:
         self._profile = profile
         p = self._profile
         self._active = bool(TUNING.PURSUER.enabled)
-        self._state = PursuerStateId.FAR
+        self._state = PURSUER_STATE_FAR
         self._phase = "SCRAP_HP"
         self._grace_start_s = float(car_s)
         self._grace_elapsed = 0.0
@@ -184,7 +183,7 @@ class PursuerChase:
 
     def disable(self) -> None:
         self._active = False
-        self._state = PursuerStateId.FAR
+        self._state = PURSUER_STATE_FAR
         self._grace_active = False
         self._dist_s = self._FAR_DIST_S
         self._reset_runtime_effects()
@@ -284,7 +283,7 @@ class PursuerChase:
         p = self._profile
         if self._grace_active:
             self._pursuer_s = car_s - float(p.start_gap_s)
-            self._state = PursuerStateId.FAR
+            self._state = PURSUER_STATE_FAR
             self._dist_s = float(p.start_gap_s)
             return self._strike_delta
 
@@ -328,11 +327,11 @@ class PursuerChase:
 
         self._dist_s = dist
         if dist > show:
-            self._state = PursuerStateId.FAR
+            self._state = PURSUER_STATE_FAR
         elif dist > near:
-            self._state = PursuerStateId.CHASE
+            self._state = PURSUER_STATE_CHASE
         else:
-            self._state = PursuerStateId.NEAR
+            self._state = PURSUER_STATE_NEAR
 
         min_speed = float(p.strike_min_speed)
         speed_ok = True

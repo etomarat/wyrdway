@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ...contracts import PursuerVariantTuning
-    from ...systems.drive.pursuer_chase import PursuerState, PursuerStateId
+    from ...systems.drive.pursuer_chase import PURSUER_STATE_NEAR, PursuerState
 
 
 class PursuerScreenTracker:
@@ -56,7 +56,7 @@ class PursuerScreenTracker:
             self._draw_d_inited = True
             return self._draw_d
         d_lerp = 0.16
-        if pursuer_state == PursuerStateId.NEAR:
+        if pursuer_state == PURSUER_STATE_NEAR:
             d_lerp = 0.10
         self._draw_d += (target_d - self._draw_d) * d_lerp
         return self._draw_d
@@ -108,7 +108,7 @@ class PursuerScreenTracker:
                 self._intro_active = False
         else:
             screen_lerp = 0.14
-            if pursuer_state == PursuerStateId.NEAR:
+            if pursuer_state == PURSUER_STATE_NEAR:
                 screen_lerp = 0.09
             self._screen_x += (sx - self._screen_x) * screen_lerp
             self._screen_y += (sy - self._screen_y) * screen_lerp
