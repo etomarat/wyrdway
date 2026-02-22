@@ -35,14 +35,6 @@ class PursuerStrikeDelta:
         return self._scrap_loss
 
     @property
-    def fuel_loss(self) -> int:
-        return int(self._fuel_drain + 0.0001)
-
-    @property
-    def hp_loss(self) -> int:
-        return int(self._hp_damage + 0.0001)
-
-    @property
     def fuel_drain(self) -> float:
         return self._fuel_drain
 
@@ -64,9 +56,6 @@ class PursuerStrikeDelta:
         self._scrap_loss = max(0, int(scrap_loss))
         self._fuel_drain = max(0.0, float(fuel_drain))
         self._hp_damage = max(0.0, float(hp_damage))
-
-    def happened(self) -> bool:
-        return self._scrap_loss > 0 or self.fuel_loss > 0 or self.hp_loss > 0
 
     def has_runtime_effect(self) -> bool:
         return self._scrap_loss > 0 or self._fuel_drain > 0.0 or self._hp_damage > 0.0

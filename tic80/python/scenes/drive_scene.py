@@ -200,13 +200,24 @@ class DriveScene:
     def _append_popup(self, text: str, color: int) -> None:
         self._popups.append(_DrivePopup(text, color))
 
-    def _append_strike_popups(self, strike_delta: PursuerStrikeDelta) -> None:
+    @staticmethod
+    def _whole_loss(value: float) -> int:
+        if value <= 0.0:
+            return 0
+        return int(value + 0.0001)
+
+    def _append_strike_popups(
+        self,
+        strike_delta: PursuerStrikeDelta,
+        fuel_loss: int,
+        hp_loss: int
+    ) -> None:
         if strike_delta.scrap_loss > 0:
             self._append_popup("-" + str(strike_delta.scrap_loss) + " SCRAP", Color.LIGHT_GREEN)
-        if strike_delta.fuel_loss > 0:
-            self._append_popup("-" + str(strike_delta.fuel_loss) + " FUEL", Color.YELLOW)
-        if strike_delta.hp_loss > 0:
-            self._append_popup("-" + str(strike_delta.hp_loss) + " HP", Color.RED)
+        if fuel_loss > 0:
+            self._append_popup("-" + str(fuel_loss) + " FUEL", Color.YELLOW)
+        if hp_loss > 0:
+            self._append_popup("-" + str(hp_loss) + " HP", Color.RED)
 
     def _apply_pursuer_strike_delta(self, run: RunState, strike_delta: PursuerStrikeDelta) -> None:
         if strike_delta.scrap_loss > 0:
@@ -243,12 +254,14 @@ class DriveScene:
         strike_delta = self._pursuer.update(dt, run, logic, pushback_event)
         if strike_delta.has_runtime_effect():
             self._apply_pursuer_strike_delta(run, strike_delta)
-        if strike_delta.happened():
+        fuel_loss = self._whole_loss(strike_delta.fuel_drain)
+        hp_loss = self._whole_loss(strike_delta.hp_damage)
+        if strike_delta.scrap_loss > 0 or fuel_loss > 0 or hp_loss > 0:
             intensity = float(self._pursuer_archetype.profile.strike_shake_intensity)
             self._renderer.notify_pursuer_strike(intensity, self._pursuer_archetype.variant_id)
-            if strike_delta.hp_loss > 0:
-                self._renderer.notify_pursuer_hp_strike_fx(logic, strike_delta.hp_loss, intensity)
-            self._append_strike_popups(strike_delta)
+            if hp_loss > 0:
+                self._renderer.notify_pursuer_hp_strike_fx(logic, hp_loss, intensity)
+            self._append_strike_popups(strike_delta, fuel_loss, hp_loss)
 
     def _restart_segment(self) -> None:
         run = self._state.run
