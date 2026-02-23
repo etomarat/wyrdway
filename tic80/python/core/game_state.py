@@ -117,12 +117,9 @@ class GameState:
         run = self._run
         if run is None:
             return
-        delta = run.delta
-        failed = delta is not None and delta.escape_outcome == "fail"
-        if not failed:
-            for item in run.inventory_items():
-                if item.id == "scrap":
-                    self._profile.add_scrap(item.qty)
+        for item in run.inventory_items():
+            if item.id == "scrap":
+                self._profile.add_scrap(item.qty)
 
         self._profile.set_garage_stats(run.car_hp, run.car_fuel)
         self.save_profile()

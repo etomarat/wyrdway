@@ -11,7 +11,7 @@ if TYPE_CHECKING:
     )
     from ..core.input_buttons import Button
     from ..core.palette import Color
-    from ..core.run_state import EscapeOutcome, PoiAction
+    from ..core.run_state import PoiAction
     from ..core.scene_ids import SceneId
     from ..core.text_layout import text_center_x
     from ..data.tuning import TUNING
@@ -49,15 +49,12 @@ class PoiScene:
     def _leave(
         self,
         action: PoiAction,
-        escape_outcome: EscapeOutcome | None = None,
         go_result: bool = False,
         message: str | None = None
     ) -> None:
         run = self._state.require_run()
         delta = run.ensure_delta(run.node_id)
         delta.set_poi_action(action)
-        if escape_outcome is not None:
-            delta.set_escape_outcome(escape_outcome)
 
         if go_result:
             if message is None:
@@ -102,7 +99,7 @@ class PoiScene:
         elif btnp(Button.B):
             self._leave("leave")
         elif self.timer <= 0.0:
-            self._leave("timeout", "fail", True, "POI TIMEOUT")
+            self._leave("timeout", True, "POI TIMEOUT")
 
     def draw(self) -> None:
         cls(Color.BLACK)

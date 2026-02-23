@@ -1,7 +1,6 @@
 from typing import Literal
 
 PoiAction = Literal["loot", "leave", "timeout"]
-EscapeOutcome = Literal["ok", "fail"]
 RunItemId = Literal["scrap"]
 LegKind = Literal["OUTBOUND", "RETURN"]
 PoiType = Literal["gas_station", "scrapyard", "depot"]
@@ -99,13 +98,12 @@ class SegmentPlan:
 
 
 class SegmentDelta:
-    __slots__ = ("_node_id", "_poi_action", "_items_gained", "_escape_outcome", "_fuel_gained")
+    __slots__ = ("_node_id", "_poi_action", "_items_gained", "_fuel_gained")
 
     def __init__(self, node_id: int | None) -> None:
         self._node_id = node_id
         self._poi_action: PoiAction | None = None
         self._items_gained: list[RunItem] = []
-        self._escape_outcome: EscapeOutcome | None = None
         self._fuel_gained = 0
 
     @property
@@ -117,18 +115,11 @@ class SegmentDelta:
         return self._poi_action
 
     @property
-    def escape_outcome(self) -> EscapeOutcome | None:
-        return self._escape_outcome
-
-    @property
     def fuel_gained(self) -> int:
         return self._fuel_gained
 
     def set_poi_action(self, action: PoiAction) -> None:
         self._poi_action = action
-
-    def set_escape_outcome(self, outcome: EscapeOutcome) -> None:
-        self._escape_outcome = outcome
 
     def add_item_gained(self, item: RunItem) -> None:
         self._items_gained.append(item)

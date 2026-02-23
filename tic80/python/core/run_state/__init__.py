@@ -1,7 +1,6 @@
 from typing import TYPE_CHECKING, Literal
 
 PoiAction = Literal["loot", "leave", "timeout"]
-EscapeOutcome = Literal["ok", "fail"]
 RunItemId = Literal["scrap"]
 LegKind = Literal["OUTBOUND", "RETURN"]
 PoiType = Literal["gas_station", "scrapyard", "depot"]

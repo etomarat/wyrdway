@@ -167,8 +167,6 @@ class DriveScene:
                 self._nav.go(SceneId.POI)
                 return
 
-            delta = run.ensure_delta(run.node_id)
-            delta.set_escape_outcome("ok")
             self._nav.go(SceneId.RESULT, ResultEnterParams("EXTRACT OK"))
 
     def _apply_obstacle_hits(self, run: RunState) -> None:
