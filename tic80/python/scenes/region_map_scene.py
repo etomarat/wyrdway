@@ -118,7 +118,7 @@ class RegionMapScene:
 
     def draw(self) -> None:
         cls(Color.BLACK)
-        print("REGION MAP (WIP PLACEHOLDER)", 84, 30, Color.WHITE, True)
+        print("REGION MAP (WIP PLACEHOLDER)", 44, 30, Color.WHITE, True)
         run = self._state.run
         if run is not None:
             print("seed=" + str(run.seed), 90, 40, Color.WHITE, True)
