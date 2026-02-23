@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from tic80 import btnp, cls, print
+    from tic80 import btnp, cls, print, rect, rectb
 
     from ..contracts import (
         DriveEnterParams,
@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     from ..core.palette import Color
     from ..core.run_state import PoiAction
     from ..core.scene_ids import SceneId
-    from ..core.text_layout import text_center_x
+    from ..core.text_layout import text_center_x, text_width
     from ..data.tuning import TUNING
     from ..systems.drive.pursuers.registry import active_pursuer_name
 
@@ -119,13 +119,16 @@ class PoiScene:
             line = "RETREAT CONFIRMED"
             print(line, text_center_x(line, margin_x=2), 24, Color.WHITE, True)
             line = "no loot collected"
-            print(line, text_center_x(line, margin_x=2), 40, Color.LIGHT_GREY, True)
+            print(line, text_center_x(line, margin_x=2),
+                  40, Color.LIGHT_GREY, True)
             line = "scrap: +" + str(self._loot_scrap)
-            print(line, text_center_x(line, margin_x=2), 56, Color.LIGHT_GREEN, True)
+            print(line, text_center_x(line, margin_x=2),
+                  56, Color.LIGHT_GREEN, True)
             line = "fuel: +" + str(self._loot_fuel)
             print(line, text_center_x(line, margin_x=2), 64, Color.YELLOW, True)
             pursuit_text = self._pursuer_name + " is still tracking you"
-            print(pursuit_text, text_center_x(pursuit_text, margin_x=2), 82, Color.RED, True)
+            print(pursuit_text, text_center_x(
+                pursuit_text, margin_x=2), 82, Color.RED, True)
             line = "return to base immediately"
             print(line, text_center_x(line, margin_x=2), 90, Color.WHITE, True)
             line = "Z = BEGIN RETURN"
@@ -135,33 +138,74 @@ class PoiScene:
             line = "LOOT SECURED"
             print(line, text_center_x(line, margin_x=2), 24, Color.WHITE, True)
             line = "you took what wasn't yours"
-            print(line, text_center_x(line, margin_x=2), 40, Color.LIGHT_GREY, True)
+            print(line, text_center_x(line, margin_x=2),
+                  40, Color.LIGHT_GREY, True)
             line = "stolen scrap: +" + str(self._loot_scrap)
-            print(line, text_center_x(line, margin_x=2), 56, Color.LIGHT_GREEN, True)
+            print(line, text_center_x(line, margin_x=2),
+                  56, Color.LIGHT_GREEN, True)
             line = "stolen fuel: +" + str(self._loot_fuel)
             print(line, text_center_x(line, margin_x=2), 64, Color.YELLOW, True)
             pursuit_text = self._pursuer_name + " is in pursuit"
-            print(pursuit_text, text_center_x(pursuit_text, margin_x=2), 82, Color.RED, True)
+            print(pursuit_text, text_center_x(
+                pursuit_text, margin_x=2), 82, Color.RED, True)
             line = "return to base immediately"
             print(line, text_center_x(line, margin_x=2), 90, Color.WHITE, True)
             line = "Z = BEGIN RETURN"
             print(line, text_center_x(line, margin_x=2), 112, Color.WHITE, True)
             return
 
-        print("POI", 112, 30, Color.WHITE)
-        print("timer=" + f"{self.timer:.2f}", 82, 50, Color.WHITE)
+        panel_x = 8
+        panel_y = 18
+        panel_w = 224
+        panel_h = 86
+        rect(panel_x, panel_y, panel_w, panel_h, Color.BLACK)
+        rect(panel_x + 1, panel_y + 1, panel_w -
+             2, panel_h - 2, Color.DARK_GREY)
+        rectb(panel_x, panel_y, panel_w, panel_h, Color.GREY)
+
+        line = "ROADSIDE STOP // POI TEMP SCENE"
+        print(line, text_center_x(line, margin_x=2), 30, Color.WHITE, True)
+        line = "THIS IS A TEMP PLACEHOLDER"
+        print(line, text_center_x(line, margin_x=2), 42, Color.LIGHT_GREY, True)
+        line = "FINAL POI GAMEPLAY COMING LATER"
+        print(line, text_center_x(line, margin_x=2), 50, Color.LIGHT_GREY, True)
+
+        timer_line = "TIME LEFT: " + f"{self.timer:.1f}" + "s"
+        print(timer_line, text_center_x(
+            timer_line, margin_x=2), 60, Color.YELLOW, True)
+
         run = self._state.run
+        poi_line = "SITE: UNKNOWN"
+        reward_line = "+0 SCRAP / +0 FUEL"
         if run is not None:
-            print("inv=" + str(run.inventory_count()), 98, 60, Color.WHITE)
             segment = run.active_segment
             if segment is not None:
                 rewards = segment.rewards
-                print("type=" + self._poi_type_label(segment.poi_type),
-                      74, 68, Color.WHITE)
-                print("reward: +" + str(rewards.scrap) + " scrap, +" +
-                      str(rewards.fuel) + " fuel", 40, 76, Color.WHITE)
-        print("Z = LOOT", 90, 96, Color.WHITE)
-        print("X = LEAVE", 88, 104, Color.WHITE)
+                poi_line = "SITE: " + self._poi_type_label(segment.poi_type)
+                reward_line = (
+                    "+"
+                    + str(rewards.scrap)
+                    + " SCRAP / +"
+                    + str(rewards.fuel)
+                    + " FUEL"
+                )
+        print(poi_line, text_center_x(
+            poi_line, margin_x=2), 72, Color.WHITE, True)
+        line = "POTENTIAL LOOT"
+        print(line, text_center_x(line, margin_x=2), 82, Color.LIGHT_GREY, True)
+        print(reward_line, text_center_x(reward_line,
+              margin_x=2), 90, Color.LIGHT_GREY, True)
+
+        rect(8, 108, 224, 20, Color.BLACK)
+        rect(9, 109, 222, 18, Color.DARK_GREY)
+        rectb(8, 108, 224, 20, Color.GREY)
+        rect(120, 109, 1, 18, Color.GREY)
+        left_action = "Z: LOOT (TEMP)"
+        right_action = "X: LEAVE"
+        left_x = 8 + int((112 - text_width(left_action)) * 0.5)
+        right_x = 120 + int((112 - text_width(right_action)) * 0.5)
+        print(left_action, left_x, 116, Color.WHITE, True)
+        print(right_action, right_x, 116, Color.WHITE, True)
 
     def exit(self) -> None:
         pass

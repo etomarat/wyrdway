@@ -4,7 +4,7 @@ if TYPE_CHECKING:
     from ..tuning import TUNING
 
 
-TUNING.POI.timer_seconds = 10.0
+TUNING.POI.timer_seconds = 60.0
 
 # Весы выбора типа POI: [gas_station, scrapyard, depot]
 TUNING.POI.poi_type_weights = [35.0, 35.0, 30.0]

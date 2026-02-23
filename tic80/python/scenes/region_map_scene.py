@@ -13,6 +13,9 @@ if TYPE_CHECKING:
 
 class RegionMapScene:
     SCENE_ID = SceneId.REGION_MAP
+    NODE_COL_X = 10
+    SCRAP_COL_X = 126
+    FUEL_COL_X = 188
 
     def __init__(self, nav: SceneNavigator) -> None:
         self._nav = nav
@@ -50,15 +53,17 @@ class RegionMapScene:
     def _draw_node_row(self, run: RunState | None, node_id: int, y: int) -> None:
         marker = ">" if node_id == self.selected_node else " "
         if run is None:
-            print(marker + " ID " + str(node_id), 64, y, Color.WHITE)
+            print(marker + " ID " + str(node_id), 64, y, Color.WHITE, True)
             return
         poi_type = run.preview_outbound_poi_type(node_id)
         poi_label = self._poi_type_label(poi_type).upper()
         rewards = run.preview_outbound_rewards(node_id)
-        print(marker + " ID " + str(node_id) +
-              " " + poi_label, 24, y, Color.WHITE)
-        print("S+" + str(rewards.scrap), 152, y, Color.WHITE)
-        print("F+" + str(rewards.fuel), 196, y, Color.WHITE)
+        row_text = marker + " ID " + str(node_id) + " " + poi_label
+        scrap_text = "SCRAP +" + str(rewards.scrap)
+        fuel_text = "FUEL +" + str(rewards.fuel)
+        print(row_text, self.NODE_COL_X, y, Color.WHITE, True)
+        print(scrap_text, self.SCRAP_COL_X, y, Color.WHITE, True)
+        print(fuel_text, self.FUEL_COL_X, y, Color.WHITE, True)
 
     def _fmt_hex32(self, value: int) -> str:
         return hex(int(value) & 0xFFFFFFFF)
@@ -95,36 +100,45 @@ class RegionMapScene:
         x = 4
         y = 90
         print("selected id=" + str(node_id) + " type=" +
-              self._poi_type_label(poi_type), x, y, Color.WHITE)
+              self._poi_type_label(poi_type), x, y, Color.WHITE, True)
         y += 8
         print("planned=" + planned + " route=" +
-              route_label, x, y, Color.WHITE)
+              route_label, x, y, Color.WHITE, True)
         y += 8
-        print("seed_base=" + self._fmt_hex32(seed_base), x, y, Color.WHITE)
+        print("seed_base=" + self._fmt_hex32(seed_base), x, y, Color.WHITE, True)
         y += 8
-        print("base_rng=" + self._fmt_hex32(seed_base_rng), x, y, Color.WHITE)
+        print("base_rng=" + self._fmt_hex32(seed_base_rng),
+              x, y, Color.WHITE, True)
         y += 8
-        print("threat_rng=" + self._fmt_hex32(seed_threat_rng), x, y, Color.WHITE)
+        print("threat_rng=" + self._fmt_hex32(seed_threat_rng),
+              x, y, Color.WHITE, True)
         y += 8
         print("len=" + str(int(len_units)) + " scrap=+" +
-              str(rewards.scrap) + " fuel=+" + str(rewards.fuel), x, y, Color.WHITE)
+              str(rewards.scrap) + " fuel=+" + str(rewards.fuel), x, y, Color.WHITE, True)
 
     def draw(self) -> None:
         cls(Color.BLACK)
-        print("REGION MAP", 84, 30, Color.WHITE)
+        print("REGION MAP (WIP PLACEHOLDER)", 84, 30, Color.WHITE, True)
         run = self._state.run
         if run is not None:
-            print("seed=" + str(run.seed), 90, 40, Color.WHITE)
-            print("fuel=" + f"{run.car_fuel:.2f}", 8, 8, Color.WHITE)
-        print("scrap=" + str(self._state.profile.scrap), 170, 8, Color.WHITE)
+            print("seed=" + str(run.seed), 90, 40, Color.WHITE, True)
+            print("fuel=" + f"{run.car_fuel:.2f}", 8, 8, Color.WHITE, True)
+            print("hp=" + f"{run.car_hp:.2f}", 90, 8, Color.WHITE, True)
+        else:
+            print(
+                "fuel=" + f"{self._state.profile.garage_fuel:.2f}", 8, 8, Color.WHITE, True)
+            print("hp=" + f"{self._state.profile.garage_hp:.2f}",
+                  90, 8, Color.WHITE, True)
+        print("scrap=" + str(self._state.profile.scrap),
+              170, 8, Color.WHITE, True)
         for i in range(self.node_count):
             node_id = i + 1
             self._draw_node_row(run, node_id, 48 + i * 8)
         if self._state.debug_overlay_enabled:
             self._draw_selected_node_details(run)
         if self._debug_seed_edit_enabled():
-            print("L/R +/-1", 4, 128, Color.LIGHT_GREY)
-        print("Z = GO", 96, 128, Color.WHITE)
+            print("L/R +/-1", 4, 128, Color.LIGHT_GREY, True)
+        print("Z = GO", 96, 128, Color.WHITE, True)
 
     def exit(self) -> None:
         pass
