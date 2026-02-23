@@ -23,7 +23,7 @@ class GameState:
         )
         self._save = SaveSystem()
         self._run: RunState | None = None
-        self._seed_counter = 1
+        self._seed_counter = 0
         self._profile_loaded = False
         self._profile_tuning_mismatch = False
         self._profile_tuning_version: int | None = None
@@ -109,7 +109,7 @@ class GameState:
         data = self._save.load_profile()
         if data is None:
             self._profile.reset()
-            self._seed_counter = 1
+            self._seed_counter = 0
             self._profile_loaded = False
             self._profile_tuning_mismatch = False
             self._profile_tuning_version = None
@@ -126,7 +126,7 @@ class GameState:
     def load_profile(self) -> None:
         data = self._save.load_profile()
         if data is None:
-            self._seed_counter = 1
+            self._seed_counter = 0
             self._profile_loaded = False
             self._profile_tuning_mismatch = False
             self._profile_tuning_version = None
@@ -166,7 +166,7 @@ class GameState:
 
     def start_new_game(self) -> None:
         self._profile.reset()
-        self._seed_counter = 1
+        self._seed_counter = 0
         self._run = None
         self.save_profile()
 

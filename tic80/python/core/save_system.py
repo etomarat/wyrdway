@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 # - добавили/удалили/переименовали поля
 # - изменили масштаб/единицы хранения
 # - поменяли смысл значения
-SAVE_SCHEMA_VERSION = 4
+SAVE_SCHEMA_VERSION = 5
 # Магическая сигнатура, чтобы отличать наш сейв от "мусора".
 SAVE_MAGIC = 0x57595244  # "WYRD"
 
@@ -44,7 +44,7 @@ class SaveProfileData:
         self.garage_hp = garage_hp
         self.garage_fuel = garage_fuel
         self.tuning_version = tuning_version
-        self.seed_counter = max(1, int(seed_counter))
+        self.seed_counter = max(0, int(seed_counter))
 
 
 class SaveSystem:
@@ -72,8 +72,8 @@ class SaveSystem:
         garage_fuel = fuel_raw / FLOAT_SCALE
         tuning_version = int(pmem(PMEM_TUNING_VERSION_SLOT))
         seed_counter = int(pmem(PMEM_PROFILE_SEED_COUNTER_SLOT))
-        if seed_counter < 1:
-            seed_counter = 1
+        if seed_counter < 0:
+            seed_counter = 0
 
         return SaveProfileData(scrap, garage_hp, garage_fuel, tuning_version, seed_counter)
 
@@ -82,7 +82,7 @@ class SaveSystem:
         pmem(PMEM_MAGIC_SLOT, SAVE_MAGIC)
         pmem(PMEM_SCHEMA_SLOT, SAVE_SCHEMA_VERSION)
         pmem(PMEM_TUNING_VERSION_SLOT, int(TUNING.tuning_version))
-        pmem(PMEM_PROFILE_SEED_COUNTER_SLOT, max(1, int(seed_counter)))
+        pmem(PMEM_PROFILE_SEED_COUNTER_SLOT, max(0, int(seed_counter)))
 
         # Поля профиля.
         pmem(PMEM_PROFILE_SCRAP_SLOT, max(0, int(scrap)))
