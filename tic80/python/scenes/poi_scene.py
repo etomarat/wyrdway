@@ -26,6 +26,7 @@ class PoiScene:
         self._state = nav.state
         self.timer = TUNING.POI.timer_seconds
         self._loot_summary_active = False
+        self._leave_summary_active = False
         self._loot_scrap = 0
         self._loot_fuel = 0
         self._pursuer_name = active_pursuer_name()
@@ -33,6 +34,7 @@ class PoiScene:
     def enter(self, params: SceneEnterParams = None) -> None:
         self.timer = TUNING.POI.timer_seconds
         self._loot_summary_active = False
+        self._leave_summary_active = False
         self._loot_scrap = 0
         self._loot_fuel = 0
         self._pursuer_name = active_pursuer_name()
@@ -66,6 +68,12 @@ class PoiScene:
         run.ensure_return_from_active_outbound()
         self._nav.go(SceneId.DRIVE, DriveEnterParams("extract"))
 
+    def _start_leave_summary(self) -> None:
+        run = self._state.require_run()
+        delta = run.ensure_delta(run.node_id)
+        delta.set_poi_action("leave")
+        self._leave_summary_active = True
+
     def _start_loot_summary(self) -> None:
         run = self._state.require_run()
         delta = run.ensure_delta(run.node_id)
@@ -92,17 +100,35 @@ class PoiScene:
             if btnp(Button.A):
                 self._leave("loot")
             return
+        if self._leave_summary_active:
+            if btnp(Button.A):
+                self._leave("leave")
+            return
 
         self.timer = max(0.0, self.timer - dt)
         if btnp(Button.A):
             self._start_loot_summary()
         elif btnp(Button.B):
-            self._leave("leave")
+            self._start_leave_summary()
         elif self.timer <= 0.0:
             self._leave("timeout", True, "POI TIMEOUT")
 
     def draw(self) -> None:
         cls(Color.BLACK)
+        if self._leave_summary_active:
+            line = "RETREAT CONFIRMED"
+            print(line, text_center_x(line, margin_x=2), 24, Color.WHITE, True)
+            line = "no loot collected"
+            print(line, text_center_x(line, margin_x=2), 40, Color.LIGHT_GREY, True)
+            print("scrap +" + str(self._loot_scrap), 92, 56, Color.LIGHT_GREEN)
+            print("fuel  +" + str(self._loot_fuel), 92, 64, Color.YELLOW)
+            pursuit_text = self._pursuer_name + " is still tracking you"
+            print(pursuit_text, text_center_x(pursuit_text, margin_x=2), 82, Color.RED, True)
+            line = "return to base immediately"
+            print(line, text_center_x(line, margin_x=2), 90, Color.WHITE, True)
+            line = "Z = BEGIN RETURN"
+            print(line, text_center_x(line, margin_x=2), 112, Color.WHITE, True)
+            return
         if self._loot_summary_active:
             line = "LOOT SECURED"
             print(line, text_center_x(line, margin_x=2), 24, Color.WHITE, True)

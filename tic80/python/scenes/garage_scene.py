@@ -67,7 +67,7 @@ class GarageScene:
         print("Z = START", 86, 104, Color.WHITE)
         print("X = REPAIR (-" + str(TUNING.PROFILE.repair_cost) + ")",
               86, 114, Color.WHITE)
-        print("X = NEW GAME", 86, 124, Color.WHITE)
+        print("A = NEW GAME", 86, 124, Color.WHITE)
 
     def exit(self) -> None:
         pass
