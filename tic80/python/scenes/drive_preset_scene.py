@@ -3,7 +3,12 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from tic80 import btnp, cls, print, trace
 
-    from ..contracts import DriveEnterParams, DriveTuning, SceneEnterParams, SceneNavigator
+    from ..contracts import (
+        DriveEnterParams,
+        DriveTuning,
+        SceneEnterParams,
+        SceneNavigator
+    )
     from ..core.input_buttons import Button
     from ..core.palette import Color
     from ..core.scene_ids import SceneId
@@ -179,6 +184,12 @@ class DrivePresetScene:
         trace("drive preset: chase test start")
         self._nav.go(SceneId.DRIVE, DriveEnterParams("extract"))
 
+    def _chase_test_allowed(self) -> bool:
+        return (
+            self._state.debug_enabled
+            and bool(TUNING.DEBUG.drive_preset_chase_test_enabled)
+        )
+
     def update(self, dt: float) -> None:
         if btnp(Button.LEFT) or btnp(Button.UP):
             self._selected = (self._selected - 1) % len(self._presets)
@@ -189,21 +200,24 @@ class DrivePresetScene:
                 return
             self._nav.go(SceneId.GARAGE)
         elif btnp(Button.B):
+            if not self._chase_test_allowed():
+                return
             if not self._apply_selected_preset():
                 return
             self._start_chase_test()
 
     def draw(self) -> None:
         cls(Color.BLACK)
-        print("DRIVE PHYSICS PRESET", 52, 34, Color.WHITE)
+        print("DRIVE PHYSICS PRESET (PLAYTEST)", 52, 34, Color.WHITE)
         y = 44
         for i, preset in enumerate(self._presets):
             marker = ">" if i == self._selected else " "
             print(marker + " " + preset.label, 52, y, Color.WHITE)
             y += 10
         print("ARROWS: SELECT", 52, 106, Color.LIGHT_GREY)
-        print("Z (A): CONTINUE", 52, 114, Color.LIGHT_GREY)
-        print("X (B): CHASE TEST", 52, 122, Color.LIGHT_GREY)
+        print("Z: CONTINUE", 52, 114, Color.LIGHT_GREY)
+        if self._chase_test_allowed():
+            print("X: CHASE TEST", 52, 122, Color.LIGHT_GREY)
 
     def exit(self) -> None:
         pass

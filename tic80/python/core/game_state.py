@@ -46,6 +46,10 @@ class GameState:
         return self._profile_loaded
 
     @property
+    def seed_counter(self) -> int:
+        return int(self._seed_counter)
+
+    @property
     def debug_overlay_enabled(self) -> bool:
         return self._debug_overlay_enabled
 

@@ -6,12 +6,18 @@ class CoreTuning:
 
 
 class DebugTuning:
-    __slots__ = ["debug_enabled", "overlay_default", "perf_overlay_default"]
+    __slots__ = [
+        "debug_enabled",
+        "overlay_default",
+        "perf_overlay_default",
+        "drive_preset_chase_test_enabled"
+    ]
 
     def __init__(self) -> None:
         self.debug_enabled = False
         self.overlay_default = False
         self.perf_overlay_default = False
+        self.drive_preset_chase_test_enabled = False
 
 
 class ProfileTuning:

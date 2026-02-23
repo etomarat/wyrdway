@@ -1,13 +1,14 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from tic80 import btnp, print, time
+    from tic80 import keyp, print, time
 
-    from .input_buttons import Button
     from .text_layout import text_right_x
 
 
 class PerfOverlay:
+    KEY_F = 6  # F
+
     def __init__(self) -> None:
         self._enabled = False
         self._frame = 0
@@ -31,7 +32,7 @@ class PerfOverlay:
         self._enabled = not self._enabled
 
     def handle_input(self) -> None:
-        if btnp(Button.X):
+        if keyp(self.KEY_F):
             self.toggle()
 
     def begin_frame(self) -> None:

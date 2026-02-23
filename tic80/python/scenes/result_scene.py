@@ -60,7 +60,7 @@ class ResultScene:
             ("Run lost. Reverted to last save", Color.WHITE),
             (self._reason_line(reason), Color.ORANGE),
             ("Theseus corruption: +" + str(theseus_gain), Color.RED),
-            ("Next: refit in garage and run again", Color.YELLOW)
+            ("Refit in garage and run again", Color.YELLOW)
         ]
         self._set_layout(
             "RUN FAILED",
@@ -129,7 +129,7 @@ class ResultScene:
             (detail_line, detail_color),
             ("Scrap delivered: +" + str(delivered_scrap), Color.LIGHT_GREEN),
             ("Fuel recovered: +" + str(fuel_recovered), Color.YELLOW),
-            ("Next: continue in garage", Color.LIGHT_GREY)
+            # ("Continue in garage", Color.LIGHT_GREY)
         ]
         self._set_layout(
             title,

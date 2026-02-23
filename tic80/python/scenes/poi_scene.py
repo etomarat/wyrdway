@@ -120,8 +120,10 @@ class PoiScene:
             print(line, text_center_x(line, margin_x=2), 24, Color.WHITE, True)
             line = "no loot collected"
             print(line, text_center_x(line, margin_x=2), 40, Color.LIGHT_GREY, True)
-            print("scrap +" + str(self._loot_scrap), 92, 56, Color.LIGHT_GREEN)
-            print("fuel  +" + str(self._loot_fuel), 92, 64, Color.YELLOW)
+            line = "scrap: +" + str(self._loot_scrap)
+            print(line, text_center_x(line, margin_x=2), 56, Color.LIGHT_GREEN, True)
+            line = "fuel: +" + str(self._loot_fuel)
+            print(line, text_center_x(line, margin_x=2), 64, Color.YELLOW, True)
             pursuit_text = self._pursuer_name + " is still tracking you"
             print(pursuit_text, text_center_x(pursuit_text, margin_x=2), 82, Color.RED, True)
             line = "return to base immediately"
@@ -134,9 +136,10 @@ class PoiScene:
             print(line, text_center_x(line, margin_x=2), 24, Color.WHITE, True)
             line = "you took what wasn't yours"
             print(line, text_center_x(line, margin_x=2), 40, Color.LIGHT_GREY, True)
-            print("stolen scrap +" + str(self._loot_scrap),
-                  72, 56, Color.LIGHT_GREEN)
-            print("stolen fuel   +" + str(self._loot_fuel), 72, 64, Color.YELLOW)
+            line = "stolen scrap: +" + str(self._loot_scrap)
+            print(line, text_center_x(line, margin_x=2), 56, Color.LIGHT_GREEN, True)
+            line = "stolen fuel: +" + str(self._loot_fuel)
+            print(line, text_center_x(line, margin_x=2), 64, Color.YELLOW, True)
             pursuit_text = self._pursuer_name + " is in pursuit"
             print(pursuit_text, text_center_x(pursuit_text, margin_x=2), 82, Color.RED, True)
             line = "return to base immediately"
