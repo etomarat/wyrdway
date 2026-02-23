@@ -23,7 +23,9 @@ class ProfileTuning:
         "repair_hp",
         "evac_fuel_pct",
         "evac_fuel_min",
-        "evac_scrap_loss"
+        "evac_scrap_loss",
+        "rollback_theseus_gain",
+        "rollback_theseus_chase_bonus"
     )
 
     def __init__(self) -> None:
@@ -35,3 +37,5 @@ class ProfileTuning:
         self.evac_fuel_pct = 0.0
         self.evac_fuel_min = 0.0
         self.evac_scrap_loss = 0
+        self.rollback_theseus_gain = 0
+        self.rollback_theseus_chase_bonus = 0

@@ -23,6 +23,7 @@
 - `scrap: int`
 - `garage_hp: float`
 - `garage_fuel: float`
+- `theseus: int`
 - `upgrades: list[str]` (пока не используется геймплейно, но поле уже есть)
 
 ### 1.3 RunState
@@ -74,6 +75,7 @@
 - `DriveScene` обновляет вождение и меняет `run.car_hp/run.car_fuel`; на extract‑погоне также может дренить `run_scrap` при укусах преследователя.
 - `PoiScene` выставляет `delta.poi_action`, добавляет лут в ран, при тайм‑ауте ставит `escape_outcome="fail"`.
 - `ResultScene` по `A` вызывает `GameState.apply_run_results()` и возвращает в `GarageScene`.
+- При любом поражении ран откатывается к последнему сейву через `GameState.rollback_to_last_save(...)` и добавляет штраф `Theseus`.
 
 ### 2.2 DRIVE плейтест
 Включается при `IS_DRIVE_PLAYTEST = True`:
@@ -91,6 +93,7 @@
 - `GameState.start_run()` создаёт новый `RunState` с `car_hp/car_fuel` из профиля.
 - Ремонт меняет только профиль (через `Profile.repair()`).
 - Профиль сохраняется в ключевых местах (до старта, после ремонта, после reset).
+- Runtime-флаги рана/погони пишутся отдельно в `pmem` для детекта прерванной сессии.
 
 ### 3.2 RegionMapScene
 Файл: `tic80/python/scenes/region_map_scene.py`

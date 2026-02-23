@@ -97,6 +97,7 @@ def BOOT() -> None:
     _boot_debug_state()
 
     SCENE_MANAGER.state.load_profile()
+    SCENE_MANAGER.state.recover_interrupted_session()
     SCENE_MANAGER.register(SceneId.DRIVE_PRESET, make_drive_preset_scene)
     SCENE_MANAGER.register(SceneId.GARAGE, make_garage_scene)
     SCENE_MANAGER.register(SceneId.REGION_MAP, make_region_map_scene)

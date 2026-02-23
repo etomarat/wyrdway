@@ -26,6 +26,16 @@ class ResultScene:
 
         run = self._state.run
         if run is None:
+            reason, theseus_gain = self._state.consume_rollback_notice()
+            if reason is not None:
+                lines = [
+                    "status: FAIL",
+                    "reason: " + str(reason),
+                    "state: rolled back to last save",
+                    "theseus gained: +" + str(theseus_gain)
+                ]
+                self._lines = lines
+                return
             if fallback is None:
                 self._lines = ["RESULT", "no active run"]
             else:

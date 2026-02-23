@@ -11,3 +11,5 @@ TUNING.PROFILE.repair_hp = 10.0
 TUNING.PROFILE.evac_fuel_pct = 0.1
 TUNING.PROFILE.evac_fuel_min = 5.0
 TUNING.PROFILE.evac_scrap_loss = 5
+TUNING.PROFILE.rollback_theseus_gain = 1
+TUNING.PROFILE.rollback_theseus_chase_bonus = 1

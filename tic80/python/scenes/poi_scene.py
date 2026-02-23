@@ -62,7 +62,8 @@ class PoiScene:
         if go_result:
             if message is None:
                 message = "POI FAILED"
-            self._nav.go(SceneId.RESULT, ResultEnterParams(message))
+            self._state.rollback_to_last_save(message, False)
+            self._nav.go(SceneId.RESULT, ResultEnterParams("RUN FAILED"))
             return
 
         run.ensure_return_from_active_outbound()

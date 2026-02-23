@@ -73,6 +73,7 @@ class DriveScene:
         self._pursuer_fx_time = 0.0
 
         run = self._state.require_run()
+        self._state.mark_run_active()
         seed = run.seed
         segment_len = float(TUNING.DRIVE.segment_total_length)
         reverse_layout = False
@@ -99,6 +100,7 @@ class DriveScene:
         self._start_car_fuel = run.car_fuel
         self._start_run_scrap = run.run_scrap()
         if self._mode == "extract" and self._logic is not None:
+            self._state.mark_chase_active()
             self._pursuer.start_return(self._logic.road_s, self._pursuer_archetype.profile)
         else:
             self._pursuer.disable()
@@ -152,10 +154,10 @@ class DriveScene:
 
         if not self._evacuated:
             if run.car_fuel <= 0:
-                self._evacuate(run, "OUT OF FUEL")
+                self._evacuate("OUT OF FUEL")
                 return
             if run.car_hp <= 0:
-                self._evacuate(run, "CAR DESTROYED")
+                self._evacuate("CAR DESTROYED")
                 return
 
         if self._logic.finished() and inp.a_pressed:
@@ -352,24 +354,13 @@ class DriveScene:
     def exit(self) -> None:
         pass
 
-    def _evacuate(self, run: RunState, reason: str) -> None:
-        if self._mode == "travel":
-            self._evacuated = True
-            if self._telemetry is not None:
-                self._telemetry.dump("travel fail rollback " + reason)
-            self._state.rollback_to_last_save()
-            self._nav.go(SceneId.RESULT, ResultEnterParams("TRAVEL FAIL: ROLLBACK TO SAVE"))
-            return
-
-        delta = run.ensure_delta(run.node_id)
-        delta.set_escape_outcome("fail")
+    def _evacuate(self, reason: str) -> None:
         self._evacuated = True
         if self._telemetry is not None:
-            self._telemetry.dump("evac " + reason)
-        msg = reason
-        if self._mode == "extract":
-            msg = reason + " / LOOT LOST"
-        self._nav.go(SceneId.RESULT, ResultEnterParams(msg))
+            self._telemetry.dump("rollback fail " + reason)
+        chase_contact = self._mode == "extract"
+        self._state.rollback_to_last_save(reason, chase_contact)
+        self._nav.go(SceneId.RESULT, ResultEnterParams("RUN FAILED"))
 
 
 def make_drive_scene(nav: SceneNavigator) -> DriveScene:

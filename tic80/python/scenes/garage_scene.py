@@ -53,15 +53,21 @@ class GarageScene:
               82, 70, Color.WHITE)
         print("fuel=" + f"{self._state.profile.garage_fuel:.2f}",
               82, 80, Color.WHITE)
+        print("theseus=" + str(self._state.profile.theseus),
+              82, 90, Color.WHITE)
+        rollback_reason, rollback_gain = self._state.rollback_notice()
+        if rollback_reason is not None:
+            print("rollback: " + str(rollback_reason), 6, 8, Color.LIGHT_GREY)
+            print("theseus +" + str(rollback_gain), 6, 16, Color.LIGHT_GREY)
         if self._confirm_new_game:
-            print("NEW GAME?", 84, 96, Color.WHITE)
-            print("Z = CONFIRM RESET", 64, 106, Color.WHITE)
-            print("X = CANCEL", 76, 116, Color.LIGHT_GREY)
+            print("NEW GAME?", 84, 100, Color.WHITE)
+            print("Z = CONFIRM RESET", 64, 110, Color.WHITE)
+            print("X = CANCEL", 76, 120, Color.LIGHT_GREY)
             return
-        print("Z = START", 86, 100, Color.WHITE)
+        print("Z = START", 86, 104, Color.WHITE)
         print("X = REPAIR (-" + str(TUNING.PROFILE.repair_cost) + ")",
-              86, 110, Color.WHITE)
-        print("X = NEW GAME", 86, 120, Color.WHITE)
+              86, 114, Color.WHITE)
+        print("X = NEW GAME", 86, 124, Color.WHITE)
 
     def exit(self) -> None:
         pass

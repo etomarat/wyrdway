@@ -1,27 +1,33 @@
-# SAVE/LOAD (as-is): профиль на `pmem`
+# SAVE/LOAD (as-is): профиль + runtime-флаги на `pmem`
 
-Этот документ фиксирует текущее состояние системы сохранений в коде.
+Этот документ фиксирует текущее состояние сохранений в коде.
 
-Текущее решение (M1): **сохраняем только профиль**. Состояние рана не сохраняется.
+Текущее решение: сохраняем профиль и отдельные runtime-флаги сессии. Полный `RunState` не сериализуется.
 
 ---
 
 ## 1) Где реализовано
 
-- `tic80/python/core/save_system.py` — чтение/запись профиля в `pmem`.
-- `tic80/python/core/game_state.py` — когда загрузить/сохранить и как применить.
+- `tic80/python/core/save_system.py` — чтение/запись профиля и runtime-флагов в `pmem`.
+- `tic80/python/core/game_state.py` — применение загрузки, rollback и recovery после прерванной сессии.
 
 ---
 
-## 2) Что сохраняем (Profile)
+## 2) Что сохраняем
 
-Сохраняемые поля профиля:
+### 2.1 Профиль
+
 - `scrap: int`
 - `garage_hp: float`
 - `garage_fuel: float`
-- `tuning_version: int` (для диагностики несовпадений тюнинга)
+- `theseus: int`
+- `seed_counter: int`
+- `tuning_version: int`
 
-Поля хранятся в `pmem`, который принимает только int, поэтому float сохраняем как int с масштабом.
+### 2.2 Runtime-флаги
+
+- `run_active: bool` — ран был в процессе (для детекта перезапуска/обрыва).
+- `chase_active: bool` — ран был в погоне/контакте с сущностью.
 
 ---
 
@@ -30,71 +36,71 @@
 Файл: `tic80/python/core/save_system.py`
 
 Константы:
-- `SAVE_MAGIC = 0x57595244` (строка `"WYRD"` как int)
-- `SAVE_SCHEMA_VERSION = 3`
+- `SAVE_MAGIC = 0x57595244` (`"WYRD"` как int)
+- `SAVE_SCHEMA_VERSION = 6`
 - `FLOAT_SCALE = 100.0`
 
 Слоты:
 - `pmem[0]` — magic
 - `pmem[1]` — schema_version
-- `pmem[2]` — tuning_version (из `TUNING.tuning_version`)
-- `pmem[10]` — scrap
-- `pmem[11]` — garage_hp * 100 (int)
-- `pmem[12]` — garage_fuel * 100 (int)
+- `pmem[2]` — tuning_version
+- `pmem[3]` — profile seed_counter
+- `pmem[10]` — profile scrap
+- `pmem[11]` — profile garage_hp * 100
+- `pmem[12]` — profile garage_fuel * 100
+- `pmem[13]` — profile theseus
+- `pmem[20]` — runtime run_active (0/1)
+- `pmem[21]` — runtime chase_active (0/1)
 
 ---
 
-## 4) Правила загрузки (load)
+## 4) Правила загрузки и rollback
 
-Поведение `SaveSystem.load_profile()`:
-- Если magic не совпал: считаем, что сейва нет (новая игра).
-- Если schema_version не совпал: считаем, что сейв несовместим (новая игра).
-- Иначе читаем поля и возвращаем `SaveProfileData`.
+`SaveSystem.load_profile()`:
+- если `magic`/`schema` не совпали, профиль считается отсутствующим.
+- иначе возвращается `SaveProfileData`.
 
-Поведение `GameState.load_profile()`:
-- Если данных нет: `profile_loaded = False`.
-- Если данные есть: применяем к профилю и ставим флаги:
-  - `profile_loaded = True`
-  - `profile_tuning_mismatch = (save.tuning_version != TUNING.tuning_version)`
+`GameState.load_profile()`:
+- загружает профиль и `seed_counter`;
+- выставляет `profile_loaded` и `profile_tuning_mismatch`.
 
-Диагностика:
-- в консоль идут `trace(...)` строки при загрузке и при несовпадении тюнинга.
+`GameState.rollback_to_last_save(reason, chase_contact)`:
+- откатывает профиль к последнему сейву;
+- добавляет штраф `Theseus` (`rollback_theseus_gain` + бонус `rollback_theseus_chase_bonus` при `chase_contact=True`);
+- сохраняет результат отката;
+- завершает ран и сбрасывает runtime-флаги.
+
+`GameState.recover_interrupted_session()`:
+- читает runtime-флаги на `BOOT()`;
+- если сессия была прервана, выполняет rollback с начислением `Theseus`.
 
 ---
 
 ## 5) Правила сохранения (save)
 
-`SaveSystem.save_profile()` всегда перезаписывает заголовок (magic/schema/tuning_version) и поля профиля.
+`SaveSystem.save_profile(...)` всегда перезаписывает заголовок и поля профиля.
 
-Клэмпы и нормализация:
-- `scrap` хранится как `max(0, int(scrap))`
-- `garage_hp/garage_fuel` хранятся как `max(0, int(round(value * FLOAT_SCALE)))`
-
----
-
-## 6) Точки сохранения (as-is)
-
-В обычном режиме игры профиль сохраняется:
-- перед стартом рана (GARAGE → REGION_MAP)
-- после ремонта в гараже
-- после применения результатов в RESULT (`GameState.apply_run_results()`)
-- после reset профиля (NEW GAME)
+Нормализация:
+- `scrap`, `theseus`, `seed_counter` клэмпятся к `>= 0`;
+- `garage_hp` и `garage_fuel` сохраняются как `int(round(value * FLOAT_SCALE))`.
 
 ---
 
-## 7) Совместимость версий (as-is)
+## 6) Точки сохранения
 
-Сейчас стратегия минимальная:
-- несовместимые изменения → увеличить `SAVE_SCHEMA_VERSION`
-- при несовпадении версии → трактовать сейв как отсутствующий
+- после успешного применения результатов в `RESULT` (`GameState.apply_run_results()`);
+- после rollback (`GameState.rollback_to_last_save(...)`);
+- после `NEW GAME` (`GameState.start_new_game()`);
+- после ремонта в гараже (через `GameState.save_profile()`).
 
-Миграции и `last_good` пока не реализованы.
+Runtime-флаги пишутся отдельно:
+- `run_active=True` при входе в `DRIVE`;
+- `chase_active=True` при входе в `DRIVE(extract)`;
+- оба флага сбрасываются при завершении/rollback/new game.
 
 ---
 
-## 8) Что НЕ сохраняем (важно)
+## 7) Что не сохраняем
 
-- `RunState` и его `delta`, инвентарь рана, позиция/сегмент DRIVE.
-- плейтест‑статистика DRIVE.
-
-Если понадобится “continue run” позже, это будет отдельное расширение схемы.
+- полный `RunState` (`delta`, инвентарь рана, позиция/сегмент DRIVE);
+- временные данные сцены и эффекты кадра.

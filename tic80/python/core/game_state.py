@@ -13,7 +13,8 @@ class GameState:
     __slots__ = ('_profile', '_run', '_seed_counter', '_save',
                  '_profile_loaded', '_profile_tuning_mismatch',
                  '_profile_tuning_version', '_debug_lines',
-                 '_debug_overlay_enabled')
+                 '_debug_overlay_enabled', '_last_rollback_reason',
+                 '_last_rollback_theseus_gain')
 
     def __init__(self) -> None:
         self._profile = Profile(
@@ -29,6 +30,8 @@ class GameState:
         self._profile_tuning_version: int | None = None
         self._debug_lines: list[str] = []
         self._debug_overlay_enabled = False
+        self._last_rollback_reason: str | None = None
+        self._last_rollback_theseus_gain = 0
 
     @property
     def profile(self) -> Profile:
@@ -82,6 +85,8 @@ class GameState:
 
     def start_run(self) -> RunState:
         self._seed_counter += 1
+        self._last_rollback_reason = None
+        self._last_rollback_theseus_gain = 0
         self._run = RunState(self._seed_counter,
                              self._profile.garage_hp,
                              self._profile.garage_fuel)
@@ -89,6 +94,24 @@ class GameState:
 
     def end_run(self) -> None:
         self._run = None
+        self._save.save_runtime_flags(False, False)
+
+    def mark_run_active(self) -> None:
+        self._save.save_runtime_flags(True, False)
+
+    def mark_chase_active(self) -> None:
+        run_active, _ = self._save.load_runtime_flags()
+        self._save.save_runtime_flags(run_active or self._run is not None, True)
+
+    def consume_rollback_notice(self) -> tuple[str | None, int]:
+        reason = self._last_rollback_reason
+        gain = self._last_rollback_theseus_gain
+        self._last_rollback_reason = None
+        self._last_rollback_theseus_gain = 0
+        return (reason, gain)
+
+    def rollback_notice(self) -> tuple[str | None, int]:
+        return (self._last_rollback_reason, self._last_rollback_theseus_gain)
 
     def apply_run_results(self) -> None:
         run = self._run
@@ -103,9 +126,9 @@ class GameState:
 
         self._profile.set_garage_stats(run.car_hp, run.car_fuel)
         self.save_profile()
-        self._run = None
+        self.end_run()
 
-    def rollback_to_last_save(self) -> None:
+    def rollback_to_last_save(self, reason: str, chase_contact: bool = False) -> int:
         data = self._save.load_profile()
         if data is None:
             self._profile.reset()
@@ -114,14 +137,22 @@ class GameState:
             self._profile_tuning_mismatch = False
             self._profile_tuning_version = None
         else:
-            self._profile.apply_save(data.scrap, data.garage_hp, data.garage_fuel)
+            self._profile.apply_save(data.scrap, data.garage_hp, data.garage_fuel, data.theseus)
             self._seed_counter = data.seed_counter
             self._profile_loaded = True
             self._profile_tuning_version = data.tuning_version
             self._profile_tuning_mismatch = (
                 data.tuning_version != int(TUNING.tuning_version)
             )
-        self._run = None
+        gain = int(TUNING.PROFILE.rollback_theseus_gain)
+        if chase_contact:
+            gain += int(TUNING.PROFILE.rollback_theseus_chase_bonus)
+        self._profile.add_theseus(gain)
+        self._last_rollback_reason = str(reason)
+        self._last_rollback_theseus_gain = gain
+        self.end_run()
+        self.save_profile()
+        return gain
 
     def load_profile(self) -> None:
         data = self._save.load_profile()
@@ -131,7 +162,7 @@ class GameState:
             self._profile_tuning_mismatch = False
             self._profile_tuning_version = None
             return
-        self._profile.apply_save(data.scrap, data.garage_hp, data.garage_fuel)
+        self._profile.apply_save(data.scrap, data.garage_hp, data.garage_fuel, data.theseus)
         self._seed_counter = data.seed_counter
         self._profile_loaded = True
         self._profile_tuning_version = data.tuning_version
@@ -145,6 +176,8 @@ class GameState:
             + str(round(data.garage_hp, 2))
             + " fuel="
             + str(round(data.garage_fuel, 2))
+            + " theseus="
+            + str(data.theseus)
             + " tuning="
             + str(data.tuning_version)
         )
@@ -161,14 +194,27 @@ class GameState:
             self._profile.scrap,
             self._profile.garage_hp,
             self._profile.garage_fuel,
+            self._profile.theseus,
             self._seed_counter
         )
 
     def start_new_game(self) -> None:
         self._profile.reset()
         self._seed_counter = 0
-        self._run = None
+        self._last_rollback_reason = None
+        self._last_rollback_theseus_gain = 0
+        self.end_run()
         self.save_profile()
+
+    def recover_interrupted_session(self) -> bool:
+        run_active, chase_active = self._save.load_runtime_flags()
+        if not run_active and not chase_active:
+            return False
+        reason = "RUN INTERRUPTED"
+        if chase_active:
+            reason = "CHASE INTERRUPTED"
+        self.rollback_to_last_save(reason, chase_active)
+        return True
 
     def debug_set_active_run_seed(self, seed: int) -> None:
         next_seed = int(seed)
