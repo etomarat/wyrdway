@@ -100,7 +100,8 @@ def TIC() -> None:
         lines = [
             "scene=" + str(SCENE_MANAGER.current_id),
             "dt=" + str(dt),
-            "profile=" + ("loaded" if SCENE_MANAGER.state.profile_loaded else "new")
+            "profile=" +
+            ("loaded" if SCENE_MANAGER.state.profile_loaded else "new")
         ]
         if SCENE_MANAGER.state.profile_tuning_mismatch:
             lines.append(

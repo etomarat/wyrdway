@@ -25,11 +25,23 @@ class RegionMapScene:
         if run is not None and run.node_id is not None:
             self.selected_node = run.node_id
 
+    def _debug_seed_edit_enabled(self) -> bool:
+        return (
+            self._state.debug_overlay_enabled
+            or TUNING.DRIVE.debug_vectors_enabled
+            or TUNING.DRIVE.debug_hitboxes_enabled
+        )
+
     def update(self, dt: float) -> None:
         if btnp(Button.UP):
             self.selected_node = max(1, self.selected_node - 1)
         if btnp(Button.DOWN):
             self.selected_node = min(self.node_count, self.selected_node + 1)
+        if self._debug_seed_edit_enabled():
+            if btnp(Button.LEFT):
+                self._state.debug_shift_active_run_seed(-1)
+            if btnp(Button.RIGHT):
+                self._state.debug_shift_active_run_seed(1)
         if btnp(Button.A):
             run = self._state.require_run()
             run.ensure_outbound_segment(
@@ -114,6 +126,8 @@ class RegionMapScene:
             self._draw_node_row(run, node_id, 48 + i * 8)
         if self._state.debug_overlay_enabled:
             self._draw_selected_node_details(run)
+        if self._debug_seed_edit_enabled():
+            print("L/R +/-1", 4, 128, Color.LIGHT_GREY)
         print("Z = GO", 96, 128, Color.WHITE)
 
     def exit(self) -> None:

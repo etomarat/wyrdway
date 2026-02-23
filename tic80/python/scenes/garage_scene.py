@@ -17,17 +17,21 @@ class GarageScene:
         self._nav = nav
         self._state = nav.state
         self._profile = nav.state.profile
-        self._can_restart = False
+        self._confirm_new_game = False
 
     def enter(self, params: SceneEnterParams = None) -> None:
-        pass
+        self._confirm_new_game = False
 
     def update(self, dt: float) -> None:
-        profile = self._profile
-        self._can_restart = profile.garage_hp <= 0 or profile.garage_fuel <= 0
+        if self._confirm_new_game:
+            if btnp(Button.A):
+                self._state.start_new_game()
+                self._confirm_new_game = False
+            elif btnp(Button.B) or btnp(Button.X):
+                self._confirm_new_game = False
+            return
 
         if btnp(Button.A):
-            self._state.save_profile()
             self._state.start_run()
             self._nav.go(SceneId.REGION_MAP)
         elif btnp(Button.B):
@@ -39,9 +43,7 @@ class GarageScene:
             if repaired:
                 self._state.save_profile()
         elif btnp(Button.X):
-            if self._can_restart:
-                self._profile.reset()
-                self._state.save_profile()
+            self._confirm_new_game = True
 
     def draw(self) -> None:
         cls(Color.BLACK)
@@ -51,11 +53,15 @@ class GarageScene:
               82, 70, Color.WHITE)
         print("fuel=" + f"{self._state.profile.garage_fuel:.2f}",
               82, 80, Color.WHITE)
+        if self._confirm_new_game:
+            print("NEW GAME?", 84, 96, Color.WHITE)
+            print("Z = CONFIRM RESET", 64, 106, Color.WHITE)
+            print("X = CANCEL", 76, 116, Color.LIGHT_GREY)
+            return
         print("Z = START", 86, 100, Color.WHITE)
         print("X = REPAIR (-" + str(TUNING.PROFILE.repair_cost) + ")",
               86, 110, Color.WHITE)
-        if self._can_restart:
-            print("A = NEW GAME (RESET)", 86, 120, Color.WHITE)
+        print("X = NEW GAME", 86, 120, Color.WHITE)
 
     def exit(self) -> None:
         pass

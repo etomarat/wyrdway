@@ -132,11 +132,13 @@ class GameState:
         data = self._save.load_profile()
         if data is None:
             self._profile.reset()
+            self._seed_counter = 1
             self._profile_loaded = False
             self._profile_tuning_mismatch = False
             self._profile_tuning_version = None
         else:
             self._profile.apply_save(data.scrap, data.garage_hp, data.garage_fuel)
+            self._seed_counter = data.seed_counter
             self._profile_loaded = True
             self._profile_tuning_version = data.tuning_version
             self._profile_tuning_mismatch = (
@@ -147,11 +149,13 @@ class GameState:
     def load_profile(self) -> None:
         data = self._save.load_profile()
         if data is None:
+            self._seed_counter = 1
             self._profile_loaded = False
             self._profile_tuning_mismatch = False
             self._profile_tuning_version = None
             return
         self._profile.apply_save(data.scrap, data.garage_hp, data.garage_fuel)
+        self._seed_counter = data.seed_counter
         self._profile_loaded = True
         self._profile_tuning_version = data.tuning_version
         self._profile_tuning_mismatch = (
@@ -179,8 +183,36 @@ class GameState:
         self._save.save_profile(
             self._profile.scrap,
             self._profile.garage_hp,
-            self._profile.garage_fuel
+            self._profile.garage_fuel,
+            self._seed_counter
         )
+
+    def start_new_game(self) -> None:
+        self._profile.reset()
+        self._seed_counter = 1
+        self._run = None
+        self.save_profile()
+
+    def debug_set_active_run_seed(self, seed: int) -> None:
+        next_seed = int(seed)
+        if next_seed < 1:
+            next_seed = 1
+        run = self._run
+        if run is None:
+            car_hp = self._profile.garage_hp
+            car_fuel = self._profile.garage_fuel
+        else:
+            car_hp = run.car_hp
+            car_fuel = run.car_fuel
+        self._run = RunState(next_seed, car_hp, car_fuel)
+        self._seed_counter = next_seed
+
+    def debug_shift_active_run_seed(self, delta: int) -> None:
+        run = self._run
+        current = self._seed_counter
+        if run is not None:
+            current = run.seed
+        self.debug_set_active_run_seed(current + int(delta))
 
     def require_run(self) -> RunState:
         if self._run is None:

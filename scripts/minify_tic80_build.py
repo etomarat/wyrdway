@@ -4,7 +4,6 @@ import inspect
 import re
 from pathlib import Path
 
-
 META_KEYS = [
     "# title:",
     "# author:",
@@ -111,7 +110,7 @@ class BundleStripper(ast.NodeTransformer):
             return None
         return ast.Assign(targets=[node.target], value=node.value)
 
-    def visit_FunctionDef(self, node: ast.FunctionDef):  # type: ignore[override]
+    def visit_FunctionDef(self, node: ast.FunctionDef):
         has_overload = False
         for deco in node.decorator_list:
             if is_name(deco, "overload"):
@@ -123,13 +122,15 @@ class BundleStripper(ast.NodeTransformer):
         self.generic_visit(node)
         node.returns = None
         strip_annotations_from_args(node.args)
-        node.decorator_list = [d for d in node.decorator_list if not is_name(d, "overload")]
+        node.decorator_list = [
+            d for d in node.decorator_list if not is_name(d, "overload")]
         node.body = strip_docstring_from_body(node.body)
         if not node.body:
             node.body = [ast.Pass()]
         return node
 
-    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef):  # type: ignore[override]
+    # type: ignore[override]
+    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef):
         has_overload = False
         for deco in node.decorator_list:
             if is_name(deco, "overload"):
@@ -141,7 +142,8 @@ class BundleStripper(ast.NodeTransformer):
         self.generic_visit(node)
         node.returns = None
         strip_annotations_from_args(node.args)
-        node.decorator_list = [d for d in node.decorator_list if not is_name(d, "overload")]
+        node.decorator_list = [
+            d for d in node.decorator_list if not is_name(d, "overload")]
         node.body = strip_docstring_from_body(node.body)
         if not node.body:
             node.body = [ast.Pass()]
@@ -198,7 +200,8 @@ def run_python_minifier(text: str) -> tuple[str, str]:
     try:
         import python_minifier  # type: ignore
     except Exception as exc:
-        raise RuntimeError("python_minifier unavailable: " + type(exc).__name__) from exc
+        raise RuntimeError("python_minifier unavailable: " +
+                           type(exc).__name__) from exc
 
     try:
         safe_kwargs = {
@@ -221,7 +224,8 @@ def run_python_minifier(text: str) -> tuple[str, str]:
         minimized = python_minifier.minify(text, **filtered)
         return (minimized, "python_minifier applied")
     except Exception as exc:
-        raise RuntimeError("python_minifier failed: " + type(exc).__name__) from exc
+        raise RuntimeError("python_minifier failed: " +
+                           type(exc).__name__) from exc
 
 
 def pocketpy_compat_after_pymin(text: str) -> str:
@@ -266,7 +270,8 @@ def main() -> int:
 
     final_bytes = len(result.encode("utf-8"))
     saved = original_bytes - final_bytes
-    pct = 0.0 if original_bytes == 0 else (saved / float(original_bytes)) * 100.0
+    pct = 0.0 if original_bytes == 0 else (
+        saved / float(original_bytes)) * 100.0
     print("minify: bytes_before=" + str(original_bytes)
           + " bytes_after=" + str(final_bytes)
           + " saved=" + str(saved)
