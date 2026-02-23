@@ -1,7 +1,7 @@
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from tic80 import cls, keyp, print
+    from tic80 import cls, print
 
     from ..contracts import DriveEnterParams, ResultEnterParams, SceneEnterParams, SceneNavigator
     from ..core.palette import Color
@@ -98,7 +98,7 @@ class DriveScene:
         self._start_car_hp = run.car_hp
         self._start_car_fuel = run.car_fuel
         self._start_run_scrap = run.run_scrap()
-        if self._mode == "extract" and not self._state.playtest_enabled and self._logic is not None:
+        if self._mode == "extract" and self._logic is not None:
             self._pursuer.start_return(self._logic.road_s, self._pursuer_archetype.profile)
         else:
             self._pursuer.disable()
@@ -122,12 +122,6 @@ class DriveScene:
             return
         if self._objects is None:
             return
-        if self._state.playtest_enabled and keyp(18):
-            self._restart_segment()
-            return
-        if self._state.playtest_enabled:
-            self._state.playtest_add_time(dt)
-
         zones = self._objects.zones_items()
         z_before = zone_at_hitboxes(self._logic, zones)
         apply_zone_effects(self._logic, z_before, TUNING)
@@ -167,11 +161,6 @@ class DriveScene:
         if self._logic.finished() and inp.a_pressed:
             if self._telemetry is not None:
                 self._telemetry.dump("finish")
-            if self._state.playtest_enabled:
-                self._state.playtest_finish_segment()
-                self._nav.go(SceneId.RESULT,
-                             ResultEnterParams("SEGMENT COMPLETE"))
-                return
             if self._mode == "travel":
                 self._nav.go(SceneId.POI)
                 return
@@ -242,7 +231,7 @@ class DriveScene:
         z_before: DriveZone | None,
         z_after: DriveZone | None
     ) -> None:
-        if self._mode != "extract" or self._state.playtest_enabled:
+        if self._mode != "extract":
             return
         logic = self._logic
         if logic is None:
@@ -260,16 +249,6 @@ class DriveScene:
             if hp_loss > 0:
                 self._renderer.notify_pursuer_hp_strike_fx(logic, hp_loss, intensity)
             self._append_strike_popups(strike_delta, fuel_loss, hp_loss)
-
-    def _restart_segment(self) -> None:
-        run = self._state.run
-        if run is None:
-            return
-        run.reset_car_stats(self._start_car_hp, self._start_car_fuel)
-        mode: Literal["travel", "extract"] = "travel"
-        if self._mode == "extract":
-            mode = "extract"
-        self.enter(DriveEnterParams(mode))
 
     def draw(self) -> None:
         cls(Color.BLACK)
@@ -338,21 +317,22 @@ class DriveScene:
             print("Z = CONTINUE", 2, 128, Color.WHITE)
         else:
             print("ARROWS + X", 2, 128, Color.WHITE)
-        lines = drive_debug_lines(road, logic, run, objects, TUNING)
-        if self._pursuer.active:
-            lines.append(
-                "pursuer d="
-                + str(round(self._pursuer.distance_s, 2))
-                + " v="
-                + str(round(self._pursuer.last_speed, 2))
-                + " state="
-                + self._pursuer.state
-                + " cd="
-                + str(round(self._pursuer.cooldown, 2))
-                + " phase="
-                + self._pursuer.phase
-            )
-        self._state.set_debug_lines(lines)
+        if self._state.debug_enabled:
+            lines = drive_debug_lines(road, logic, run, objects, TUNING)
+            if self._pursuer.active:
+                lines.append(
+                    "pursuer d="
+                    + str(round(self._pursuer.distance_s, 2))
+                    + " v="
+                    + str(round(self._pursuer.last_speed, 2))
+                    + " state="
+                    + self._pursuer.state
+                    + " cd="
+                    + str(round(self._pursuer.cooldown, 2))
+                    + " phase="
+                    + self._pursuer.phase
+                )
+            self._state.set_debug_lines(lines)
         return
 
     def _draw_popups(self) -> None:
@@ -373,7 +353,7 @@ class DriveScene:
         pass
 
     def _evacuate(self, run: RunState, reason: str) -> None:
-        if self._mode == "travel" and not self._state.playtest_enabled:
+        if self._mode == "travel":
             self._evacuated = True
             if self._telemetry is not None:
                 self._telemetry.dump("travel fail rollback " + reason)
@@ -387,7 +367,7 @@ class DriveScene:
         if self._telemetry is not None:
             self._telemetry.dump("evac " + reason)
         msg = reason
-        if self._mode == "extract" and not self._state.playtest_enabled:
+        if self._mode == "extract":
             msg = reason + " / LOOT LOST"
         self._nav.go(SceneId.RESULT, ResultEnterParams(msg))
 

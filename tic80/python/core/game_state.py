@@ -13,7 +13,6 @@ class GameState:
     __slots__ = ('_profile', '_run', '_seed_counter', '_save',
                  '_profile_loaded', '_profile_tuning_mismatch',
                  '_profile_tuning_version', '_debug_lines',
-                 '_playtest_enabled', '_playtest_time', '_playtest_segments',
                  '_debug_overlay_enabled')
 
     def __init__(self) -> None:
@@ -29,9 +28,6 @@ class GameState:
         self._profile_tuning_mismatch = False
         self._profile_tuning_version: int | None = None
         self._debug_lines: list[str] = []
-        self._playtest_enabled = False
-        self._playtest_time = 0.0
-        self._playtest_segments = 0
         self._debug_overlay_enabled = False
 
     @property
@@ -47,37 +43,18 @@ class GameState:
         return self._profile_loaded
 
     @property
-    def playtest_enabled(self) -> bool:
-        return self._playtest_enabled
-
-    @property
     def debug_overlay_enabled(self) -> bool:
         return self._debug_overlay_enabled
 
+    @property
+    def debug_enabled(self) -> bool:
+        return bool(TUNING.DEBUG.debug_enabled)
+
     def set_debug_overlay_enabled(self, enabled: bool) -> None:
+        if not self.debug_enabled:
+            self._debug_overlay_enabled = False
+            return
         self._debug_overlay_enabled = bool(enabled)
-
-    def playtest_begin(self) -> None:
-        """Сбрасывает статистику DRIVE-плейтеста (режим “одна дорога за другой”)."""
-        self._playtest_enabled = True
-        self._playtest_time = 0.0
-        self._playtest_segments = 0
-
-    def playtest_add_time(self, dt: float) -> None:
-        """Добавляет время плейтеста (секунды)."""
-        if not self._playtest_enabled:
-            return
-        self._playtest_time += float(dt)
-
-    def playtest_finish_segment(self) -> None:
-        """Отмечает, что одна дорога пройдена до конца."""
-        if not self._playtest_enabled:
-            return
-        self._playtest_segments += 1
-
-    def playtest_stats(self) -> tuple[int, float]:
-        """Возвращает (segments, seconds)."""
-        return (self._playtest_segments, self._playtest_time)
 
     @property
     def profile_tuning_mismatch(self) -> bool:

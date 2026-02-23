@@ -23,8 +23,6 @@ if TYPE_CHECKING:
     from .scenes.region_map_scene import make_region_map_scene
     from .scenes.result_scene import make_result_scene
 
-IS_DRIVE_PLAYTEST = False
-
 include("contracts.__init__")
 include("core.palette")
 include("data.tuning.__init__")
@@ -45,24 +43,58 @@ DEBUG = DebugOverlay()
 PERF = PerfOverlay()
 
 
-def BOOT() -> None:
-    DEBUG.set_enabled(TUNING.DEBUG.overlay_default)
+def _boot_debug_state() -> None:
+    debug_enabled = bool(TUNING.DEBUG.debug_enabled)
+    if not debug_enabled:
+        TUNING.DRIVE.debug_vectors_enabled = False
+        TUNING.DRIVE.debug_hitboxes_enabled = False
+        TUNING.DRIVE.debug_zones_enabled = False
+        TUNING.DRIVE.telemetry_enabled = False
+    DEBUG.set_enabled(debug_enabled and TUNING.DEBUG.overlay_default)
     SCENE_MANAGER.state.set_debug_overlay_enabled(DEBUG.enabled)
     PERF.set_enabled(TUNING.DEBUG.perf_overlay_default)
-    if IS_DRIVE_PLAYTEST:
-        DEBUG.set_enabled(False)
-        SCENE_MANAGER.state.set_debug_overlay_enabled(DEBUG.enabled)
-        SCENE_MANAGER.state.profile.reset()
-        SCENE_MANAGER.state.end_run()
-        SCENE_MANAGER.state.playtest_begin()
-        SCENE_MANAGER.register(SceneId.DRIVE_PRESET, make_drive_preset_scene)
-        SCENE_MANAGER.register(SceneId.DRIVE, make_drive_scene)
-        SCENE_MANAGER.register(SceneId.RESULT, make_result_scene)
-        # В плейтесте нам нужен “замкнутый” цикл DRIVE<->RESULT без POI/гаража.
-        # Режим оставляем "travel" (без расширения Literal), а логику развилки держим
-        # в DriveScene через state.playtest_enabled.
-        SCENE_MANAGER.go(SceneId.DRIVE_PRESET)
+
+
+def _update_debug_input() -> None:
+    if not SCENE_MANAGER.state.debug_enabled:
+        SCENE_MANAGER.state.set_debug_overlay_enabled(False)
         return
+
+    if keyp(4):
+        debug_enabled = (
+            TUNING.DRIVE.debug_vectors_enabled
+            or TUNING.DRIVE.debug_hitboxes_enabled
+        )
+        new_state = not debug_enabled
+        TUNING.DRIVE.debug_vectors_enabled = new_state
+        TUNING.DRIVE.debug_hitboxes_enabled = new_state
+
+    DEBUG.handle_input()
+    SCENE_MANAGER.state.set_debug_overlay_enabled(DEBUG.enabled)
+
+
+def _draw_debug_overlay(dt: float) -> None:
+    if not SCENE_MANAGER.state.debug_enabled:
+        return
+    lines = [
+        "scene=" + str(SCENE_MANAGER.current_id),
+        "dt=" + str(dt),
+        "profile=" +
+        ("loaded" if SCENE_MANAGER.state.profile_loaded else "new")
+    ]
+    if SCENE_MANAGER.state.profile_tuning_mismatch:
+        lines.append(
+            "tuning mismatch: save="
+            + str(SCENE_MANAGER.state.profile_tuning_version)
+            + " cur="
+            + str(TUNING.tuning_version)
+        )
+    lines.extend(SCENE_MANAGER.state.debug_lines())
+    DEBUG.draw(lines)
+
+
+def BOOT() -> None:
+    _boot_debug_state()
 
     SCENE_MANAGER.state.load_profile()
     SCENE_MANAGER.register(SceneId.DRIVE_PRESET, make_drive_preset_scene)
@@ -80,38 +112,12 @@ def TIC() -> None:
     PERF.handle_input()
     PERF.begin_frame()
 
-    if keyp(4):
-        debug_enabled = (
-            TUNING.DRIVE.debug_vectors_enabled
-            or TUNING.DRIVE.debug_hitboxes_enabled
-        )
-        new_state = not debug_enabled
-        TUNING.DRIVE.debug_vectors_enabled = new_state
-        TUNING.DRIVE.debug_hitboxes_enabled = new_state
-
     SCENE_MANAGER.state.clear_debug_lines()
-    if not IS_DRIVE_PLAYTEST:
-        DEBUG.handle_input()
-        SCENE_MANAGER.state.set_debug_overlay_enabled(DEBUG.enabled)
+    _update_debug_input()
     SCENE_MANAGER.update(dt)
     SCENE_MANAGER.draw()
 
-    if not IS_DRIVE_PLAYTEST:
-        lines = [
-            "scene=" + str(SCENE_MANAGER.current_id),
-            "dt=" + str(dt),
-            "profile=" +
-            ("loaded" if SCENE_MANAGER.state.profile_loaded else "new")
-        ]
-        if SCENE_MANAGER.state.profile_tuning_mismatch:
-            lines.append(
-                "tuning mismatch: save="
-                + str(SCENE_MANAGER.state.profile_tuning_version)
-                + " cur="
-                + str(TUNING.tuning_version)
-            )
-        lines.extend(SCENE_MANAGER.state.debug_lines())
-        DEBUG.draw(lines)
+    _draw_debug_overlay(dt)
 
     PERF.end_frame()
     PERF.draw()

@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from tic80 import btnp, cls, print
 
-    from ..contracts import DriveEnterParams, ResultEnterParams, SceneEnterParams, SceneNavigator
+    from ..contracts import ResultEnterParams, SceneEnterParams, SceneNavigator
     from ..core.input_buttons import Button
     from ..core.palette import Color
     from ..core.scene_ids import SceneId
@@ -30,20 +30,6 @@ class ResultScene:
                 self._lines = ["RESULT", "no active run"]
             else:
                 self._lines = [str(fallback)]
-            return
-
-        if self._state.playtest_enabled:
-            segments, seconds = self._state.playtest_stats()
-            playtest_lines: list[str] = [
-                "PLAYTEST",
-                "segments=" + str(segments),
-                "time=" + str(round(seconds, 2)),
-                "fuel=" + str(round(run.car_fuel, 2)),
-                "hp=" + str(round(run.car_hp, 2))
-            ]
-            if fallback is not None:
-                playtest_lines.append("msg=" + str(fallback))
-            self._lines = playtest_lines
             return
 
         gained_scrap = 0
@@ -87,16 +73,6 @@ class ResultScene:
 
     def update(self, dt: float) -> None:
         if btnp(Button.A):
-            if self._state.playtest_enabled:
-                run = self._state.run
-                if run is None:
-                    return
-                # Продолжаем плейтест: переносим текущие значения hp/fuel и стартуем новую дорогу.
-                self._state.profile.set_garage_stats(run.car_hp, run.car_fuel)
-                self._state.end_run()
-                self._state.start_run()
-                self._nav.go(SceneId.DRIVE, DriveEnterParams("travel"))
-                return
             self._state.apply_run_results()
             self._nav.go(SceneId.GARAGE)
 
@@ -107,10 +83,7 @@ class ResultScene:
         for line in self._lines:
             print(line, 60, y, Color.WHITE)
             y += 8
-        if self._state.playtest_enabled:
-            print("Z = NEXT", 92, 120, Color.WHITE)
-        else:
-            print("Z = CONTINUE", 76, 120, Color.WHITE)
+        print("Z = CONTINUE", 76, 120, Color.WHITE)
 
     def exit(self) -> None:
         pass

@@ -187,9 +187,6 @@ class DrivePresetScene:
         if btnp(Button.A):
             if not self._apply_selected_preset():
                 return
-            if self._state.playtest_enabled:
-                self._nav.go(SceneId.DRIVE, DriveEnterParams("travel"))
-                return
             self._nav.go(SceneId.GARAGE)
         elif btnp(Button.B):
             if not self._apply_selected_preset():
@@ -198,8 +195,6 @@ class DrivePresetScene:
 
     def draw(self) -> None:
         cls(Color.BLACK)
-        if self._state.playtest_enabled:
-            print('!!!DRIVING PLAYTEST MODE!!!', 52, 14, Color.WHITE)
         print("DRIVE PHYSICS PRESET", 52, 34, Color.WHITE)
         y = 44
         for i, preset in enumerate(self._presets):
@@ -207,10 +202,6 @@ class DrivePresetScene:
             print(marker + " " + preset.label, 52, y, Color.WHITE)
             y += 10
         print("ARROWS: SELECT", 52, 106, Color.LIGHT_GREY)
-        if self._state.playtest_enabled:
-            print("Z (A): START DRIVE", 52, 114, Color.LIGHT_GREY)
-            print("X (B): CHASE TEST", 52, 122, Color.LIGHT_GREY)
-            return
         print("Z (A): CONTINUE", 52, 114, Color.LIGHT_GREY)
         print("X (B): CHASE TEST", 52, 122, Color.LIGHT_GREY)
 

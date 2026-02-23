@@ -26,11 +26,7 @@ class RegionMapScene:
             self.selected_node = run.node_id
 
     def _debug_seed_edit_enabled(self) -> bool:
-        return (
-            self._state.debug_overlay_enabled
-            or TUNING.DRIVE.debug_vectors_enabled
-            or TUNING.DRIVE.debug_hitboxes_enabled
-        )
+        return self._state.debug_enabled
 
     def update(self, dt: float) -> None:
         if btnp(Button.UP):
