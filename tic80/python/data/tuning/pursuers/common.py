@@ -9,7 +9,7 @@ def apply_common_pursuer_profile(profile: PursuerVariantTuning) -> None:
 
     # Chase kinematics.
     p.start_gap_s = 150.0
-    p.base_speed = 100.0
+    p.base_speed = 106.0
     p.slow_catchup = 0.0
     p.offroad_catchup = 0.0
 
