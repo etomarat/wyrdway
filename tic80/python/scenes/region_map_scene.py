@@ -8,11 +8,28 @@ if TYPE_CHECKING:
     from ..core.palette import Color
     from ..core.run_state import RunState
     from ..core.scene_ids import SceneId
+    from ..core.text_layout import text_center_x
+    from ..core.ui_panel import ui_panel_draw
     from ..data.tuning import TUNING
 
 
 class RegionMapScene:
     SCENE_ID = SceneId.REGION_MAP
+    TITLE_TEXT = "REGION MAP (WIP PLACEHOLDER)"
+    TITLE_Y = 30
+    TOP_PANEL_X = 4
+    TOP_PANEL_Y = 2
+    TOP_PANEL_W = 232
+    TOP_PANEL_H = 14
+    HUD_Y = 8
+    HUD_FUEL_X = 8
+    HUD_HP_X = 90
+    HUD_SCRAP_X = 170
+    ROW_BASE_Y = 48
+    FOOTER_PANEL_X = 8
+    FOOTER_PANEL_Y = 120
+    FOOTER_PANEL_W = 224
+    FOOTER_PANEL_H = 14
     NODE_COL_X = 10
     SCRAP_COL_X = 126
     FUEL_COL_X = 188
@@ -68,6 +85,43 @@ class RegionMapScene:
     def _fmt_hex32(self, value: int) -> str:
         return hex(int(value) & 0xFFFFFFFF)
 
+    def _draw_top_hud(self, run: RunState | None) -> None:
+        ui_panel_draw(
+            self.TOP_PANEL_X,
+            self.TOP_PANEL_Y,
+            self.TOP_PANEL_W,
+            self.TOP_PANEL_H,
+            Color.GREY,
+            Color.BLACK,
+            Color.DARK_GREY
+        )
+        if run is not None:
+            print("fuel=" + f"{run.car_fuel:.2f}",
+                  self.HUD_FUEL_X, self.HUD_Y, Color.WHITE, True)
+            print("hp=" + f"{run.car_hp:.2f}",
+                  self.HUD_HP_X, self.HUD_Y, Color.WHITE, True)
+        else:
+            print("fuel=" + f"{self._state.profile.garage_fuel:.2f}",
+                  self.HUD_FUEL_X, self.HUD_Y, Color.WHITE, True)
+            print("hp=" + f"{self._state.profile.garage_hp:.2f}",
+                  self.HUD_HP_X, self.HUD_Y, Color.WHITE, True)
+        print("scrap=" + str(self._state.profile.scrap),
+              self.HUD_SCRAP_X, self.HUD_Y, Color.WHITE, True)
+
+    def _draw_footer(self) -> None:
+        ui_panel_draw(
+            self.FOOTER_PANEL_X,
+            self.FOOTER_PANEL_Y,
+            self.FOOTER_PANEL_W,
+            self.FOOTER_PANEL_H,
+            Color.GREY,
+            Color.BLACK,
+            Color.DARK_GREY
+        )
+        if self._debug_seed_edit_enabled():
+            print("L/R +/-1", 14, 124, Color.LIGHT_GREY, True)
+        print("Z = GO", text_center_x("Z = GO", margin_x=4), 124, Color.WHITE, True)
+
     def _poi_type_label(self, poi_type: str) -> str:
         if poi_type == "gas_station":
             return "gas station"
@@ -118,27 +172,18 @@ class RegionMapScene:
 
     def draw(self) -> None:
         cls(Color.BLACK)
-        print("REGION MAP (WIP PLACEHOLDER)", 44, 30, Color.WHITE, True)
+        print(self.TITLE_TEXT, text_center_x(
+            self.TITLE_TEXT, margin_x=4), self.TITLE_Y, Color.WHITE, True)
         run = self._state.run
+        self._draw_top_hud(run)
         if run is not None:
             print("seed=" + str(run.seed), 90, 40, Color.WHITE, True)
-            print("fuel=" + f"{run.car_fuel:.2f}", 8, 8, Color.WHITE, True)
-            print("hp=" + f"{run.car_hp:.2f}", 90, 8, Color.WHITE, True)
-        else:
-            print(
-                "fuel=" + f"{self._state.profile.garage_fuel:.2f}", 8, 8, Color.WHITE, True)
-            print("hp=" + f"{self._state.profile.garage_hp:.2f}",
-                  90, 8, Color.WHITE, True)
-        print("scrap=" + str(self._state.profile.scrap),
-              170, 8, Color.WHITE, True)
         for i in range(self.node_count):
             node_id = i + 1
-            self._draw_node_row(run, node_id, 48 + i * 8)
+            self._draw_node_row(run, node_id, self.ROW_BASE_Y + i * 8)
         if self._state.debug_overlay_enabled:
             self._draw_selected_node_details(run)
-        if self._debug_seed_edit_enabled():
-            print("L/R +/-1", 4, 128, Color.LIGHT_GREY, True)
-        print("Z = GO", 96, 128, Color.WHITE, True)
+        self._draw_footer()
 
     def exit(self) -> None:
         pass

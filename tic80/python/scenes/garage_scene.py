@@ -13,6 +13,7 @@ if TYPE_CHECKING:
         ui_modal_draw_box,
         ui_modal_draw_lines
     )
+    from ..core.ui_panel import ui_panel_draw, ui_panel_draw_split_actions
     from ..data.tuning import TUNING
 
 
@@ -166,12 +167,15 @@ class GarageScene:
         scrap = int(profile.scrap)
         repair_status, repair_color = self._repair_hint()
 
-        rect(self.VEHICLE_PANEL_X, self.VEHICLE_PANEL_Y,
-             self.VEHICLE_PANEL_W, self.VEHICLE_PANEL_H, Color.BLACK)
-        rect(self.VEHICLE_PANEL_X + 1, self.VEHICLE_PANEL_Y + 1,
-             self.VEHICLE_PANEL_W - 2, self.VEHICLE_PANEL_H - 2, Color.DARK_GREY)
-        rectb(self.VEHICLE_PANEL_X, self.VEHICLE_PANEL_Y,
-              self.VEHICLE_PANEL_W, self.VEHICLE_PANEL_H, Color.GREY)
+        ui_panel_draw(
+            self.VEHICLE_PANEL_X,
+            self.VEHICLE_PANEL_Y,
+            self.VEHICLE_PANEL_W,
+            self.VEHICLE_PANEL_H,
+            Color.GREY,
+            Color.BLACK,
+            Color.DARK_GREY
+        )
         line(self.VEHICLE_DIVIDER_X, self.VEHICLE_DIVIDER_TOP,
              self.VEHICLE_DIVIDER_X, self.VEHICLE_DIVIDER_BOTTOM, Color.GREY)
 
@@ -206,9 +210,8 @@ class GarageScene:
         cap = 12.0
         ratio = self._clamp01(float(theseus) / cap)
 
-        rect(8, 77, 224, 14, Color.BLACK)
-        rect(9, 78, 222, 12, Color.DARK_GREY)
-        rectb(8, 77, 224, 14, Color.LIGHT_BLUE)
+        ui_panel_draw(8, 77, 224, 14, Color.LIGHT_BLUE,
+                      Color.BLACK, Color.DARK_GREY)
         print("THESEUS", 16, 81, Color.LIGHT_BLUE)
 
         bar_x = 144
@@ -228,15 +231,25 @@ class GarageScene:
 
     def _draw_secondary_actions(self) -> None:
         repair_cost = int(TUNING.PROFILE.repair_cost)
-        rect(8, 103, 224, 14, Color.BLACK)
-        rect(9, 104, 222, 12, Color.DARK_GREY)
-        rectb(8, 103, 224, 14, Color.GREY)
-        print("X: REPAIR (-" + str(repair_cost) + " SCRAP)", 14, 107, Color.YELLOW)
-        print("A: NEW GAME", 168, 107, Color.ORANGE)
+        ui_panel_draw_split_actions(
+            8,
+            103,
+            224,
+            14,
+            "X: REPAIR (-" + str(repair_cost) + " SCRAP)",
+            "A: NEW GAME",
+            Color.GREY,
+            Color.WHITE,
+            Color.BLACK,
+            Color.DARK_GREY,
+            left_width=140,
+            left_text_color=Color.YELLOW,
+            right_text_color=Color.ORANGE
+        )
 
     def _draw_start_cta(self) -> None:
-        rect(6, 119, 228, 14, Color.LIGHT_GREEN)
-        rectb(6, 119, 228, 14, Color.WHITE)
+        ui_panel_draw(6, 119, 228, 14, Color.WHITE,
+                      Color.LIGHT_GREEN, Color.LIGHT_GREEN)
         text = "Z: START RUN"
         print(text, text_center_x(text, margin_x=6), 124, Color.BLACK)
 
