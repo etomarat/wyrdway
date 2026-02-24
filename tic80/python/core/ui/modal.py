@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from tic80 import print, rect, rectb
 
-    from .text_layout import text_center_x
+    from ..text_layout import text_center_x
 
 
 def ui_modal_centered_box(

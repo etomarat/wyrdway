@@ -6,10 +6,11 @@ if TYPE_CHECKING:
     from ..contracts import DriveEnterParams, SceneEnterParams, SceneNavigator
     from ..core.input_buttons import Button
     from ..core.palette import Color
+    from ..core.poi_text import poi_type_label
     from ..core.run_state import RunState
     from ..core.scene_ids import SceneId
     from ..core.text_layout import text_center_x
-    from ..core.ui_panel import ui_panel_draw
+    from ..core.ui.panel import ui_panel_draw
     from ..data.tuning import TUNING
 
 
@@ -73,7 +74,7 @@ class RegionMapScene:
             print(marker + " ID " + str(node_id), 64, y, Color.WHITE, True)
             return
         poi_type = run.preview_outbound_poi_type(node_id)
-        poi_label = self._poi_type_label(poi_type).upper()
+        poi_label = poi_type_label(poi_type).upper()
         rewards = run.preview_outbound_rewards(node_id)
         row_text = marker + " ID " + str(node_id) + " " + poi_label
         scrap_text = "SCRAP +" + str(rewards.scrap)
@@ -122,15 +123,6 @@ class RegionMapScene:
             print("L/R +/-1", 14, 124, Color.LIGHT_GREY, True)
         print("Z = GO", text_center_x("Z = GO", margin_x=4), 124, Color.WHITE, True)
 
-    def _poi_type_label(self, poi_type: str) -> str:
-        if poi_type == "gas_station":
-            return "gas station"
-        if poi_type == "scrapyard":
-            return "scrapyard"
-        if poi_type == "depot":
-            return "depot"
-        return poi_type
-
     def _draw_selected_node_details(self, run: RunState | None) -> None:
         if run is None:
             return
@@ -154,7 +146,7 @@ class RegionMapScene:
         x = 4
         y = 90
         print("selected id=" + str(node_id) + " type=" +
-              self._poi_type_label(poi_type), x, y, Color.WHITE, True)
+              poi_type_label(poi_type), x, y, Color.WHITE, True)
         y += 8
         print("planned=" + planned + " route=" +
               route_label, x, y, Color.WHITE, True)

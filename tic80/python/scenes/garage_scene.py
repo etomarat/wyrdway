@@ -1,19 +1,24 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from tic80 import btnp, cls, line, print, rect, rectb, time
+    from tic80 import btnp, cls, line, print, rect, time
 
     from ..contracts import SceneEnterParams, SceneNavigator
     from ..core.input_buttons import Button
     from ..core.palette import Color
     from ..core.scene_ids import SceneId
     from ..core.text_layout import text_center_x, text_width
-    from ..core.ui_modal import (
+    from ..core.ui.meter import (
+        ui_meter_draw_bar,
+        ui_meter_draw_labeled,
+        ui_meter_fill_ratio
+    )
+    from ..core.ui.modal import (
         ui_modal_centered_box,
         ui_modal_draw_box,
         ui_modal_draw_lines
     )
-    from ..core.ui_panel import ui_panel_draw, ui_panel_draw_split_actions
+    from ..core.ui.panel import ui_panel_draw, ui_panel_draw_split_actions
     from ..data.tuning import TUNING
 
 
@@ -88,49 +93,6 @@ class GarageScene:
             candidate = options[idx]
         self._header_text = candidate
 
-    def _clamp01(self, value: float) -> float:
-        if value < 0.0:
-            return 0.0
-        if value > 1.0:
-            return 1.0
-        return value
-
-    def _fmt_num(self, value: float) -> str:
-        return f"{float(value):.2f}"
-
-    def _draw_meter(
-        self,
-        label: str,
-        value: float,
-        cap: float,
-        x: int,
-        y: int,
-        w: int,
-        fill_color: int,
-        bar_h: int
-    ) -> None:
-        h = int(bar_h)
-        if h < 4:
-            h = 4
-        inner_w = w - 2
-        if inner_w < 1:
-            inner_w = 1
-        ratio = 0.0
-        if cap > 0.0:
-            ratio = self._clamp01(value / cap)
-        fill_w = int(inner_w * ratio)
-        rect(x, y, w, h, Color.BLACK)
-        rect(x + 1, y + 1, inner_w, h - 2, Color.DARK_GREY)
-        if fill_w > 0:
-            rect(x + 1, y + 1, fill_w, h - 2, fill_color)
-        rectb(x, y, w, h, Color.GREY)
-        print(
-            label + " " + self._fmt_num(value) + "/" + self._fmt_num(cap),
-            x,
-            y - 7,
-            Color.LIGHT_GREY
-        )
-
     def _repair_hint(self) -> tuple[str, int]:
         hp_max = float(TUNING.PROFILE.start_garage_hp)
         cost = int(TUNING.PROFILE.repair_cost)
@@ -185,15 +147,33 @@ class GarageScene:
         trim = " 3-DOOR"
         print(name, name_x, name_y, Color.WHITE)
         print(trim, name_x + text_width(name), name_y, Color.LIGHT_GREY)
-        self._draw_meter(
-            "HP", hp, hp_max,
-            self.VEHICLE_LEFT_X, self.VEHICLE_HP_BAR_Y, self.VEHICLE_BAR_W,
-            Color.RED, self.VEHICLE_METER_BAR_H
+        ui_meter_draw_labeled(
+            "HP",
+            hp,
+            hp_max,
+            self.VEHICLE_LEFT_X,
+            self.VEHICLE_HP_BAR_Y,
+            self.VEHICLE_BAR_W,
+            self.VEHICLE_METER_BAR_H,
+            Color.RED,
+            Color.LIGHT_GREY,
+            Color.GREY,
+            Color.BLACK,
+            Color.DARK_GREY
         )
-        self._draw_meter(
-            "FUEL", fuel, fuel_cap,
-            self.VEHICLE_LEFT_X, self.VEHICLE_FUEL_BAR_Y, self.VEHICLE_BAR_W,
-            Color.YELLOW, self.VEHICLE_METER_BAR_H
+        ui_meter_draw_labeled(
+            "FUEL",
+            fuel,
+            fuel_cap,
+            self.VEHICLE_LEFT_X,
+            self.VEHICLE_FUEL_BAR_Y,
+            self.VEHICLE_BAR_W,
+            self.VEHICLE_METER_BAR_H,
+            Color.YELLOW,
+            Color.LIGHT_GREY,
+            Color.GREY,
+            Color.BLACK,
+            Color.DARK_GREY
         )
 
         print("SCRAP:", self.VEHICLE_RIGHT_X,
@@ -208,7 +188,7 @@ class GarageScene:
     def _draw_theseus_panel(self) -> None:
         theseus = int(self._profile.theseus)
         cap = 12.0
-        ratio = self._clamp01(float(theseus) / cap)
+        ratio = ui_meter_fill_ratio(float(theseus), cap)
 
         ui_panel_draw(8, 77, 224, 14, Color.LIGHT_BLUE,
                       Color.BLACK, Color.DARK_GREY)
@@ -218,15 +198,17 @@ class GarageScene:
         bar_y = 80
         bar_w = 60
         bar_h = 7
-        inner_w = bar_w - 2
-        if inner_w < 1:
-            inner_w = 1
-        fill_w = int(inner_w * ratio)
-        rect(bar_x, bar_y, bar_w, bar_h, Color.BLACK)
-        rect(bar_x + 1, bar_y + 1, inner_w, bar_h - 2, Color.DARK_BLUE)
-        if fill_w > 0:
-            rect(bar_x + 1, bar_y + 1, fill_w, bar_h - 2, Color.LIGHT_BLUE)
-        rectb(bar_x, bar_y, bar_w, bar_h, Color.GREY)
+        ui_meter_draw_bar(
+            bar_x,
+            bar_y,
+            bar_w,
+            bar_h,
+            ratio,
+            Color.LIGHT_BLUE,
+            Color.GREY,
+            Color.BLACK,
+            Color.DARK_BLUE
+        )
         print(str(theseus), 208, 81, Color.WHITE)
 
     def _draw_secondary_actions(self) -> None:

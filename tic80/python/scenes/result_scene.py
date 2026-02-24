@@ -7,7 +7,7 @@ if TYPE_CHECKING:
     from ..core.input_buttons import Button
     from ..core.palette import Color
     from ..core.scene_ids import SceneId
-    from ..core.text_layout import text_center_x
+    from ..core.ui.text import ui_text_center
 
 
 class ResultScene:
@@ -179,15 +179,15 @@ class ResultScene:
 
     def draw(self) -> None:
         cls(Color.BLACK)
-        print(self._title, text_center_x(self._title, margin_x=4), 24, self._title_color, True)
+        ui_text_center(self._title, 24, self._title_color, margin_x=4)
         if self._subtitle != "":
-            print(self._subtitle, text_center_x(self._subtitle, margin_x=4), 40, self._subtitle_color, True)
+            ui_text_center(self._subtitle, 40, self._subtitle_color, margin_x=4)
         line(24, 50, 216, 50, self._title_color)
         y = 60
         for text, color in self._lines:
-            print(text, text_center_x(text, margin_x=4), y, color, True)
+            ui_text_center(text, y, color, margin_x=4)
             y += 9
-        print(self._cta, text_center_x(self._cta, margin_x=4), 112, self._cta_color, True)
+        ui_text_center(self._cta, 112, self._cta_color, margin_x=4)
 
     def exit(self) -> None:
         pass

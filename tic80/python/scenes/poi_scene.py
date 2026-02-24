@@ -11,10 +11,11 @@ if TYPE_CHECKING:
     )
     from ..core.input_buttons import Button
     from ..core.palette import Color
+    from ..core.poi_text import poi_type_label
     from ..core.run_state import PoiAction
     from ..core.scene_ids import SceneId
-    from ..core.text_layout import text_center_x
-    from ..core.ui_panel import ui_panel_draw, ui_panel_draw_split_actions
+    from ..core.ui.panel import ui_panel_draw, ui_panel_draw_split_actions
+    from ..core.ui.text import ui_text_center
     from ..data.tuning import TUNING
     from ..systems.drive.pursuers.registry import active_pursuer_name
 
@@ -48,15 +49,6 @@ class PoiScene:
         self._loot_fuel = 0
         self._pursuer_name = active_pursuer_name()
         self._mode = self.MODE_INTERACT
-
-    def _poi_type_label(self, poi_type: str) -> str:
-        if poi_type == "gas_station":
-            return "GAS STATION"
-        if poi_type == "scrapyard":
-            return "SCRAPYARD"
-        if poi_type == "depot":
-            return "DEPOT"
-        return str(poi_type).upper()
 
     def _leave(
         self,
@@ -105,9 +97,6 @@ class PoiScene:
 
         self._mode = self.MODE_LOOT_SUMMARY
 
-    def _draw_center_line(self, text: str, y: int, color: int) -> None:
-        print(text, text_center_x(text, margin_x=2), y, color, True)
-
     def _draw_summary(
         self,
         title: str,
@@ -116,13 +105,13 @@ class PoiScene:
         fuel_line: str,
         pursuit_line: str
     ) -> None:
-        self._draw_center_line(title, 24, Color.WHITE)
-        self._draw_center_line(subtitle, 40, Color.LIGHT_GREY)
-        self._draw_center_line(scrap_line, 56, Color.LIGHT_GREEN)
-        self._draw_center_line(fuel_line, 64, Color.YELLOW)
-        self._draw_center_line(pursuit_line, 82, Color.RED)
-        self._draw_center_line("return to base immediately", 90, Color.WHITE)
-        self._draw_center_line("Z = BEGIN RETURN", 112, Color.WHITE)
+        ui_text_center(title, 24, Color.WHITE, margin_x=2)
+        ui_text_center(subtitle, 40, Color.LIGHT_GREY, margin_x=2)
+        ui_text_center(scrap_line, 56, Color.LIGHT_GREEN, margin_x=2)
+        ui_text_center(fuel_line, 64, Color.YELLOW, margin_x=2)
+        ui_text_center(pursuit_line, 82, Color.RED, margin_x=2)
+        ui_text_center("return to base immediately", 90, Color.WHITE, margin_x=2)
+        ui_text_center("Z = BEGIN RETURN", 112, Color.WHITE, margin_x=2)
 
     def _draw_interact(self) -> None:
         ui_panel_draw(
@@ -135,12 +124,12 @@ class PoiScene:
             Color.DARK_GREY
         )
 
-        self._draw_center_line("ROADSIDE STOP // POI TEMP SCENE", 30, Color.WHITE)
-        self._draw_center_line("THIS IS A TEMP PLACEHOLDER", 42, Color.LIGHT_GREY)
-        self._draw_center_line("FINAL POI GAMEPLAY COMING LATER", 50, Color.LIGHT_GREY)
+        ui_text_center("ROADSIDE STOP // POI TEMP SCENE", 30, Color.WHITE, margin_x=2)
+        ui_text_center("THIS IS A TEMP PLACEHOLDER", 42, Color.LIGHT_GREY, margin_x=2)
+        ui_text_center("FINAL POI GAMEPLAY COMING LATER", 50, Color.LIGHT_GREY, margin_x=2)
 
         timer_line = "TIME LEFT: " + f"{self.timer:.1f}" + "s"
-        self._draw_center_line(timer_line, 60, Color.YELLOW)
+        ui_text_center(timer_line, 60, Color.YELLOW, margin_x=2)
 
         poi_line = "SITE: UNKNOWN"
         reward_line = "+0 SCRAP / +0 FUEL"
@@ -149,7 +138,7 @@ class PoiScene:
             segment = run.active_segment
             if segment is not None:
                 rewards = segment.rewards
-                poi_line = "SITE: " + self._poi_type_label(segment.poi_type)
+                poi_line = "SITE: " + poi_type_label(segment.poi_type).upper()
                 reward_line = (
                     "+"
                     + str(rewards.scrap)
@@ -157,9 +146,9 @@ class PoiScene:
                     + str(rewards.fuel)
                     + " FUEL"
                 )
-        self._draw_center_line(poi_line, 72, Color.WHITE)
-        self._draw_center_line("POTENTIAL LOOT", 82, Color.LIGHT_GREY)
-        self._draw_center_line(reward_line, 90, Color.LIGHT_GREY)
+        ui_text_center(poi_line, 72, Color.WHITE, margin_x=2)
+        ui_text_center("POTENTIAL LOOT", 82, Color.LIGHT_GREY, margin_x=2)
+        ui_text_center(reward_line, 90, Color.LIGHT_GREY, margin_x=2)
 
         ui_panel_draw_split_actions(
             self.ACTION_PANEL_X,

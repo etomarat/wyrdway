@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from tic80 import print, rect, rectb
 
-    from .text_layout import text_width
+    from ..text_layout import text_width
 
 
 def ui_panel_draw(

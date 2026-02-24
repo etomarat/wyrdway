@@ -83,12 +83,12 @@ class DrivePhysicsPreset:
         self,
         name: str,
         label: str,
-        overrides: list[tuple[str, float]],
+        drive_overrides: list[tuple[str, float]],
         pursuer_overrides: list[tuple[str, float]] | None = None
     ) -> None:
         self.name = name
         self.label = label
-        self.overrides = overrides
+        self.drive_overrides = drive_overrides
         self.pursuer_overrides = []
         if pursuer_overrides is not None:
             self.pursuer_overrides = pursuer_overrides
@@ -102,7 +102,7 @@ class DrivePhysicsPreset:
     ) -> None:
         drive_baseline.apply(drive)
         pursuer_baseline.apply(pursuer_profile)
-        for name, value in self.overrides:
+        for name, value in self.drive_overrides:
             setattr(drive, name, value)
         for name, value in self.pursuer_overrides:
             setattr(pursuer_profile, name, value)
@@ -153,6 +153,45 @@ class PursuerProfileSnapshot:
             setattr(profile, name, value)
 
 
+def resolve_active_pursuer_profile() -> PursuerVariantTuning:
+    variant = TUNING.PURSUER.active_variant
+    if variant == PursuerVariantId.PRIME_ENTITY:
+        return PRIME_ENTITY_PURSUER_PROFILE
+    return ENTITY_PURSUER_PROFILE
+
+
+class DrivePresetEngine:
+    def __init__(self) -> None:
+        self._drive_baseline: DrivePhysicsSnapshot | None = None
+        self._pursuer_baseline: PursuerProfileSnapshot | None = None
+
+    def capture_baseline(self) -> None:
+        self._drive_baseline = DrivePhysicsSnapshot(TUNING.DRIVE)
+        self._pursuer_baseline = PursuerProfileSnapshot(
+            resolve_active_pursuer_profile()
+        )
+
+    def apply_preset(self, preset: DrivePhysicsPreset) -> list[str] | None:
+        drive_baseline = self._drive_baseline
+        pursuer_baseline = self._pursuer_baseline
+        if drive_baseline is None or pursuer_baseline is None:
+            return None
+
+        pursuer_profile = resolve_active_pursuer_profile()
+        preset.apply(
+            TUNING.DRIVE,
+            drive_baseline,
+            pursuer_profile,
+            pursuer_baseline
+        )
+        return preset.diff_lines(
+            drive_baseline,
+            TUNING.DRIVE,
+            pursuer_baseline,
+            pursuer_profile
+        )
+
+
 class DrivePresetScene:
     SCENE_ID = SceneId.DRIVE_PRESET
 
@@ -160,8 +199,7 @@ class DrivePresetScene:
         self._nav = nav
         self._state = nav.state
         self._selected = 0
-        self._drive_baseline: DrivePhysicsSnapshot | None = None
-        self._pursuer_baseline: PursuerProfileSnapshot | None = None
+        self._engine = DrivePresetEngine()
         self._presets = [
             DrivePhysicsPreset(
                 "etomarat",
@@ -215,34 +253,16 @@ class DrivePresetScene:
             ),
         ]
 
-    def _active_pursuer_profile(self) -> PursuerVariantTuning:
-        variant = TUNING.PURSUER.active_variant
-        if variant == PursuerVariantId.PRIME_ENTITY:
-            return PRIME_ENTITY_PURSUER_PROFILE
-        return ENTITY_PURSUER_PROFILE
-
     def enter(self, params: SceneEnterParams = None) -> None:
         self._state.end_run()
-        self._drive_baseline = DrivePhysicsSnapshot(TUNING.DRIVE)
-        self._pursuer_baseline = PursuerProfileSnapshot(
-            self._active_pursuer_profile())
+        self._engine.capture_baseline()
         self._selected = 0
 
     def _apply_selected_preset(self) -> bool:
-        drive_baseline = self._drive_baseline
-        pursuer_baseline = self._pursuer_baseline
-        if drive_baseline is None or pursuer_baseline is None:
-            return False
         preset = self._presets[self._selected]
-        pursuer_profile = self._active_pursuer_profile()
-        preset.apply(TUNING.DRIVE, drive_baseline,
-                     pursuer_profile, pursuer_baseline)
-        diffs = preset.diff_lines(
-            drive_baseline,
-            TUNING.DRIVE,
-            pursuer_baseline,
-            pursuer_profile
-        )
+        diffs = self._engine.apply_preset(preset)
+        if diffs is None:
+            return False
         trace("drive preset: " + preset.name)
         if len(diffs) == 0:
             trace("drive preset: no changes")
