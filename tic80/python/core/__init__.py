@@ -7,6 +7,7 @@ if TYPE_CHECKING:
 include("core.debug")
 include("core.text_layout")
 include("core.ui_modal")
+include("core.ui_panel")
 include("core.input_buttons")
 include("core.perf_overlay")
 include("core.save_system")

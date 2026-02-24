@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from tic80 import btnp, cls, print, rect, rectb
+    from tic80 import btnp, cls, print
 
     from ..contracts import (
         DriveEnterParams,
@@ -13,31 +13,41 @@ if TYPE_CHECKING:
     from ..core.palette import Color
     from ..core.run_state import PoiAction
     from ..core.scene_ids import SceneId
-    from ..core.text_layout import text_center_x, text_width
+    from ..core.text_layout import text_center_x
+    from ..core.ui_panel import ui_panel_draw, ui_panel_draw_split_actions
     from ..data.tuning import TUNING
     from ..systems.drive.pursuers.registry import active_pursuer_name
 
 
 class PoiScene:
     SCENE_ID = SceneId.POI
+    MODE_INTERACT = "interact"
+    MODE_LOOT_SUMMARY = "loot_summary"
+    MODE_LEAVE_SUMMARY = "leave_summary"
+    INFO_PANEL_X = 8
+    INFO_PANEL_Y = 18
+    INFO_PANEL_W = 224
+    INFO_PANEL_H = 86
+    ACTION_PANEL_X = 8
+    ACTION_PANEL_Y = 108
+    ACTION_PANEL_W = 224
+    ACTION_PANEL_H = 20
 
     def __init__(self, nav: SceneNavigator) -> None:
         self._nav = nav
         self._state = nav.state
         self.timer = TUNING.POI.timer_seconds
-        self._loot_summary_active = False
-        self._leave_summary_active = False
         self._loot_scrap = 0
         self._loot_fuel = 0
         self._pursuer_name = active_pursuer_name()
+        self._mode = self.MODE_INTERACT
 
     def enter(self, params: SceneEnterParams = None) -> None:
         self.timer = TUNING.POI.timer_seconds
-        self._loot_summary_active = False
-        self._leave_summary_active = False
         self._loot_scrap = 0
         self._loot_fuel = 0
         self._pursuer_name = active_pursuer_name()
+        self._mode = self.MODE_INTERACT
 
     def _poi_type_label(self, poi_type: str) -> str:
         if poi_type == "gas_station":
@@ -72,7 +82,7 @@ class PoiScene:
         run = self._state.require_run()
         delta = run.ensure_delta(run.node_id)
         delta.set_poi_action("leave")
-        self._leave_summary_active = True
+        self._mode = self.MODE_LEAVE_SUMMARY
 
     def _start_loot_summary(self) -> None:
         run = self._state.require_run()
@@ -93,90 +103,48 @@ class PoiScene:
                 run.add_fuel(self._loot_fuel)
                 delta.add_fuel_gained(self._loot_fuel)
 
-        self._loot_summary_active = True
+        self._mode = self.MODE_LOOT_SUMMARY
 
-    def update(self, dt: float) -> None:
-        if self._loot_summary_active:
-            if btnp(Button.A):
-                self._leave("loot")
-            return
-        if self._leave_summary_active:
-            if btnp(Button.A):
-                self._leave("leave")
-            return
+    def _draw_center_line(self, text: str, y: int, color: int) -> None:
+        print(text, text_center_x(text, margin_x=2), y, color, True)
 
-        self.timer = max(0.0, self.timer - dt)
-        if btnp(Button.A):
-            self._start_loot_summary()
-        elif btnp(Button.B):
-            self._start_leave_summary()
-        elif self.timer <= 0.0:
-            self._leave("timeout", True, "POI TIMEOUT")
+    def _draw_summary(
+        self,
+        title: str,
+        subtitle: str,
+        scrap_line: str,
+        fuel_line: str,
+        pursuit_line: str
+    ) -> None:
+        self._draw_center_line(title, 24, Color.WHITE)
+        self._draw_center_line(subtitle, 40, Color.LIGHT_GREY)
+        self._draw_center_line(scrap_line, 56, Color.LIGHT_GREEN)
+        self._draw_center_line(fuel_line, 64, Color.YELLOW)
+        self._draw_center_line(pursuit_line, 82, Color.RED)
+        self._draw_center_line("return to base immediately", 90, Color.WHITE)
+        self._draw_center_line("Z = BEGIN RETURN", 112, Color.WHITE)
 
-    def draw(self) -> None:
-        cls(Color.BLACK)
-        if self._leave_summary_active:
-            line = "RETREAT CONFIRMED"
-            print(line, text_center_x(line, margin_x=2), 24, Color.WHITE, True)
-            line = "no loot collected"
-            print(line, text_center_x(line, margin_x=2),
-                  40, Color.LIGHT_GREY, True)
-            line = "scrap: +" + str(self._loot_scrap)
-            print(line, text_center_x(line, margin_x=2),
-                  56, Color.LIGHT_GREEN, True)
-            line = "fuel: +" + str(self._loot_fuel)
-            print(line, text_center_x(line, margin_x=2), 64, Color.YELLOW, True)
-            pursuit_text = self._pursuer_name + " is still tracking you"
-            print(pursuit_text, text_center_x(
-                pursuit_text, margin_x=2), 82, Color.RED, True)
-            line = "return to base immediately"
-            print(line, text_center_x(line, margin_x=2), 90, Color.WHITE, True)
-            line = "Z = BEGIN RETURN"
-            print(line, text_center_x(line, margin_x=2), 112, Color.WHITE, True)
-            return
-        if self._loot_summary_active:
-            line = "LOOT SECURED"
-            print(line, text_center_x(line, margin_x=2), 24, Color.WHITE, True)
-            line = "you took what wasn't yours"
-            print(line, text_center_x(line, margin_x=2),
-                  40, Color.LIGHT_GREY, True)
-            line = "stolen scrap: +" + str(self._loot_scrap)
-            print(line, text_center_x(line, margin_x=2),
-                  56, Color.LIGHT_GREEN, True)
-            line = "stolen fuel: +" + str(self._loot_fuel)
-            print(line, text_center_x(line, margin_x=2), 64, Color.YELLOW, True)
-            pursuit_text = self._pursuer_name + " is in pursuit"
-            print(pursuit_text, text_center_x(
-                pursuit_text, margin_x=2), 82, Color.RED, True)
-            line = "return to base immediately"
-            print(line, text_center_x(line, margin_x=2), 90, Color.WHITE, True)
-            line = "Z = BEGIN RETURN"
-            print(line, text_center_x(line, margin_x=2), 112, Color.WHITE, True)
-            return
+    def _draw_interact(self) -> None:
+        ui_panel_draw(
+            self.INFO_PANEL_X,
+            self.INFO_PANEL_Y,
+            self.INFO_PANEL_W,
+            self.INFO_PANEL_H,
+            Color.GREY,
+            Color.BLACK,
+            Color.DARK_GREY
+        )
 
-        panel_x = 8
-        panel_y = 18
-        panel_w = 224
-        panel_h = 86
-        rect(panel_x, panel_y, panel_w, panel_h, Color.BLACK)
-        rect(panel_x + 1, panel_y + 1, panel_w -
-             2, panel_h - 2, Color.DARK_GREY)
-        rectb(panel_x, panel_y, panel_w, panel_h, Color.GREY)
-
-        line = "ROADSIDE STOP // POI TEMP SCENE"
-        print(line, text_center_x(line, margin_x=2), 30, Color.WHITE, True)
-        line = "THIS IS A TEMP PLACEHOLDER"
-        print(line, text_center_x(line, margin_x=2), 42, Color.LIGHT_GREY, True)
-        line = "FINAL POI GAMEPLAY COMING LATER"
-        print(line, text_center_x(line, margin_x=2), 50, Color.LIGHT_GREY, True)
+        self._draw_center_line("ROADSIDE STOP // POI TEMP SCENE", 30, Color.WHITE)
+        self._draw_center_line("THIS IS A TEMP PLACEHOLDER", 42, Color.LIGHT_GREY)
+        self._draw_center_line("FINAL POI GAMEPLAY COMING LATER", 50, Color.LIGHT_GREY)
 
         timer_line = "TIME LEFT: " + f"{self.timer:.1f}" + "s"
-        print(timer_line, text_center_x(
-            timer_line, margin_x=2), 60, Color.YELLOW, True)
+        self._draw_center_line(timer_line, 60, Color.YELLOW)
 
-        run = self._state.run
         poi_line = "SITE: UNKNOWN"
         reward_line = "+0 SCRAP / +0 FUEL"
+        run = self._state.run
         if run is not None:
             segment = run.active_segment
             if segment is not None:
@@ -189,23 +157,67 @@ class PoiScene:
                     + str(rewards.fuel)
                     + " FUEL"
                 )
-        print(poi_line, text_center_x(
-            poi_line, margin_x=2), 72, Color.WHITE, True)
-        line = "POTENTIAL LOOT"
-        print(line, text_center_x(line, margin_x=2), 82, Color.LIGHT_GREY, True)
-        print(reward_line, text_center_x(reward_line,
-              margin_x=2), 90, Color.LIGHT_GREY, True)
+        self._draw_center_line(poi_line, 72, Color.WHITE)
+        self._draw_center_line("POTENTIAL LOOT", 82, Color.LIGHT_GREY)
+        self._draw_center_line(reward_line, 90, Color.LIGHT_GREY)
 
-        rect(8, 108, 224, 20, Color.BLACK)
-        rect(9, 109, 222, 18, Color.DARK_GREY)
-        rectb(8, 108, 224, 20, Color.GREY)
-        rect(120, 109, 1, 18, Color.GREY)
-        left_action = "Z: LOOT (TEMP)"
-        right_action = "X: LEAVE"
-        left_x = 8 + int((112 - text_width(left_action)) * 0.5)
-        right_x = 120 + int((112 - text_width(right_action)) * 0.5)
-        print(left_action, left_x, 116, Color.WHITE, True)
-        print(right_action, right_x, 116, Color.WHITE, True)
+        ui_panel_draw_split_actions(
+            self.ACTION_PANEL_X,
+            self.ACTION_PANEL_Y,
+            self.ACTION_PANEL_W,
+            self.ACTION_PANEL_H,
+            "Z: LOOT (TEMP)",
+            "X: LEAVE",
+            Color.GREY,
+            Color.WHITE,
+            Color.BLACK,
+            Color.DARK_GREY
+        )
+
+    def _update_interact(self, dt: float) -> None:
+        self.timer = max(0.0, self.timer - dt)
+        if btnp(Button.A):
+            self._start_loot_summary()
+            return
+        if btnp(Button.B):
+            self._start_leave_summary()
+            return
+        if self.timer <= 0.0:
+            self._leave("timeout", True, "POI TIMEOUT")
+
+    def update(self, dt: float) -> None:
+        if self._mode == self.MODE_LOOT_SUMMARY:
+            if btnp(Button.A):
+                self._leave("loot")
+            return
+        if self._mode == self.MODE_LEAVE_SUMMARY:
+            if btnp(Button.A):
+                self._leave("leave")
+            return
+
+        self._update_interact(dt)
+
+    def draw(self) -> None:
+        cls(Color.BLACK)
+        if self._mode == self.MODE_LEAVE_SUMMARY:
+            self._draw_summary(
+                "RETREAT CONFIRMED",
+                "no loot collected",
+                "scrap: +" + str(self._loot_scrap),
+                "fuel: +" + str(self._loot_fuel),
+                self._pursuer_name + " is still tracking you"
+            )
+            return
+        if self._mode == self.MODE_LOOT_SUMMARY:
+            self._draw_summary(
+                "LOOT SECURED",
+                "you took what wasn't yours",
+                "stolen scrap: +" + str(self._loot_scrap),
+                "stolen fuel: +" + str(self._loot_fuel),
+                self._pursuer_name + " is in pursuit"
+            )
+            return
+        self._draw_interact()
 
     def exit(self) -> None:
         pass
