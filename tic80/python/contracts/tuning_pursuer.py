@@ -12,6 +12,7 @@ class PursuerVariantId:
 class PursuerVariantTuning:
     __slots__ = (
         "name",
+        "name_color",
         "start_gap_s",
         "base_speed",
         "slow_catchup",
@@ -48,6 +49,7 @@ class PursuerVariantTuning:
 
     def __init__(self) -> None:
         self.name = ""
+        self.name_color = 12
         self.start_gap_s = 0.0
         self.base_speed = 0.0
         self.slow_catchup = 0.0
@@ -87,7 +89,8 @@ class PursuerTuning:
         "enabled",
         "grace_meters",
         "grace_seconds_cap",
-        "active_variant"
+        "active_variant",
+        "prime_entity_every_runs"
     )
 
     def __init__(self) -> None:
@@ -95,3 +98,4 @@ class PursuerTuning:
         self.grace_meters = 0.0
         self.grace_seconds_cap = 0.0
         self.active_variant: PursuerVariantIdValue = PursuerVariantId.ENTITY
+        self.prime_entity_every_runs = 0

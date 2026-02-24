@@ -23,3 +23,7 @@ TUNING.PURSUER.grace_seconds_cap = 4.0
 
 # Текущий активный вариант ("entity" или "prime_entity").
 TUNING.PURSUER.active_variant = PursuerVariantId.ENTITY
+
+# Каждые N заездов включать prime_entity (большая сущность).
+# 5 => на 5, 10, 15... заездах.
+TUNING.PURSUER.prime_entity_every_runs = 5

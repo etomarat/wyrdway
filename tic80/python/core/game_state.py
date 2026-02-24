@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from tic80 import trace
 
+    from ..contracts import PursuerVariantId
     from ..data.tuning import TUNING
     from .profile import Profile
     from .run_state import RunState
@@ -87,8 +88,27 @@ class GameState:
         """Возвращает копию debug-линий текущего кадра."""
         return list(self._debug_lines)
 
+    def _is_prime_entity_run_seed(self, run_seed: int) -> bool:
+        period = int(TUNING.PURSUER.prime_entity_every_runs)
+        if period <= 1:
+            return True
+        seed = int(run_seed)
+        if seed <= 0:
+            return False
+        return (seed % period) == 0
+
+    def _set_pursuer_variant_for_run_seed(self, run_seed: int) -> None:
+        if self._is_prime_entity_run_seed(run_seed):
+            TUNING.PURSUER.active_variant = PursuerVariantId.PRIME_ENTITY
+            return
+        TUNING.PURSUER.active_variant = PursuerVariantId.ENTITY
+
+    def _set_pursuer_variant_for_next_run(self) -> None:
+        self._set_pursuer_variant_for_run_seed(int(self._seed_counter) + 1)
+
     def start_run(self) -> RunState:
         self._seed_counter += 1
+        self._set_pursuer_variant_for_run_seed(self._seed_counter)
         self._last_rollback_reason = None
         self._last_rollback_theseus_gain = 0
         self._run = RunState(self._seed_counter,
@@ -98,6 +118,7 @@ class GameState:
 
     def end_run(self) -> None:
         self._run = None
+        self._set_pursuer_variant_for_next_run()
         self._save.save_runtime_flags(False, False)
 
     def mark_run_active(self) -> None:
@@ -159,12 +180,14 @@ class GameState:
         data = self._save.load_profile()
         if data is None:
             self._seed_counter = 0
+            self._set_pursuer_variant_for_next_run()
             self._profile_loaded = False
             self._profile_tuning_mismatch = False
             self._profile_tuning_version = None
             return
         self._profile.apply_save(data.scrap, data.garage_hp, data.garage_fuel, data.theseus)
         self._seed_counter = data.seed_counter
+        self._set_pursuer_variant_for_next_run()
         self._profile_loaded = True
         self._profile_tuning_version = data.tuning_version
         self._profile_tuning_mismatch = (
@@ -202,6 +225,7 @@ class GameState:
     def start_new_game(self) -> None:
         self._profile.reset()
         self._seed_counter = 0
+        self._set_pursuer_variant_for_next_run()
         self._last_rollback_reason = None
         self._last_rollback_theseus_gain = 0
         self.end_run()
@@ -230,6 +254,7 @@ class GameState:
             car_fuel = run.car_fuel
         self._run = RunState(next_seed, car_hp, car_fuel)
         self._seed_counter = next_seed
+        self._set_pursuer_variant_for_run_seed(next_seed)
 
     def debug_shift_active_run_seed(self, delta: int) -> None:
         run = self._run

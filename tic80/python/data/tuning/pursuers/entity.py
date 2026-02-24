@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ....contracts import PursuerVariantTuning
+    from ....core.palette import Color
     from .common import apply_common_pursuer_profile as apply_common_pursuer_profile
 
 
@@ -11,8 +12,12 @@ p = ENTITY_PURSUER_PROFILE
 
 # Display name in HUD/briefing.
 p.name = "The Entity"
+p.name_color = Color.LIGHT_GREY
 
 apply_common_pursuer_profile(p)
+
+# Chase kinematics overrides.
+p.base_speed = 104.0
 
 # Visual alignment.
 # contact_offset_s: shifts visual body behind logical contact point.

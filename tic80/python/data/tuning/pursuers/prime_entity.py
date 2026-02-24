@@ -2,7 +2,10 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ....contracts import PursuerVariantTuning
-    from .common import apply_common_pursuer_profile as apply_common_pursuer_profile
+    from ....core.palette import Color
+    from .common import (
+        apply_common_pursuer_profile as apply_common_pursuer_profile
+    )
 
 
 PRIME_ENTITY_PURSUER_PROFILE = PursuerVariantTuning()
@@ -11,8 +14,14 @@ p = PRIME_ENTITY_PURSUER_PROFILE
 
 # Display name in HUD/briefing.
 p.name = "The Prime Entity"
+p.name_color = Color.PURPLE
 
 apply_common_pursuer_profile(p)
+
+# Chase kinematics overrides.
+p.base_speed = 107.0
+# Prime entity should be pushed back less by anti-chase boosters.
+p.boost_pushback_s = 10.0
 
 # Visual alignment.
 # contact_offset_s: shifts visual body behind logical contact point.

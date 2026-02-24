@@ -210,7 +210,8 @@ class DriveUi:
         pursuer_dist_s: float,
         pursuer_state: PursuerState,
         profile: PursuerVariantTuning,
-        pursuer_name: str
+        pursuer_name: str,
+        pursuer_name_color: int
     ) -> None:
         show = float(profile.show_dist_s)
         near = float(profile.near_dist_s)
@@ -272,7 +273,7 @@ class DriveUi:
         title_y = dist_y + dist_h + 2
         print(title_prefix, title_x, title_y, Color.WHITE, True)
         name_x = title_x + text_width(title_prefix, char_w)
-        print(name_text, name_x, title_y, Color.LIGHT_GREY, True)
+        print(name_text, name_x, title_y, pursuer_name_color, True)
         suffix_x = name_x + text_width(name_text, char_w)
         print(title_suffix, suffix_x, title_y, Color.WHITE, True)
 

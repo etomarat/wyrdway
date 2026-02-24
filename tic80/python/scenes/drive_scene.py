@@ -310,7 +310,8 @@ class DriveScene:
                 self._pursuer.distance_s,
                 self._pursuer.state,
                 self._pursuer_archetype.profile,
-                self._pursuer_archetype.display_name()
+                self._pursuer_archetype.display_name(),
+                int(self._pursuer_archetype.profile.name_color)
             )
         self._draw_popups()
         if logic.finished():

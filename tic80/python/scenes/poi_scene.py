@@ -14,10 +14,14 @@ if TYPE_CHECKING:
     from ..core.poi_text import poi_type_label
     from ..core.run_state import PoiAction
     from ..core.scene_ids import SceneId
+    from ..core.text_layout import text_center_x, text_width
     from ..core.ui.panel import ui_panel_draw, ui_panel_draw_split_actions
     from ..core.ui.text import ui_text_center
     from ..data.tuning import TUNING
-    from ..systems.drive.pursuers.registry import active_pursuer_name
+    from ..systems.drive.pursuers.registry import (
+        active_pursuer_name,
+        active_pursuer_name_color
+    )
 
 
 class PoiScene:
@@ -41,6 +45,7 @@ class PoiScene:
         self._loot_scrap = 0
         self._loot_fuel = 0
         self._pursuer_name = active_pursuer_name()
+        self._pursuer_name_color = active_pursuer_name_color()
         self._mode = self.MODE_INTERACT
 
     def enter(self, params: SceneEnterParams = None) -> None:
@@ -48,6 +53,7 @@ class PoiScene:
         self._loot_scrap = 0
         self._loot_fuel = 0
         self._pursuer_name = active_pursuer_name()
+        self._pursuer_name_color = active_pursuer_name_color()
         self._mode = self.MODE_INTERACT
 
     def _leave(
@@ -103,15 +109,22 @@ class PoiScene:
         subtitle: str,
         scrap_line: str,
         fuel_line: str,
-        pursuit_line: str
+        pursuit_suffix: str
     ) -> None:
         ui_text_center(title, 24, Color.WHITE, margin_x=2)
         ui_text_center(subtitle, 40, Color.LIGHT_GREY, margin_x=2)
         ui_text_center(scrap_line, 56, Color.LIGHT_GREEN, margin_x=2)
         ui_text_center(fuel_line, 64, Color.YELLOW, margin_x=2)
-        ui_text_center(pursuit_line, 82, Color.RED, margin_x=2)
+        self._draw_pursuit_line(82, pursuit_suffix)
         ui_text_center("return to base immediately", 90, Color.WHITE, margin_x=2)
         ui_text_center("Z = BEGIN RETURN", 112, Color.WHITE, margin_x=2)
+
+    def _draw_pursuit_line(self, y: int, suffix: str) -> None:
+        name = str(self._pursuer_name)
+        line = name + suffix
+        x = text_center_x(line, margin_x=2)
+        print(name, x, y, self._pursuer_name_color, True)
+        print(suffix, x + text_width(name), y, Color.RED, True)
 
     def _draw_interact(self) -> None:
         ui_panel_draw(
@@ -194,7 +207,7 @@ class PoiScene:
                 "no loot collected",
                 "scrap: +" + str(self._loot_scrap),
                 "fuel: +" + str(self._loot_fuel),
-                self._pursuer_name + " is still tracking you"
+                " is still tracking you"
             )
             return
         if self._mode == self.MODE_LOOT_SUMMARY:
@@ -203,7 +216,7 @@ class PoiScene:
                 "you took what wasn't yours",
                 "stolen scrap: +" + str(self._loot_scrap),
                 "stolen fuel: +" + str(self._loot_fuel),
-                self._pursuer_name + " is in pursuit"
+                " is in pursuit"
             )
             return
         self._draw_interact()

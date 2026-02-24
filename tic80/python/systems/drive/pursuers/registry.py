@@ -49,3 +49,7 @@ def create_active_pursuer_archetype() -> PursuerArchetype:
 
 def active_pursuer_name() -> str:
     return create_active_pursuer_archetype().display_name()
+
+
+def active_pursuer_name_color() -> int:
+    return int(create_active_pursuer_archetype().profile.name_color)
