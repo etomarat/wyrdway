@@ -20,6 +20,9 @@ Wyrdway — a content-driven road-trip roguelite game for [TIC-80 fantasy comput
 - `scripts/minify_tic80_build.py` — bundle minifier (strips comments/TYPE_CHECKING, compresses indentation).
 - `docs/` — design and architecture references.
 
+## License
+This project is **source-available** (not open source). Redistribution (source or builds) is not allowed. See `LICENSE`.
+
 ## Third-party particles
 Some particle FX were ported from TIC-80 community carts (Lua → Python/PocketPy). Thanks to the original authors:
 - `vand` — “vand particles pack” (source: https://tic80.com/play?cart=1983)
@@ -45,6 +48,9 @@ Wyrdway — контент‑ориентированный road‑trip roguelit
 ## Дизайн-документ
 
 * [gdd_v0.md](docs/00_spec/0_gdd_v0.md) — ранний прототип
+
+## Лицензия
+Проект с открытым исходным кодом для просмотра (source-available), но **не open source**. Распространение исходников и билдов запрещено. См. `LICENSE`.
 
 ## Частицы от сообщества TIC-80 (vendor)
 Мы портировали часть эффектов частиц из картриджей сообщества TIC-80 (Lua → Python/PocketPy). Спасибо авторам:

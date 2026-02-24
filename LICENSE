@@ -1,0 +1,54 @@
+Wyrdway Personal Use License (WPUL) v1.0
+
+Copyright (c) 2026 etomarat
+All rights reserved.
+
+This is a source-available license. It is NOT an open source license.
+
+Definitions
+- "Software" means everything in this repository, including source code, game
+  logic, assets, data, artwork, audio, names, and any compiled/output files.
+- "You" means the person or entity exercising rights under this license.
+
+Permissions
+You are granted a non-exclusive, non-transferable, revocable license to:
+- view and download the Software
+- build and run the Software for personal, non-commercial use
+- modify the Software for personal use
+
+Restrictions
+You may NOT:
+- sell, sublicense, or commercially exploit the Software or any derivative work
+- distribute, publish, re-upload, share, or make available the Software (source
+  or binary) or any derivative work, except as explicitly allowed below
+- distribute builds/exports (for example: .tic, .exe, .zip, web builds), even for
+  free, to friends or the public
+- use the project name, logos, or other branding to imply endorsement
+
+Limited exception: forks for pull requests
+Public forks are allowed ONLY to enable contribution workflows:
+- You may create a public fork of this repository on a git hosting service
+  (e.g. GitHub) solely to submit pull requests to the upstream repository.
+- Your fork must keep this LICENSE file intact.
+- Your fork must not publish releases or downloadable builds/exports.
+- You must not market your fork as a standalone game release.
+
+Contributions
+If you submit a pull request or other contribution, you agree that:
+- you have the right to submit the contribution
+- you license your contribution under this license
+- you grant the project owner a perpetual, worldwide, irrevocable right to use,
+  modify, relicense, and distribute your contribution as part of the project
+
+Termination
+Any violation of this license automatically terminates your permissions.
+
+Disclaimer
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
