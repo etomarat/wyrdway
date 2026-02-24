@@ -79,7 +79,7 @@ class TopdownSkidMarks:
         if not active:
             return
 
-        wheel_dx, back = pose.local_from_legacy_center(
+        wheel_dx, back = pose.local_from_center_reference(
             float(TUNING.DRIVE.skid_wheel_dx_px),
             float(TUNING.DRIVE.skid_back_px)
         )

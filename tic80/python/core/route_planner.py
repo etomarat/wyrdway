@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ..data.tuning import TUNING
+    from ..systems.drive.rng import lcg_next_u32
 
 
 class RoutePlanner:
@@ -25,7 +26,7 @@ class RoutePlanner:
         return self._mix_seed(to_node_id, 0xC8013EA4)
 
     def _next_u32(self, x: int) -> int:
-        return ((x * 1664525) + 1013904223) & 0xFFFFFFFF
+        return lcg_next_u32(x)
 
     def _roll_range(self, x: int, min_inclusive: int, max_inclusive: int) -> tuple[int, int]:
         a = int(min_inclusive)

@@ -23,6 +23,7 @@
 - `scrap: int`
 - `garage_hp: float`
 - `garage_fuel: float`
+- `theseus: int`
 - `upgrades: list[str]` (пока не используется геймплейно, но поле уже есть)
 
 ### 1.3 RunState
@@ -53,11 +54,10 @@
 ### 1.4 SegmentDelta
 Файл: `tic80/python/core/run_state.py`
 
-`SegmentDelta` — итоговые данные сегмента, которые RESULT показывает и по которым
-`GameState.apply_run_results()` решает “успех/провал”:
+`SegmentDelta` — итоговые данные сегмента, которые RESULT показывает игроку:
 - `node_id: int | None` (для какого узла формировалась дельта)
 - `poi_action: "loot" | "leave" | "timeout" | None`
-- `escape_outcome: "ok" | "fail" | None`
+- `fuel_gained: int`
 - `items_gained: list[RunItem]` (сейчас используется только счётчик)
 
 ---
@@ -71,9 +71,10 @@
 - `BOOT()` вызывает `GameState.load_profile()`.
 - `GarageScene` по `A` делает `save_profile()` и `start_run()`.
 - `RegionMapScene` выбирает `node_id`, создаёт outbound-сегмент и вызывает `run.ensure_delta(node_id)`.
-- `DriveScene` обновляет вождение и меняет `run.car_hp/run.car_fuel`.
-- `PoiScene` выставляет `delta.poi_action`, добавляет лут в ран, при тайм‑ауте ставит `escape_outcome="fail"`.
+- `DriveScene` обновляет вождение и меняет `run.car_hp/run.car_fuel`; на extract‑погоне также может дренить `run_scrap` при укусах преследователя.
+- `PoiScene` выставляет `delta.poi_action`, добавляет лут в ран; при тайм‑ауте делает rollback к последнему сейву.
 - `ResultScene` по `A` вызывает `GameState.apply_run_results()` и возвращает в `GarageScene`.
+- При любом поражении ран откатывается к последнему сейву через `GameState.rollback_to_last_save(...)` и добавляет штраф `Theseus`.
 
 ### 2.2 DRIVE плейтест
 Включается при `IS_DRIVE_PLAYTEST = True`:
@@ -91,6 +92,7 @@
 - `GameState.start_run()` создаёт новый `RunState` с `car_hp/car_fuel` из профиля.
 - Ремонт меняет только профиль (через `Profile.repair()`).
 - Профиль сохраняется в ключевых местах (до старта, после ремонта, после reset).
+- Runtime-флаги рана/погони пишутся отдельно в `pmem` для детекта прерванной сессии.
 
 ### 3.2 RegionMapScene
 Файл: `tic80/python/scenes/region_map_scene.py`
@@ -103,10 +105,11 @@
 
 ### 3.3 DriveScene
 Файл: `tic80/python/scenes/drive_scene.py`
-- Меняет только `run.car_hp` и `run.car_fuel` (через `RunState.apply_damage()` и `RunState.consume_fuel()` внутри drive‑логики).
-- Для `active_segment.leg_kind == "RETURN"` строит ту же базовую дорогу в обратном порядке и отключает threats.
-- По эвакуации выставляет `delta.escape_outcome="fail"` и уходит в RESULT.
-- По успешному extract выставляет `delta.escape_outcome="ok"` и уходит в RESULT.
+- Меняет `run.car_hp` и `run.car_fuel` (через `RunState.apply_damage()` и `RunState.consume_fuel()` внутри drive‑логики).
+- На extract‑погоне может менять и `run_scrap` (через дрен укусами преследователя).
+- Для `active_segment.leg_kind == "RETURN"` строит ту же базовую дорогу в обратном порядке и отключает обычные дорожные threats; преследователь при этом активируется в обычной игре.
+- По эвакуации делает rollback к последнему сейву и уходит в RESULT.
+- По успешному extract уходит в RESULT.
 
 ### 3.4 PoiScene
 Файл: `tic80/python/scenes/poi_scene.py`
@@ -115,7 +118,7 @@
   - `scrap` идёт в `run.inventory` (и отмечается в `delta`);
   - `fuel` сразу добавляется в текущий бак `run.car_fuel`.
 - Перед переходом в extract делает `run.ensure_return_from_active_outbound()`.
-- При тайм‑ауте выставляет `delta.escape_outcome="fail"` и уходит напрямую в RESULT (упрощение M1).
+- При тайм‑ауте делает rollback к последнему сейву и уходит в RESULT.
 
 ### 3.5 ResultScene
 Файл: `tic80/python/scenes/result_scene.py`

@@ -8,11 +8,13 @@ if TYPE_CHECKING:
 
 TUNING: Tuning = Tuning()
 # Поднимай версию при изменениях баланса (числа в TUNING).
-TUNING.tuning_version = 9
+TUNING.tuning_version = 24
 
 include("data.tuning.core")
 include("data.tuning.profile")
 include("data.tuning.poi")
+include("data.tuning.pursuers.__init__")
+include("data.tuning.pursuer")
 include("data.tuning.debug")
 include("data.tuning.drive.physics")
 include("data.tuning.drive.track")

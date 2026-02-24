@@ -1,7 +1,28 @@
-"""Подсистемы DRIVE (m1.5): RoadModel + DriveLogic.
+from typing import TYPE_CHECKING
 
-Примечание про TIC-80/PocketPy:
-- Во время выполнения импорты не используются; всё бандлится в один `main.py`.
-- Эти модули подключаются через `include("systems.drive.*")` в `tic80/python/main.py`.
-"""
+if TYPE_CHECKING:
+    from tic80 import include
 
+
+include("systems.drive.rng")
+include("systems.drive.road_model")
+include("systems.drive.drive_logic_projection")
+include("systems.drive.drive_logic_state")
+include("systems.drive.drive_logic_utils")
+include("systems.drive.drive_logic_controls")
+include("systems.drive.drive_logic_lateral")
+include("systems.drive.drive_logic_post_step")
+include("systems.drive.drive_logic_core")
+include("systems.drive.drive_telemetry")
+include("systems.drive.drive_objects")
+include("systems.drive.drive_zones")
+include("systems.drive.drive_input")
+include("systems.drive.drive_zone_effects")
+include("systems.drive.drive_debug_lines")
+include("systems.drive.pursuers.__init__")
+include("systems.drive.pursuer_chase")
+include("systems.drive.fx_particles")
+include("systems.drive.drive_fx_factories")
+include("systems.drive.drive_fx")
+include("systems.drive.drive_obstacle_hits")
+include("systems.drive.drive_screen_shake")

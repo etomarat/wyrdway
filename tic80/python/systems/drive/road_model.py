@@ -1,9 +1,13 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from typing import Self
+
     from ...contracts import Tuning
 
     from .rng import Rng
+else:
+    Self = object
 
 
 class RoadModel:
@@ -50,7 +54,7 @@ class RoadModel:
         self._build_centerline()
 
     @classmethod
-    def from_tuning(cls, seed: int, tuning: Tuning):
+    def from_tuning(cls, seed: int, tuning: Tuning) -> Self:
         d = tuning.DRIVE
         return cls(
             seed,
@@ -67,7 +71,12 @@ class RoadModel:
         )
 
     @classmethod
-    def from_tuning_with_length(cls, seed: int, tuning: Tuning, segment_total_length: float):
+    def from_tuning_with_length(
+        cls,
+        seed: int,
+        tuning: Tuning,
+        segment_total_length: float
+    ) -> Self:
         d = tuning.DRIVE
         return cls(
             seed,

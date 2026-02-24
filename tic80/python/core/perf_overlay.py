@@ -1,12 +1,14 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from tic80 import btnp, print, time
+    from tic80 import keyp, print, time
 
-    from .input_buttons import Button
+    from .text_layout import text_right_x
 
 
 class PerfOverlay:
+    KEY_F = 6  # F
+
     def __init__(self) -> None:
         self._enabled = False
         self._frame = 0
@@ -17,7 +19,7 @@ class PerfOverlay:
         self._frame_ms = 0
 
         self._fps_int = 0
-        self._text = ""
+        self._lines: list[str] = []
 
     @property
     def enabled(self) -> bool:
@@ -30,7 +32,7 @@ class PerfOverlay:
         self._enabled = not self._enabled
 
     def handle_input(self) -> None:
-        if btnp(Button.X):
+        if keyp(self.KEY_F):
             self.toggle()
 
     def begin_frame(self) -> None:
@@ -56,20 +58,21 @@ class PerfOverlay:
 
         self._frame += 1
         if (self._frame & 7) == 0:
-            self._text = (
-                "fps="
-                + str(self._fps_int)
-                + " frame="
-                + str(self._frame_ms)
-                + "ms cpu="
-                + str(self._cpu_ms)
-                + "ms"
-            )
+            self._lines = [
+                "fps=" + str(self._fps_int),
+                "frame=" + str(self._frame_ms) + "ms",
+                "cpu=" + str(self._cpu_ms) + "ms"
+            ]
 
     def draw(self, x: int = 1, y: int = 1, color: int = 12) -> None:
         if not self._enabled:
             return
-        if self._text == "":
+        if len(self._lines) <= 0:
             return
-        print(self._text, x, y, color, fixed=True, alt=True)
-
+        i = 0
+        while i < len(self._lines):
+            text = self._lines[i]
+            px = text_right_x(text, 239 - x, 4, 0)
+            py = y + i * 6
+            print(text, px, py, color, fixed=True, alt=True)
+            i += 1

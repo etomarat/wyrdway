@@ -7,6 +7,7 @@ if TYPE_CHECKING:
     from ...data.tuning import TUNING
     from ...systems.drive.drive_fx import TopdownProjector
     from ...systems.drive.drive_logic_core import DriveLogic
+    from ...systems.drive.road_model import RoadModel
 
 
 class TopdownDebugDraw:
@@ -53,6 +54,42 @@ class TopdownDebugDraw:
             circb(int(rear_sx), int(rear_sy), int(rear_r), Color.CYAN)
         if front_r > 0.0:
             circb(int(front_sx), int(front_sy), int(front_r), Color.WHITE)
+
+    def draw_pursuer_strike_range(
+        self,
+        road: RoadModel,
+        proj: TopdownProjector,
+        car_s: float,
+        strike_dist_s: float
+    ) -> None:
+        start_s = float(car_s) - float(strike_dist_s)
+        if start_s < 0.0:
+            start_s = 0.0
+        seg_total = float(road.segment_total_length)
+        if start_s > seg_total:
+            start_s = seg_total
+        cx, cy = road.sample_centerline(start_s)
+        dir_x, dir_y = road.direction_at(start_s)
+        right_x = -dir_y
+        right_y = dir_x
+        half_w = road.width_at(start_s) * 0.5 + 1.0
+
+        # Полоса поперёк дороги в точке начала strike-дистанции.
+        o = -1
+        while o <= 1:
+            ox = dir_x * float(o)
+            oy = dir_y * float(o)
+            lx = cx - right_x * half_w + ox
+            ly = cy - right_y * half_w + oy
+            rx = cx + right_x * half_w + ox
+            ry = cy + right_y * half_w + oy
+            slx, sly = proj.world_to_screen(lx, ly)
+            srx, sry = proj.world_to_screen(rx, ry)
+            c = Color.RED
+            if o == 0:
+                c = Color.WHITE
+            line(int(slx), int(sly), int(srx), int(sry), c)
+            o += 1
 
     @staticmethod
     def _normalize_or_fallback(

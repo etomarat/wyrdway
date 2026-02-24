@@ -1,9 +1,9 @@
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from tic80 import cls, keyp, print
+    from tic80 import cls, print
 
-    from ..contracts import DriveEnterParams, ResultEnterParams, SceneNavigator
+    from ..contracts import DriveEnterParams, ResultEnterParams, SceneEnterParams, SceneNavigator
     from ..core.palette import Color
     from ..core.run_state import RunState
     from ..core.scene_ids import SceneId
@@ -12,13 +12,27 @@ if TYPE_CHECKING:
     from ..systems.drive.drive_logic_core import DriveLogic
     from ..systems.drive.drive_obstacle_hits import apply_obstacle_hits
     from ..systems.drive.drive_objects import DriveObjects, DriveZone
+    from ..systems.drive.pursuer_chase import PursuerChase, PursuerState, PursuerStrikeDelta
     from ..systems.drive.drive_telemetry import DriveTelemetry
     from ..systems.drive.drive_debug_lines import drive_debug_lines
     from ..systems.drive.drive_zone_effects import apply_zone_effects
     from ..systems.drive.drive_zones import zone_at_hitboxes
+    from ..systems.drive.pursuers.archetypes import PursuerArchetype
+    from ..systems.drive.pursuers.registry import create_active_pursuer_archetype
     from ..systems.drive.road_model import RoadModel
+    from .drive.pursuer_screen_fx import PursuerScreenFx, PursuerScreenFxFrameState
     from .drive.drive_topdown_renderer import DriveTopdownRenderer
     from .drive.drive_ui import DriveUi
+
+
+class _DrivePopup:
+    __slots__ = ("text", "color", "ttl", "rise")
+
+    def __init__(self, text: str, color: int) -> None:
+        self.text = text
+        self.color = color
+        self.ttl = 0.75
+        self.rise = 0.0
 
 
 class DriveScene:
@@ -28,7 +42,6 @@ class DriveScene:
         self._nav = nav
         self._state = nav.state
         self._mode = "travel"
-        self._variant = "topdown"
         self._road: RoadModel | None = None
         self._logic: DriveLogic | None = None
         self._objects: DriveObjects | None = None
@@ -36,23 +49,31 @@ class DriveScene:
         self._evacuated = False
         self._telemetry: DriveTelemetry | None = None
         self._renderer = DriveTopdownRenderer()
+        self._pursuer_screen_fx = PursuerScreenFx()
         self._ui = DriveUi()
-        self._last_hp = 0.0
         self._start_car_hp = 0.0
         self._start_car_fuel = 0.0
+        self._start_run_scrap = 0
+        self._pursuer = PursuerChase()
+        self._pursuer_archetype: PursuerArchetype = create_active_pursuer_archetype()
+        self._popups: list[_DrivePopup] = []
+        self._pursuer_fx_time = 0.0
 
-    def enter(self, params: object | None = None) -> None:
+    def enter(self, params: SceneEnterParams = None) -> None:
         if not isinstance(params, DriveEnterParams):
             raise TypeError("DriveScene.enter expects DriveEnterParams")
+        self._pursuer_archetype = create_active_pursuer_archetype()
         self._mode = params.mode
-        self._variant = params.variant
         self._evacuated = False
         self._road = None
         self._logic = None
         self._objects = None
         self._active_zone = None
+        self._popups = []
+        self._pursuer_fx_time = 0.0
 
         run = self._state.require_run()
+        self._state.mark_run_active()
         seed = run.seed
         segment_len = float(TUNING.DRIVE.segment_total_length)
         reverse_layout = False
@@ -75,16 +96,21 @@ class DriveScene:
             spawn_threats,
             reverse_layout
         )
-        self._last_hp = run.car_hp
         self._start_car_hp = run.car_hp
         self._start_car_fuel = run.car_fuel
+        self._start_run_scrap = run.run_scrap()
+        if self._mode == "extract" and self._logic is not None:
+            self._state.mark_chase_active()
+            self._pursuer.start_return(self._logic.road_s, self._pursuer_archetype.profile)
+        else:
+            self._pursuer.disable()
 
         if TUNING.DRIVE.telemetry_enabled:
             self._telemetry = DriveTelemetry(
                 int(TUNING.DRIVE.telemetry_every_frames),
                 int(TUNING.DRIVE.telemetry_max_lines)
             )
-            self._telemetry.begin(run.seed, self._mode, self._variant, TUNING)
+            self._telemetry.begin(run.seed, self._mode, TUNING)
         else:
             self._telemetry = None
 
@@ -98,12 +124,6 @@ class DriveScene:
             return
         if self._objects is None:
             return
-        if self._state.playtest_enabled and keyp(18):
-            self._restart_segment()
-            return
-        if self._state.playtest_enabled:
-            self._state.playtest_add_time(dt)
-
         zones = self._objects.zones_items()
         z_before = zone_at_hitboxes(self._logic, zones)
         apply_zone_effects(self._logic, z_before, TUNING)
@@ -115,6 +135,8 @@ class DriveScene:
         self._active_zone = z_after if z_after is not None else z_before
 
         self._apply_obstacle_hits(run)
+        self._update_pursuer(dt, run, z_before, z_after)
+        self._update_popups(dt)
 
         # Обновляем эффекты зон для СЛЕДУЮЩЕГО кадра (без 1-кадрового “залипания”).
         apply_zone_effects(self._logic, z_after, TUNING)
@@ -132,26 +154,19 @@ class DriveScene:
 
         if not self._evacuated:
             if run.car_fuel <= 0:
-                self._evacuate(run, "OUT OF FUEL")
+                self._evacuate("OUT OF FUEL")
                 return
             if run.car_hp <= 0:
-                self._evacuate(run, "CAR DESTROYED")
+                self._evacuate("CAR DESTROYED")
                 return
 
         if self._logic.finished() and inp.a_pressed:
             if self._telemetry is not None:
                 self._telemetry.dump("finish")
-            if self._state.playtest_enabled:
-                self._state.playtest_finish_segment()
-                self._nav.go(SceneId.RESULT,
-                             ResultEnterParams("SEGMENT COMPLETE"))
-                return
             if self._mode == "travel":
                 self._nav.go(SceneId.POI)
                 return
 
-            delta = run.ensure_delta(run.node_id)
-            delta.set_escape_outcome("ok")
             self._nav.go(SceneId.RESULT, ResultEnterParams("EXTRACT OK"))
 
     def _apply_obstacle_hits(self, run: RunState) -> None:
@@ -162,18 +177,78 @@ class DriveScene:
             return
         apply_obstacle_hits(run, road, logic, objects, TUNING, self._renderer.notify_obstacle_hit)
 
-    def _restart_segment(self) -> None:
-        run = self._state.run
-        if run is None:
+    def _boost_pushback_event(self, z_before: DriveZone | None, z_after: DriveZone | None) -> bool:
+        if z_before is not None or z_after is None:
+            return False
+        if TUNING.DRIVE.zone_boost_forward_accel <= 0.0 and TUNING.DRIVE.zone_boost_center_accel <= 0.0:
+            return False
+        return True
+
+    def _append_popup(self, text: str, color: int) -> None:
+        self._popups.append(_DrivePopup(text, color))
+
+    @staticmethod
+    def _whole_loss(value: float) -> int:
+        if value <= 0.0:
+            return 0
+        return int(value + 0.0001)
+
+    def _append_strike_popups(
+        self,
+        strike_delta: PursuerStrikeDelta,
+        fuel_loss: int,
+        hp_loss: int
+    ) -> None:
+        if strike_delta.scrap_loss > 0:
+            self._append_popup("-" + str(strike_delta.scrap_loss) + " SCRAP", Color.LIGHT_GREEN)
+        if fuel_loss > 0:
+            self._append_popup("-" + str(fuel_loss) + " FUEL", Color.YELLOW)
+        if hp_loss > 0:
+            self._append_popup("-" + str(hp_loss) + " HP", Color.RED)
+
+    def _apply_pursuer_strike_delta(self, run: RunState, strike_delta: PursuerStrikeDelta) -> None:
+        if strike_delta.scrap_loss > 0:
+            run.drain_scrap(strike_delta.scrap_loss)
+        if strike_delta.fuel_drain > 0.0:
+            run.consume_fuel(strike_delta.fuel_drain)
+        if strike_delta.hp_damage > 0.0:
+            run.apply_damage(strike_delta.hp_damage)
+
+    def _update_popups(self, dt: float) -> None:
+        i = len(self._popups) - 1
+        while i >= 0:
+            p = self._popups[i]
+            p.ttl -= dt
+            p.rise += dt * 14.0
+            if p.ttl <= 0.0:
+                del self._popups[i]
+            i -= 1
+
+    def _update_pursuer(
+        self,
+        dt: float,
+        run: RunState,
+        z_before: DriveZone | None,
+        z_after: DriveZone | None
+    ) -> None:
+        if self._mode != "extract":
             return
-        run.reset_car_stats(self._start_car_hp, self._start_car_fuel)
-        mode: Literal["travel", "extract"] = "travel"
-        if self._mode == "extract":
-            mode = "extract"
-        variant: Literal["topdown", "cockpit"] = "topdown"
-        if self._variant == "cockpit":
-            variant = "cockpit"
-        self.enter(DriveEnterParams(mode, variant))
+        logic = self._logic
+        if logic is None:
+            return
+        self._pursuer_fx_time += dt
+        pushback_event = self._boost_pushback_event(z_before, z_after)
+        strike_delta = self._pursuer.update(dt, run, logic, pushback_event)
+        if strike_delta.has_runtime_effect():
+            self._apply_pursuer_strike_delta(run, strike_delta)
+        fuel_loss = self._whole_loss(strike_delta.fuel_drain)
+        hp_loss = self._whole_loss(strike_delta.hp_damage)
+        if strike_delta.scrap_loss > 0 or fuel_loss > 0 or hp_loss > 0:
+            intensity = float(self._pursuer_archetype.profile.strike_shake_intensity)
+            self._renderer.notify_pursuer_strike(intensity, self._pursuer_archetype.variant_id)
+            if hp_loss > 0:
+                self._renderer.notify_pursuer_hp_strike_fx(logic, hp_loss, intensity)
+            self._append_strike_popups(strike_delta, fuel_loss, hp_loss)
 
     def draw(self) -> None:
         cls(Color.BLACK)
@@ -188,30 +263,103 @@ class DriveScene:
         if logic is None or road is None or run is None or objects is None:
             return
 
-        # Рендер держим отдельно от сцены, чтобы позже легко подключить второй вид (cockpit)
-        # и не раздувать DriveScene.
-        self._renderer.draw(road, logic, objects, self._active_zone)
+        # Рендер держим отдельно от сцены, чтобы не раздувать DriveScene.
+        pursuer_state: PursuerState | None = None
+        pursuer_s = 0.0
+        strike_flash = 0.0
+        screen_glitch_active = False
+        pursuer_fx_state: PursuerScreenFxFrameState | None = None
+        if self._pursuer.active:
+            pursuer_state = self._pursuer.state
+            pursuer_s = self._pursuer.pursuer_s
+            strike_flash = self._pursuer.strike_flash
+            pursuer_fx_state = self._pursuer_screen_fx.build_frame_state(
+                self._pursuer,
+                self._pursuer_fx_time,
+                self._pursuer_archetype.profile
+            )
+            screen_glitch_active = pursuer_fx_state.glitch_active
+
+        self._renderer.draw(
+            road,
+            logic,
+            objects,
+            self._active_zone,
+            self._pursuer_archetype,
+            pursuer_state,
+            pursuer_s,
+            strike_flash,
+            screen_glitch_active
+        )
+        if self._pursuer.active:
+            # FX погони (виньетка/шум) рисуем ПОД HUD.
+            self._pursuer_screen_fx.draw(
+                logic,
+                self._pursuer,
+                self._pursuer_fx_time,
+                self._pursuer_archetype.profile,
+                pursuer_fx_state
+            )
         self._ui.draw_stats(run, logic)
         self._ui.draw_steer_wheel(logic)
         self._ui.draw_slip_bar(logic)
+        if self._pursuer.active:
+            self._ui.draw_pursuer_hud(
+                run.run_scrap(),
+                self._start_run_scrap,
+                self._pursuer.distance_s,
+                self._pursuer.state,
+                self._pursuer_archetype.profile,
+                self._pursuer_archetype.display_name(),
+                int(self._pursuer_archetype.profile.name_color)
+            )
+        self._draw_popups()
         if logic.finished():
             print("Z = CONTINUE", 2, 128, Color.WHITE)
         else:
             print("ARROWS + X", 2, 128, Color.WHITE)
-        self._state.set_debug_lines(
-            drive_debug_lines(road, logic, run, objects, TUNING))
+        if self._state.debug_enabled:
+            lines = drive_debug_lines(road, logic, run, objects, TUNING)
+            if self._pursuer.active:
+                lines.append(
+                    "pursuer d="
+                    + str(round(self._pursuer.distance_s, 2))
+                    + " v="
+                    + str(round(self._pursuer.last_speed, 2))
+                    + " state="
+                    + self._pursuer.state
+                    + " cd="
+                    + str(round(self._pursuer.cooldown, 2))
+                    + " phase="
+                    + self._pursuer.phase
+                )
+            self._state.set_debug_lines(lines)
         return
+
+    def _draw_popups(self) -> None:
+        if len(self._popups) <= 0:
+            return
+        base_x = 96
+        base_y = int(TUNING.DRIVE.view_center_y) - 18
+        if base_y < 16:
+            base_y = 16
+        i = 0
+        while i < len(self._popups):
+            p = self._popups[i]
+            y = base_y - int(p.rise) - i * 8
+            print(p.text, base_x, y, p.color)
+            i += 1
 
     def exit(self) -> None:
         pass
 
-    def _evacuate(self, run: RunState, reason: str) -> None:
-        delta = run.ensure_delta(run.node_id)
-        delta.set_escape_outcome("fail")
+    def _evacuate(self, reason: str) -> None:
         self._evacuated = True
         if self._telemetry is not None:
-            self._telemetry.dump("evac " + reason)
-        self._nav.go(SceneId.RESULT, ResultEnterParams(reason))
+            self._telemetry.dump("rollback fail " + reason)
+        chase_contact = self._mode == "extract"
+        self._state.rollback_to_last_save(reason, chase_contact)
+        self._nav.go(SceneId.RESULT, ResultEnterParams("RUN FAILED"))
 
 
 def make_drive_scene(nav: SceneNavigator) -> DriveScene:

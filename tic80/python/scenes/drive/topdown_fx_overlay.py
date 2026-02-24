@@ -7,6 +7,7 @@ if TYPE_CHECKING:
     from ...systems.drive.drive_logic_core import DriveLogic
     from ...systems.drive.fx_particles import Particles2D
     from ...systems.drive.road_model import RoadModel
+    from ...systems.drive.rng import lcg_next_u31
     from ...systems.fx.vendor.vand_particles import VandParticles
     from .car_pose2d import CarPose2D
 
@@ -67,16 +68,34 @@ class TopdownFxOverlay:
         """Текущая сила выхлопа (0..1), вычисленная в этом кадре."""
         return self._exhaust_strength
 
+    def draw_world(self) -> None:
+        self._offroad_smoke.draw()
+        self._exhaust_smoke.draw()
+        self._fx_transition.draw()
+
+    def draw_under_car(self) -> None:
+        self._drive_fx.draw(0)
+
+    def draw_over_car(self) -> None:
+        self._drive_fx.draw(1)
+
+    def _next_fx_seed(self) -> int:
+        self._fx_seed = lcg_next_u31(self._fx_seed)
+        return self._fx_seed
+
     def _update_world_particles(self, dt: float, world_dx: float, world_dy: float) -> None:
-        # Искры перехода должны читаться как “локальный” эффект у колёс,
-        # а не как частицы, остающиеся в мире. Поэтому не применяем world-shift,
-        # иначе при сильном боковом движении машины направление визуально “едет”.
+        """Обновляет все системы частиц и сдвигает world-эффекты камерой.
+
+        Искры перехода дорога/оффроуд намеренно не двигаются world-shift-ом, чтобы
+        оставаться локальным эффектом у колёс и не «плыть» вбок.
+        """
         self._fx_transition.update(dt, 0.0, 0.0)
         self._drive_fx.update(dt, world_dx, world_dy)
         self._offroad_smoke.update(dt, world_dx, world_dy)
         self._exhaust_smoke.update(dt, world_dx, world_dy)
 
     def _update_transition_cooldown(self, dt: float) -> None:
+        """Тикает кулдаун искр перехода между покрытиями."""
         if self._offroad_transition_cooldown <= 0.0:
             return
         self._offroad_transition_cooldown -= dt
@@ -84,12 +103,15 @@ class TopdownFxOverlay:
             self._offroad_transition_cooldown = 0.0
 
     def _maybe_start_move(self, logic: DriveLogic, pose: CarPose2D) -> bool:
+        """Запускает стартовый дым/букс при переходе из «стоим» в «поехали».
+
+        На оффроуде стартовый буст-эффект не запускается: там читается только
+        постоянная пыль.
+        """
         spd = logic.speed
         start_move = False
         min_speed = float(TUNING.DRIVE.fx_start_move_min_speed)
         if self._prev_speed <= min_speed and spd > min_speed:
-            # Букс/дым на старте имеет смысл только на дороге.
-            # На оффроуде пусть будет просто “постоянная пыль”, без старта как на асфальте.
             if not logic.offroad:
                 start_move = True
                 fx_cx, fx_cy = pose.screen_center()
@@ -98,6 +120,7 @@ class TopdownFxOverlay:
         return start_move
 
     def _update_offroad_side_sign(self, logic: DriveLogic) -> None:
+        """Обновляет знак стороны оффроуда относительно центра дороги."""
         if not logic.offroad:
             return
         rd = logic.road_d
@@ -106,6 +129,18 @@ class TopdownFxOverlay:
         elif rd < 0.0:
             self._offroad_side_sign = -1
 
+    def _flush_hit_events(self, proj: TopdownProjector) -> None:
+        """Сбрасывает очередь попаданий препятствий в `DriveFx` текущего кадра."""
+        if len(self._hit_events) <= 0:
+            return
+        i = 0
+        while i < len(self._hit_events):
+            wx, wy, nx, ny, impact, hit_r = self._hit_events[i]
+            seed = self._next_fx_seed()
+            self._drive_fx.obstacle_hit(wx, wy, nx, ny, impact, seed, hit_r, proj)
+            i += 1
+        self._hit_events = []
+
     def _maybe_emit_transition_sparks(
         self,
         road: RoadModel,
@@ -113,35 +148,27 @@ class TopdownFxOverlay:
         proj: TopdownProjector,
         pose: CarPose2D
     ) -> None:
+        """Эмитит искры только в кадр смены покрытия дорога/оффроуд."""
         if logic.offroad == self._prev_offroad:
             return
         d = TUNING.DRIVE
         spd = logic.speed
         if spd > d.fx_dust_min_speed and self._offroad_transition_cooldown <= 0.0:
-            self._emit_offroad_transition_sparks(
-                logic.offroad,
-                road,
-                logic,
-                proj,
-                pose
-            )
+            self._emit_offroad_transition_sparks(logic.offroad, road, logic, proj, pose)
             self._offroad_transition_cooldown = float(TUNING.DRIVE.fx_transition_cooldown_seconds)
         self._prev_offroad = logic.offroad
 
     def _maybe_emit_offroad_dust(self, logic: DriveLogic, dt: float, pose: CarPose2D) -> None:
+        """Эмитит постоянную оффроуд-пыль из-под колёс."""
         d = TUNING.DRIVE
         if not logic.offroad or logic.speed <= d.fx_dust_min_speed:
             return
-        # Небольшой жёлто-оранжевый "дым" (vand dust) из-под колёс.
-        # Только пыль на оффроуде (искры — только при переходе туда/обратно).
         self._fx_spawn_accum_off_smoke += (d.fx_dust_rate_offroad * 0.65) * dt
-        self._emit_offroad_smoke_vand(
-            self._fx_spawn_accum_off_smoke,
-            pose
-        )
+        self._emit_offroad_smoke_vand(self._fx_spawn_accum_off_smoke, pose)
         self._fx_spawn_accum_off_smoke -= int(self._fx_spawn_accum_off_smoke)
 
     def _maybe_emit_exhaust_smoke(self, logic: DriveLogic, dt: float, pose: CarPose2D) -> None:
+        """Эмитит выхлоп в зависимости от доли текущей скорости от max_speed."""
         d = TUNING.DRIVE
         if d.max_speed <= 0.0 or d.fx_exhaust_rate <= 0.0:
             return
@@ -161,51 +188,21 @@ class TopdownFxOverlay:
         self._exhaust_strength = strength
         rate = d.fx_exhaust_rate * strength
         self._fx_spawn_accum_exhaust += rate * dt
-        self._emit_exhaust_smoke_vand(
-            self._fx_spawn_accum_exhaust,
-            strength,
-            pose
-        )
+        self._emit_exhaust_smoke_vand(self._fx_spawn_accum_exhaust, strength, pose)
         self._fx_spawn_accum_exhaust -= int(self._fx_spawn_accum_exhaust)
-
-    def draw_world(self) -> None:
-        self._offroad_smoke.draw()
-        self._exhaust_smoke.draw()
-        self._fx_transition.draw()
-
-    def draw_under_car(self) -> None:
-        self._drive_fx.draw(0)
-
-    def draw_over_car(self) -> None:
-        self._drive_fx.draw(1)
-
-    def _flush_hit_events(self, proj: TopdownProjector) -> None:
-        if len(self._hit_events) <= 0:
-            return
-
-        i = 0
-        while i < len(self._hit_events):
-            wx, wy, nx, ny, impact, hit_r = self._hit_events[i]
-            seed = self._next_fx_seed()
-            self._drive_fx.obstacle_hit(wx, wy, nx, ny, impact, seed, hit_r, proj)
-            i += 1
-        self._hit_events = []
-
-    def _next_fx_seed(self) -> int:
-        self._fx_seed = (self._fx_seed * 1103515245 + 12345) & 0x7fffffff
-        return self._fx_seed
 
     def _emit_offroad_smoke_vand(
         self,
         count_accum: float,
         pose: CarPose2D
     ) -> None:
+        """Спавнит жёлто-оранжевые пуфы пыли `VandParticles` у задних колёс."""
         n = int(count_accum)
         if n <= 0:
             return
 
         d = TUNING.DRIVE
-        wheel_dx, back = pose.local_from_legacy_center(
+        wheel_dx, back = pose.local_from_center_reference(
             float(d.fx_dust_wheel_dx_px),
             float(d.fx_dust_back_px)
         )
@@ -216,10 +213,8 @@ class TopdownFxOverlay:
 
         i = 0
         while i < n:
-            self._fx_seed = (self._fx_seed * 1103515245 + 12345) & 0x7fffffff
-            r0 = self._fx_seed
-            self._fx_seed = (self._fx_seed * 1103515245 + 12345) & 0x7fffffff
-            r1 = self._fx_seed
+            r0 = self._next_fx_seed()
+            r1 = self._next_fx_seed()
 
             jx = ((r1 % 1000) / 1000.0 - 0.5) * jitter_x
             jy = ((r0 % 1000) / 1000.0) * jitter_y
@@ -227,7 +222,6 @@ class TopdownFxOverlay:
             x_l, y_l = pose.local_to_screen(-wheel_dx + jx, back + jy)
             x_r, y_r = pose.local_to_screen(wheel_dx - jx, back + jy)
 
-            # Мелкие частые пуфы читаются как "пыль/туман", а не как редкие круги.
             t = (r0 % 1000) / 1000.0
             r = 1.0 + t * 2.0
             c = c0
@@ -237,10 +231,8 @@ class TopdownFxOverlay:
             self._offroad_smoke.spawn_dust_down_color(float(x_l), float(y_l), float(r), int(c))
             self._offroad_smoke.spawn_dust_down_color(float(x_r), float(y_r), float(r), int(c))
 
-            # Второй пуф чуть поменьше/побольше, чтобы объём был живее.
             r2 = 0.75 + ((r1 % 1000) / 1000.0) * 1.75
             c2 = c1 if c == c0 else c0
-            # Немного "по бокам" из-под колёс: разнос влево/вправо, чтобы пыль не была строго за машиной.
             side = 2.0 + ((r1 % 1000) / 1000.0) * 4.0
             x_l2, y_l2 = pose.local_to_screen(-wheel_dx + jx - side, back + jy)
             x_r2, y_r2 = pose.local_to_screen(wheel_dx - jx + side, back + jy)
@@ -254,6 +246,7 @@ class TopdownFxOverlay:
         strength: float,
         pose: CarPose2D
     ) -> None:
+        """Спавнит многослойный выхлоп `VandParticles` (струйка + хвост-клубы)."""
         n = int(count_accum)
         if n <= 0:
             return
@@ -265,7 +258,7 @@ class TopdownFxOverlay:
         if s > 1.0:
             s = 1.0
 
-        base_x, base_back = pose.local_from_legacy_center(
+        base_x, base_back = pose.local_from_center_reference(
             float(d.fx_exhaust_dx_px),
             float(d.fx_exhaust_dy_px)
         )
@@ -280,19 +273,10 @@ class TopdownFxOverlay:
 
         i = 0
         while i < n:
-            self._fx_seed = (self._fx_seed * 1103515245 + 12345) & 0x7fffffff
-            r = self._fx_seed
+            r = self._next_fx_seed()
             t = (r % 1000) / 1000.0
             u = ((r // 1000) % 1000) / 1000.0
 
-            # Выхлоп пробуем тем же типом частиц, что и стартовый "дым из-под колёс":
-            # vand `dust_down` (кружки, которые “стелются” в +Y и постепенно темнеют).
-            #
-            # Схема:
-            # - у трубы: тонкая струйка из маленьких кружков
-            # - ближе к хвосту: больше размер и больше плотность, чтобы читалось как клубы
-
-            # Струйка (2 маленьких кружка).
             s_jx = (t - 0.5) * 0.8
             s_jy = (u - 0.5) * 0.35
             sr = r0 * (0.70 + t * 0.40) * (0.85 + 0.35 * s)
@@ -303,7 +287,6 @@ class TopdownFxOverlay:
             self._exhaust_smoke.spawn_dust_down_two_tone_life(x1, y1, sr, c0, c1, 18)
             self._exhaust_smoke.spawn_dust_down_two_tone_life(x2, y2, sr * 0.85, c0, c1, 16)
 
-            # Средний слой (2 штуки).
             m_back = base_back + 3.0 + u * 4.0
             mr = (r0 + (r1 - r0) * (0.25 + t * 0.20)) * (0.80 + 0.55 * s)
             if mr < sr:
@@ -314,7 +297,6 @@ class TopdownFxOverlay:
             self._exhaust_smoke.spawn_dust_down_two_tone_life(x3, y3, mr, c0, c1, mid_life)
             self._exhaust_smoke.spawn_dust_down_two_tone_life(x4, y4, mr * 0.95, c0, c1, mid_life - 2)
 
-            # Хвост (клубы): плотный кластер ближе к машине.
             tail_back = base_back + 5.0 + u * 6.0
             tail_r = r1 * (0.85 + t * 0.35) * (0.70 + 0.70 * s)
             if tail_r < mr:
@@ -333,7 +315,6 @@ class TopdownFxOverlay:
             if (r & 1) == 0:
                 x10, y10 = pose.local_to_screen(base_x + (u - 0.5) * 2.8, tail_back + 5.4)
                 self._exhaust_smoke.spawn_dust_down_two_tone_life(x10, y10, tail_r * 0.72, c0, c1, tail_life - 10)
-
             i += 1
 
     def _emit_offroad_transition_sparks(
@@ -344,6 +325,7 @@ class TopdownFxOverlay:
         proj: TopdownProjector,
         pose: CarPose2D
     ) -> None:
+        """Эмитит краткий burst искр по краю трассы при пересечении границы."""
         d = TUNING.DRIVE
 
         boundary_sign = self._offroad_side_sign
@@ -353,9 +335,7 @@ class TopdownFxOverlay:
             spawn_sign = boundary_sign
             dir_sign = boundary_sign
 
-        dir_x, dir_y, cross = self._edge_spark_dir(
-            road, logic, proj, dir_sign, entering_offroad
-        )
+        dir_x, dir_y, cross = self._edge_spark_dir(road, logic, proj, dir_sign, entering_offroad)
 
         spd = logic.speed
         min_spd = float(d.fx_transition_sparks_min_speed)
@@ -368,8 +348,6 @@ class TopdownFxOverlay:
         if strength > 1.0:
             strength = 1.0
 
-        # Количество и скорость поднимаем плавно от скорости, чтобы на малой скорости
-        # искры не “взрывались” и не мешали.
         n_base = 4 + int(spd * 0.04)
         n = int(n_base * strength)
         if not entering_offroad:
@@ -384,7 +362,6 @@ class TopdownFxOverlay:
             speed = 180.0
         speed *= 0.65 + 0.35 * strength
 
-        # Делаем жизнь чуть длиннее, иначе при замедлении искры могут "пропасть" визуально.
         life = 12 + int(spd * 0.012)
         if not entering_offroad:
             life += 3
@@ -394,7 +371,7 @@ class TopdownFxOverlay:
         if life > 26:
             life = 26
 
-        wheel_dx, back = pose.local_from_legacy_center(
+        wheel_dx, back = pose.local_from_center_reference(
             float(d.fx_transition_sparks_wheel_dx_px),
             float(d.fx_transition_sparks_back_px)
         )
@@ -412,10 +389,32 @@ class TopdownFxOverlay:
         if n_front > n:
             n_front = n
 
-        self._edge_spark_burst(rear_x, rear_y, dir_x, dir_y,
-                               cross, speed, n, life, entering_offroad, 1.0, strength)
-        self._edge_spark_burst(front_x, front_y, dir_x, dir_y, cross,
-                               speed, n_front, life, entering_offroad, 0.85, strength)
+        self._edge_spark_burst(
+            rear_x,
+            rear_y,
+            dir_x,
+            dir_y,
+            cross,
+            speed,
+            n,
+            life,
+            entering_offroad,
+            1.0,
+            strength
+        )
+        self._edge_spark_burst(
+            front_x,
+            front_y,
+            dir_x,
+            dir_y,
+            cross,
+            speed,
+            n_front,
+            life,
+            entering_offroad,
+            0.85,
+            strength
+        )
 
     def _edge_spark_dir(
         self,
@@ -425,6 +424,7 @@ class TopdownFxOverlay:
         dir_sign: int,
         entering_offroad: bool
     ) -> tuple[float, float, float]:
+        """Считает screen-направление burst и коэффициент поперечной компоненты."""
         dx, dy = road.direction_at(logic.road_s)
         rx = -dy
         ry = dx
@@ -482,15 +482,14 @@ class TopdownFxOverlay:
         scale: float,
         strength: float
     ) -> None:
+        """Спавнит burst сегментов-искр в локальном направлении края трассы."""
         px = -dir_y
         py = dir_x
 
         i = 0
         while i < count:
-            self._fx_seed = (self._fx_seed * 1103515245 + 12345) & 0x7fffffff
-            r0 = self._fx_seed
-            self._fx_seed = (self._fx_seed * 1103515245 + 12345) & 0x7fffffff
-            r1 = self._fx_seed
+            r0 = self._next_fx_seed()
+            r1 = self._next_fx_seed()
 
             t = (r0 % 1000) / 1000.0
             u = (r1 % 1000) / 1000.0

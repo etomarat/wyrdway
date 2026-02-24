@@ -1,12 +1,13 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from tic80 import btnp, cls, print
+    from tic80 import btnp, cls, line, print
 
-    from ..contracts import DriveEnterParams, ResultEnterParams, SceneNavigator
+    from ..contracts import ResultEnterParams, SceneEnterParams, SceneNavigator
     from ..core.input_buttons import Button
     from ..core.palette import Color
     from ..core.scene_ids import SceneId
+    from ..core.ui.text import ui_text_center
 
 
 class ResultScene:
@@ -15,9 +16,132 @@ class ResultScene:
     def __init__(self, nav: SceneNavigator) -> None:
         self._nav = nav
         self._state = nav.state
-        self._lines: list[str] = ["RESULT: OK"]
+        self._title = "MISSION REPORT"
+        self._title_color = Color.WHITE
+        self._subtitle = ""
+        self._subtitle_color = Color.LIGHT_GREY
+        self._lines: list[tuple[str, int]] = []
+        self._cta = "Z = CONTINUE TO GARAGE"
+        self._cta_color = Color.WHITE
 
-    def enter(self, params: object | None = None) -> None:
+    def _set_layout(
+        self,
+        title: str,
+        title_color: int,
+        subtitle: str,
+        subtitle_color: int,
+        lines: list[tuple[str, int]],
+        cta: str,
+        cta_color: int
+    ) -> None:
+        self._title = title
+        self._title_color = title_color
+        self._subtitle = subtitle
+        self._subtitle_color = subtitle_color
+        self._lines = lines
+        self._cta = cta
+        self._cta_color = cta_color
+
+    def _reason_line(self, reason: str) -> str:
+        if reason == "OUT OF FUEL":
+            return "Your fuel reserves reached zero"
+        if reason == "CAR DESTROYED":
+            return "Your car could not survive the route"
+        if reason == "POI TIMEOUT":
+            return "You stayed at the site too long"
+        if reason == "CHASE INTERRUPTED":
+            return "Chase state collapsed before extraction"
+        if reason == "RUN INTERRUPTED":
+            return "Run session interrupted before return"
+        return str(reason)
+
+    def _build_rollback_layout(self, reason: str, theseus_gain: int) -> None:
+        lines = [
+            ("Run lost. Reverted to last save", Color.WHITE),
+            (self._reason_line(reason), Color.ORANGE),
+            ("Theseus corruption: +" + str(theseus_gain), Color.RED),
+            ("Refit in garage and run again", Color.YELLOW)
+        ]
+        self._set_layout(
+            "RUN FAILED",
+            Color.RED,
+            "Reality anchor restored",
+            Color.LIGHT_GREY,
+            lines,
+            "Z = CONTINUE TO GARAGE",
+            Color.RED
+        )
+
+    def _build_no_run_layout(self, fallback: str | None) -> None:
+        lines: list[tuple[str, int]] = [("No run data available", Color.LIGHT_GREY)]
+        title = "RESULT"
+        subtitle = "Return to garage"
+        if fallback is not None:
+            title = str(fallback)
+        self._set_layout(
+            title,
+            Color.WHITE,
+            subtitle,
+            Color.LIGHT_GREY,
+            lines,
+            "Z = CONTINUE TO GARAGE",
+            Color.WHITE
+        )
+
+    def _build_run_report_layout(
+        self,
+        poi_action: str,
+        delivered_scrap: int,
+        fuel_recovered: int
+    ) -> None:
+        title = "RETURN COMPLETE"
+        title_color = Color.CYAN
+        subtitle = "You reached base safely"
+        subtitle_color = Color.LIGHT_BLUE
+        detail_line = "No loot collected"
+        detail_color = Color.LIGHT_GREY
+        cta_color = Color.WHITE
+        if poi_action == "loot":
+            title = "EXTRACTION COMPLETE"
+            title_color = Color.LIGHT_GREEN
+            subtitle = "Loot secured and delivered"
+            subtitle_color = Color.WHITE
+            detail_line = "High-risk raid paid off"
+            detail_color = Color.GREEN
+            cta_color = Color.LIGHT_GREEN
+        elif poi_action == "leave":
+            title = "RETREAT COMPLETE"
+            title_color = Color.YELLOW
+            subtitle = "You pulled out before looting"
+            subtitle_color = Color.LIGHT_GREY
+            detail_line = "No site loot collected"
+            detail_color = Color.YELLOW
+            cta_color = Color.YELLOW
+        elif poi_action == "timeout":
+            title = "SITE TIMEOUT"
+            title_color = Color.ORANGE
+            subtitle = "Extraction was not secured"
+            subtitle_color = Color.LIGHT_GREY
+            detail_line = "No loot secured from the site"
+            detail_color = Color.ORANGE
+            cta_color = Color.ORANGE
+        lines = [
+            (detail_line, detail_color),
+            ("Scrap delivered: +" + str(delivered_scrap), Color.LIGHT_GREEN),
+            ("Fuel recovered: +" + str(fuel_recovered), Color.YELLOW),
+            # ("Continue in garage", Color.LIGHT_GREY)
+        ]
+        self._set_layout(
+            title,
+            title_color,
+            subtitle,
+            subtitle_color,
+            lines,
+            "Z = CONTINUE TO GARAGE",
+            cta_color
+        )
+
+    def enter(self, params: SceneEnterParams = None) -> None:
         fallback = None
         if params is not None:
             if not isinstance(params, ResultEnterParams):
@@ -26,89 +150,48 @@ class ResultScene:
 
         run = self._state.run
         if run is None:
-            self._lines = ["no run", "msg=" + str(fallback)]
+            reason, theseus_gain = self._state.consume_rollback_notice()
+            if reason is not None:
+                self._build_rollback_layout(reason, theseus_gain)
+                return
+            self._build_no_run_layout(fallback)
             return
 
-        if self._state.playtest_enabled:
-            segments, seconds = self._state.playtest_stats()
-            playtest_lines: list[str] = [
-                "PLAYTEST",
-                "segments=" + str(segments),
-                "time=" + str(round(seconds, 2)),
-                "fuel=" + str(round(run.car_fuel, 2)),
-                "hp=" + str(round(run.car_hp, 2))
-            ]
-            if fallback is not None:
-                playtest_lines.append("msg=" + str(fallback))
-            self._lines = playtest_lines
-            return
-
-        gained_scrap = 0
+        delivered_scrap = 0
         for item in run.inventory_items():
             if item.id == "scrap":
-                gained_scrap += item.qty
+                delivered_scrap += item.qty
 
-        gained_fuel = 0
-        poi_action = "-"
-        poi_type = "-"
-        escaped = "-"
-        segment = run.active_segment
-        if segment is not None:
-            poi_type = str(segment.poi_type)
+        fuel_recovered = 0
+        poi_action = "unknown"
         if run.delta is not None:
             delta = run.delta
-            gained_fuel = delta.fuel_gained
+            fuel_recovered = delta.fuel_gained
             if delta.poi_action is not None:
                 poi_action = str(delta.poi_action)
-            if delta.escape_outcome is not None:
-                escaped = str(delta.escape_outcome)
 
-        status = "OK"
-        if fallback is not None:
-            status = str(fallback)
-        elif escaped == "fail":
-            status = "FAIL"
-
-        lines: list[str] = [
-            "status: " + status,
-            "poi type: " + poi_type,
-            "scrap gained: +" + str(gained_scrap),
-            "fuel gained: +" + str(gained_fuel),
-            "poi action: " + poi_action
-        ]
-
-        self._lines = lines
+        self._build_run_report_layout(poi_action, delivered_scrap, fuel_recovered)
 
     def update(self, dt: float) -> None:
         if btnp(Button.A):
-            if self._state.playtest_enabled:
-                run = self._state.run
-                if run is None:
-                    return
-                # Продолжаем плейтест: переносим текущие значения hp/fuel и стартуем новую дорогу.
-                self._state.profile.set_garage_stats(run.car_hp, run.car_fuel)
-                self._state.end_run()
-                self._state.start_run()
-                self._nav.go("DRIVE", DriveEnterParams("travel", "topdown"))
-                return
             self._state.apply_run_results()
             self._nav.go(SceneId.GARAGE)
 
     def draw(self) -> None:
         cls(Color.BLACK)
-        print("RESULT", 100, 40, Color.WHITE)
-        y = 50
-        for line in self._lines:
-            print(line, 60, y, Color.WHITE)
-            y += 8
-        if self._state.playtest_enabled:
-            print("Z = NEXT", 92, 120, Color.WHITE)
-        else:
-            print("Z = CONTINUE", 76, 120, Color.WHITE)
+        ui_text_center(self._title, 24, self._title_color, margin_x=4)
+        if self._subtitle != "":
+            ui_text_center(self._subtitle, 40, self._subtitle_color, margin_x=4)
+        line(24, 50, 216, 50, self._title_color)
+        y = 60
+        for text, color in self._lines:
+            ui_text_center(text, y, color, margin_x=4)
+            y += 9
+        ui_text_center(self._cta, 112, self._cta_color, margin_x=4)
 
     def exit(self) -> None:
         pass
 
 
-def make_result_scene(nav: SceneNavigator) -> "ResultScene":
+def make_result_scene(nav: SceneNavigator) -> ResultScene:
     return ResultScene(nav)

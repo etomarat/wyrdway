@@ -3,14 +3,25 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from tic80 import btnp, cls, print, trace
 
-    from ..contracts import DriveEnterParams, SceneNavigator
+    from ..contracts import (
+        DriveEnterParams,
+        DriveTuning,
+        PursuerVariantId,
+        PursuerVariantTuning,
+        SceneEnterParams,
+        SceneNavigator
+    )
     from ..core.input_buttons import Button
     from ..core.palette import Color
     from ..core.scene_ids import SceneId
     from ..data.tuning import TUNING
+    from ..data.tuning.pursuers import (
+        ENTITY_PURSUER_PROFILE,
+        PRIME_ENTITY_PURSUER_PROFILE
+    )
 
 
-DRIVE_PHYSICS_FIELDS = [
+DRIVE_PHYSICS_FIELDS: list[str] = [
     "slip_eps_speed",
     "max_speed",
     "speed_cap",
@@ -51,44 +62,134 @@ DRIVE_PHYSICS_FIELDS = [
     "fuel_per_sec_throttle"
 ]
 
+PURSUER_PROFILE_FIELDS: list[str] = [
+    "base_speed"
+]
+
 
 class DrivePhysicsSnapshot:
-    def __init__(self, drive) -> None:
-        self._values = []
+    def __init__(self, drive: DriveTuning) -> None:
+        self._values: list[tuple[str, float]] = []
         for name in DRIVE_PHYSICS_FIELDS:
             self._values.append((name, getattr(drive, name)))
 
-    def apply(self, drive) -> None:
+    def apply(self, drive: DriveTuning) -> None:
         for name, value in self._values:
             setattr(drive, name, value)
 
 
 class DrivePhysicsPreset:
-    def __init__(self, name: str, label: str, overrides: list[tuple[str, float]]) -> None:
+    def __init__(
+        self,
+        name: str,
+        label: str,
+        drive_overrides: list[tuple[str, float]],
+        pursuer_overrides: list[tuple[str, float]] | None = None
+    ) -> None:
         self.name = name
         self.label = label
-        self.overrides = overrides
+        self.drive_overrides = drive_overrides
+        self.pursuer_overrides = []
+        if pursuer_overrides is not None:
+            self.pursuer_overrides = pursuer_overrides
 
-    def apply(self, drive, baseline: DrivePhysicsSnapshot) -> None:
-        baseline.apply(drive)
-        for name, value in self.overrides:
+    def apply(
+        self,
+        drive: DriveTuning,
+        drive_baseline: DrivePhysicsSnapshot,
+        pursuer_profile: PursuerVariantTuning,
+        pursuer_baseline: "PursuerProfileSnapshot"
+    ) -> None:
+        drive_baseline.apply(drive)
+        pursuer_baseline.apply(pursuer_profile)
+        for name, value in self.drive_overrides:
             setattr(drive, name, value)
+        for name, value in self.pursuer_overrides:
+            setattr(pursuer_profile, name, value)
 
-    def diff_lines(self, baseline: DrivePhysicsSnapshot, drive) -> list[str]:
-        base = baseline._values
+    def diff_lines(
+        self,
+        drive_baseline: DrivePhysicsSnapshot,
+        drive: DriveTuning,
+        pursuer_baseline: "PursuerProfileSnapshot",
+        pursuer_profile: PursuerVariantTuning
+    ) -> list[str]:
         diffs: list[str] = []
-        for name, base_value in base:
+        for name, base_value in drive_baseline._values:
             current = getattr(drive, name)
             if current == base_value:
                 continue
             diffs.append(
-                name
+                "drive."
+                + name
+                + ": "
+                + str(base_value)
+                + " -> "
+                + str(current)
+            )
+        for name, base_value in pursuer_baseline._values:
+            current = getattr(pursuer_profile, name)
+            if current == base_value:
+                continue
+            diffs.append(
+                "pursuer."
+                + name
                 + ": "
                 + str(base_value)
                 + " -> "
                 + str(current)
             )
         return diffs
+
+
+class PursuerProfileSnapshot:
+    def __init__(self, profile: PursuerVariantTuning) -> None:
+        self._values: list[tuple[str, float]] = []
+        for name in PURSUER_PROFILE_FIELDS:
+            self._values.append((name, getattr(profile, name)))
+
+    def apply(self, profile: PursuerVariantTuning) -> None:
+        for name, value in self._values:
+            setattr(profile, name, value)
+
+
+def resolve_active_pursuer_profile() -> PursuerVariantTuning:
+    variant = TUNING.PURSUER.active_variant
+    if variant == PursuerVariantId.PRIME_ENTITY:
+        return PRIME_ENTITY_PURSUER_PROFILE
+    return ENTITY_PURSUER_PROFILE
+
+
+class DrivePresetEngine:
+    def __init__(self) -> None:
+        self._drive_baseline: DrivePhysicsSnapshot | None = None
+        self._pursuer_baseline: PursuerProfileSnapshot | None = None
+
+    def capture_baseline(self) -> None:
+        self._drive_baseline = DrivePhysicsSnapshot(TUNING.DRIVE)
+        self._pursuer_baseline = PursuerProfileSnapshot(
+            resolve_active_pursuer_profile()
+        )
+
+    def apply_preset(self, preset: DrivePhysicsPreset) -> list[str] | None:
+        drive_baseline = self._drive_baseline
+        pursuer_baseline = self._pursuer_baseline
+        if drive_baseline is None or pursuer_baseline is None:
+            return None
+
+        pursuer_profile = resolve_active_pursuer_profile()
+        preset.apply(
+            TUNING.DRIVE,
+            drive_baseline,
+            pursuer_profile,
+            pursuer_baseline
+        )
+        return preset.diff_lines(
+            drive_baseline,
+            TUNING.DRIVE,
+            pursuer_baseline,
+            pursuer_profile
+        )
 
 
 class DrivePresetScene:
@@ -98,16 +199,46 @@ class DrivePresetScene:
         self._nav = nav
         self._state = nav.state
         self._selected = 0
-        self._baseline: DrivePhysicsSnapshot | None = None
+        self._engine = DrivePresetEngine()
         self._presets = [
             DrivePhysicsPreset(
                 "etomarat",
-                "etomarat (default)",
+                "normal (recommended)",
                 []
             ),
             DrivePhysicsPreset(
+                "Skellybob56",
+                "easy (slippy drift)",
+                [
+                    ("grip", 2.9),
+                    ("side_friction", 4.1),
+                    ("side_slip_speed_mult", 4.2),
+                    ("handbrake_grip_mult", 0.35),
+                    ("side_recovery_mult", 0.38),
+                    ("side_recovery_max_add", 3.2),
+                    ("handbrake_steer_mult", 1.8),
+                    ("handbrake_steer_min_speed_factor", 0.2),
+                    ("steer_rate", 1.45),
+                    ("steer_scale_min", 0.65)
+                ],
+                # [("base_speed", 108.0)]
+            ),
+            DrivePhysicsPreset(
+                "bfeen",
+                "easy (mid-speed steer+accel)",
+                [
+                    ("accel", 65.0),
+                    ("steer_rate", 1.45),
+                    ("steer_scale_min", 0.65),
+                    ("steer_scale_max", 1.05),
+                    ("side_slip_speed_mult", 3.0),
+                    ("drag_quad", 0.005)
+                ],
+                # [("base_speed", 107.0)]
+            ),
+            DrivePhysicsPreset(
                 "Masha",
-                "Masha (easy)",
+                "very easy",
                 [
                     ("grip", 4.0),
                     ("side_friction", 7.0),
@@ -117,42 +248,44 @@ class DrivePresetScene:
                     ("steer_rate", 1.45),
                     ("offroad_steer_mult", 0.9),
                     ("drag_quad", 0.006)
-                ]
+                ],
+                [("base_speed", 95.0)]
             ),
-            DrivePhysicsPreset(
-                "Skellybob56",
-                "Skellybob56 (slippy drift)",
-                [
-                    ("grip", 2.9),
-                    ("side_friction", 4.1),
-                    ("side_slip_speed_mult", 4.2),
-                    ("handbrake_grip_mult", 0.35),
-                    ("side_recovery_mult", 0.55),
-                    ("side_recovery_max_add", 5.0),
-                    ("handbrake_steer_mult", 1.8),
-                    ("handbrake_steer_min_speed_factor", 0.2),
-                    ("steer_rate", 1.45),
-                    ("steer_scale_min", 0.65)
-                ]
-            ),
-            DrivePhysicsPreset(
-                "bfeen",
-                "bfeen (mid-speed steer+accel)",
-                [
-                    ("accel", 65.0),
-                    ("steer_rate", 1.45),
-                    ("steer_scale_min", 0.65),
-                    ("steer_scale_max", 1.05),
-                    ("side_slip_speed_mult", 3.0),
-                    ("drag_quad", 0.005)
-                ]
-            )
         ]
 
-    def enter(self, params: object | None = None) -> None:
+    def enter(self, params: SceneEnterParams = None) -> None:
         self._state.end_run()
-        self._baseline = DrivePhysicsSnapshot(TUNING.DRIVE)
+        self._engine.capture_baseline()
         self._selected = 0
+
+    def _apply_selected_preset(self) -> bool:
+        preset = self._presets[self._selected]
+        diffs = self._engine.apply_preset(preset)
+        if diffs is None:
+            return False
+        trace("drive preset: " + preset.name)
+        if len(diffs) == 0:
+            trace("drive preset: no changes")
+        else:
+            for line in diffs:
+                trace("drive preset: " + line)
+        return True
+
+    def _start_chase_test(self) -> None:
+        run = self._state.start_run()
+        run.ensure_outbound_segment(1, float(TUNING.DRIVE.segment_total_length))
+        run.ensure_return_from_active_outbound()
+        test_scrap = run.run_scrap()
+        if test_scrap < 20:
+            run.add_item("scrap", 20 - test_scrap)
+        trace("drive preset: chase test start")
+        self._nav.go(SceneId.DRIVE, DriveEnterParams("extract"))
+
+    def _chase_test_allowed(self) -> bool:
+        return (
+            self._state.debug_enabled
+            and bool(TUNING.DEBUG.drive_preset_chase_test_enabled)
+        )
 
     def update(self, dt: float) -> None:
         if btnp(Button.LEFT) or btnp(Button.UP):
@@ -160,42 +293,32 @@ class DrivePresetScene:
         if btnp(Button.RIGHT) or btnp(Button.DOWN):
             self._selected = (self._selected + 1) % len(self._presets)
         if btnp(Button.A):
-            baseline = self._baseline
-            if baseline is None:
-                return
-            preset = self._presets[self._selected]
-            preset.apply(TUNING.DRIVE, baseline)
-            diffs = preset.diff_lines(baseline, TUNING.DRIVE)
-            trace("drive preset: " + preset.name)
-            if len(diffs) == 0:
-                trace("drive preset: no changes")
-            else:
-                for line in diffs:
-                    trace("drive preset: " + line)
-            if self._state.playtest_enabled:
-                self._nav.go(SceneId.DRIVE, DriveEnterParams("travel", "topdown"))
+            if not self._apply_selected_preset():
                 return
             self._nav.go(SceneId.GARAGE)
+        elif btnp(Button.B):
+            if not self._chase_test_allowed():
+                return
+            if not self._apply_selected_preset():
+                return
+            self._start_chase_test()
 
     def draw(self) -> None:
         cls(Color.BLACK)
-        if self._state.playtest_enabled:
-            print('!!!DRIVING PLAYTEST MODE!!!', 52, 14, Color.WHITE)
-        print("DRIVE PHYSICS PRESET", 52, 34, Color.WHITE)
+        print("DRIVE PHYSICS PRESET (PLAYTEST)", 52, 34, Color.WHITE)
         y = 44
         for i, preset in enumerate(self._presets):
             marker = ">" if i == self._selected else " "
-            print(marker + " " + preset.label, 50, y, Color.WHITE)
+            print(marker + " " + preset.label, 52, y, Color.WHITE)
             y += 10
-        print("ARROWS: SELECT", 60, 112, Color.LIGHT_GREY)
-        if self._state.playtest_enabled:
-            print("A (Z): START DRIVE", 56, 122, Color.LIGHT_GREY)
-            return
-        print("A (Z): CONTINUE", 64, 122, Color.LIGHT_GREY)
+        print("ARROWS: SELECT", 52, 106, Color.LIGHT_GREY)
+        print("Z: CONTINUE", 52, 114, Color.LIGHT_GREY)
+        if self._chase_test_allowed():
+            print("X: CHASE TEST", 52, 122, Color.LIGHT_GREY)
 
     def exit(self) -> None:
         pass
 
 
-def make_drive_preset_scene(nav: SceneNavigator) -> "DrivePresetScene":
+def make_drive_preset_scene(nav: SceneNavigator) -> DrivePresetScene:
     return DrivePresetScene(nav)

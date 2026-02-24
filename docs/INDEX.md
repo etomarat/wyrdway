@@ -24,6 +24,8 @@ docs/
 - `10_milestones/m1_5/m_1_5_drive_physics_tuning_plan.md` — план улучшения управления/физики DRIVE.
 - `10_milestones/m1_6/m_1_6_drift_readability_plan.md` — план экспериментов по читаемости дрифта.
 - `10_milestones/m1_6/m_1_6_drift_readability_log.md` — журнал решений и результатов по веткам `drift/*`.
+- `10_milestones/m1_7/m_1_7_playable_loop_v_0_plan.md` — минимальная петля с route/return.
+- `10_milestones/m1_8/m_1_8_pursuer_chase_v_0_plan.md` — погоня на return, варианты сущности, текущий HUD/FX.
 - Если при запуске сразу попадаешь в `DRIVE_PRESET`, проверь `IS_DRIVE_PLAYTEST` в `tic80/python/main.py`.
 
 2) **Спека (источник правды по системам)**
@@ -44,6 +46,9 @@ docs/
 - `30_style/0_style_car.md` (если нужен быстрый ориентир по визуалу).
 - `30_style/1_sprite_sheet_layout.md` — раскладка спрайтов/адреса/размеры (источник правды для ассетов).
 - `30_style/2_vehicle_niva.md` — спецификация “Нивы” (идентичность/силуэт/правила).
+
+5) **Лор (черновики)**
+- `80_misc/lore_notes.md` — поток мыслей и зацепки для развития лора/концовки.
 
 ## Правила поддержки документации
 

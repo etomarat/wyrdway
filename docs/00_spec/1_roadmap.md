@@ -7,7 +7,9 @@
 - **M1:** сделано (см. `docs/10_milestones/m1/m1_report.md`).
 - **M1.5 (DRIVE world-space):** сделано, модель и тюнинг живут в `tic80/python/systems/drive/` и `tic80/python/data/tuning/drive/`.
 - **M1.6 (читаемость дрифта):** есть плейтест‑ветка решений (камера/FX) и журнал в `docs/10_milestones/m1_6/`.
-- Важно: сейчас по умолчанию включён `IS_DRIVE_PLAYTEST = True` в `tic80/python/main.py`, поэтому при запуске ты попадаешь в цикл DRIVE‑плейтеста, а не в петлю GARAGE→...→GARAGE.
+- **M1.7 (playable loop v0):** сделано (подписанный лут, return, ремонт в гараже).
+- **M1.8 (pursuer chase v0):** базовая версия реализована, идёт полировка/расширение; план и актуальные as-is заметки в `docs/10_milestones/m1_8/m_1_8_pursuer_chase_v_0_plan.md`.
+- Важно: сейчас по умолчанию `IS_DRIVE_PLAYTEST = False` в `tic80/python/main.py`; для цикла DRIVE‑плейтеста флаг нужно включать вручную.
 
 ## Что такое p50
 **p50** — “серединная” плановая оценка. В этом роадмепе p50 считается просто как **(min + max) / 2** для каждой задачи.

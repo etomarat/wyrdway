@@ -1,0 +1,80 @@
+PURSUER_PRIME_WORDS = [
+    "void",
+    "def",
+    "class",
+    "struct",
+    "typedef",
+    "enum",
+    "union",
+    "static",
+    "extern",
+    "const",
+    "volatile",
+    "return",
+    "sizeof",
+    "NULL",
+    "malloc",
+    "free",
+    "import",
+    "lambda",
+    "async",
+    "await",
+    "protocol",
+    "module",
+    "sentinel",
+    "oracle"
+]
+
+PURSUER_ENTITY_WORDS = [
+    "0x00",
+    "0x1F",
+    "0x2A",
+    "0x3C",
+    "0x7E",
+    "0xA0",
+    "0xB7",
+    "0xFF",
+    "jmp",
+    "mov",
+    "xor",
+    "and",
+    "or",
+    "shl",
+    "shr",
+    "irq",
+    "nmi",
+    "ptr",
+    "reg",
+    "eax",
+    "rsp",
+    "seg",
+    "addr",
+    "bus"
+]
+
+PURSUER_ENTITY_ERRORS = [
+    "SIGSEGV",
+    "SEGFAULT",
+    "ILLEGAL OPCODE",
+    "STACK SMASH",
+    "NULL PTR",
+    "BAD ADDR",
+    "IRQ LOST",
+    "TRAP 0x0D",
+    "RING VIOLATION"
+]
+
+PURSUER_PRIME_ERRORS = [
+    "ACCESS VIOLATION",
+    "UNHANDLED EXCEPTION",
+    "HEAP CORRUPTION",
+    "STACK OVERFLOW",
+    "INTEGRITY FAILURE",
+    "FORBIDDEN CALL",
+    "STATE CORRUPTED",
+    "THREAD DEADLOCK",
+    "WATCHDOG TIMEOUT",
+    "SYSTEM HALTED",
+    "MEMORY POISONED",
+    "PANIC: NO RETURN"
+]

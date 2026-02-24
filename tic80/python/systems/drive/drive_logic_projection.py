@@ -84,6 +84,26 @@ def drive_update_road_projection(self: DriveLogic) -> None:
         return
 
     idx0 = self._road_idx
+    ds = self._road.ds
+    if ds <= 0.0:
+        ds = 1.0
+
+    dt = float(self._tuning.CORE.dt)
+    if dt < 0.0:
+        dt = 0.0
+
+    # Continuity predictor: project velocity to current road tangent and
+    # predict expected position along s for this frame.
+    cur_dir_x, cur_dir_y = self._road.direction_at(self._road_s)
+    road_v = self._vx * cur_dir_x + self._vy * cur_dir_y
+    pred_s = self._road_s + road_v * dt
+    max_s = (n - 1) * ds
+    if pred_s < 0.0:
+        pred_s = 0.0
+    if pred_s > max_s:
+        pred_s = max_s
+    pred_i = int(pred_s / ds)
+
     start = idx0 - 40
     end = idx0 + 80
     if start < 0:
@@ -92,21 +112,26 @@ def drive_update_road_projection(self: DriveLogic) -> None:
         end = n - 1
 
     best_i = start
+    best_score = 1.0e30
     best_d2 = 1.0e30
     best_cx = 0.0
     best_cy = 0.0
     best_dx = 1.0
     best_dy = 0.0
 
+    continuity_k = 0.35
     i = start
     while i <= end:
         cx, cy, dx, dy = self._road.center_point_at_index(i)
         ox = self._x - cx
         oy = self._y - cy
         d2 = ox * ox + oy * oy
-        if d2 < best_d2:
-            best_d2 = d2
+        delta_s = (i - pred_i) * ds
+        score = d2 + delta_s * delta_s * continuity_k
+        if score < best_score:
+            best_score = score
             best_i = i
+            best_d2 = d2
             best_cx = cx
             best_cy = cy
             best_dx = dx
@@ -116,6 +141,7 @@ def drive_update_road_projection(self: DriveLogic) -> None:
     max_far = self._road.road_width * self._road.road_width * 64.0
     if best_d2 > max_far:
         best_i = 0
+        best_score = 1.0e30
         best_d2 = 1.0e30
         i = 0
         while i < n:
@@ -123,7 +149,10 @@ def drive_update_road_projection(self: DriveLogic) -> None:
             ox = self._x - cx
             oy = self._y - cy
             d2 = ox * ox + oy * oy
-            if d2 < best_d2:
+            delta_s = (i - pred_i) * ds
+            score = d2 + delta_s * delta_s * continuity_k
+            if score < best_score:
+                best_score = score
                 best_d2 = d2
                 best_i = i
                 best_cx = cx
@@ -133,7 +162,7 @@ def drive_update_road_projection(self: DriveLogic) -> None:
             i += 1
 
     self._road_idx = best_i
-    self._road_s = best_i * self._road.ds
+    self._road_s = best_i * ds
 
     # Важно: знак `road_d` должен совпадать со знаком `d` у объектов дороги (Obstacle/Zone).
     #

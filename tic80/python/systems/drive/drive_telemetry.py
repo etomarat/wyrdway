@@ -26,15 +26,14 @@ class DriveTelemetry:
         self._frame = 0
         self._offroad = False
 
-    def begin(self, seed: int, mode: str, variant: str, tuning: Tuning) -> None:
+    def begin(self, seed: int, mode: str, tuning: Tuning) -> None:
         """Начинает новый лог для сегмента."""
         self._lines = []
         self._t = 0.0
         self._frame = 0
         self._offroad = False
 
-        self._add("drive telem begin seed=" + str(seed) +
-                  " mode=" + mode + " view=" + variant)
+        self._add("drive telem begin seed=" + str(seed) + " mode=" + mode)
 
         d = tuning.DRIVE
         self._add(

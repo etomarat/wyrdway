@@ -1,3 +1,11 @@
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from typing import Self
+else:
+    Self = object
+
+
 def struct_field(index: int):
     """Создать `property`, читающий/пишущий поле из list-хранилища `_v` по индексу.
 
@@ -5,10 +13,10 @@ def struct_field(index: int):
     (по результатам проб). Поэтому для перехвата записи и синхронизации с `_v`
     мы используем `property` setter.
     """
-    def _get(self):
+    def _get(self) -> object:
         return self._v[index]
 
-    def _set(self, value):
+    def _set(self, value: object) -> None:
         self._v[index] = value
 
     return property(_get, _set)
@@ -48,9 +56,9 @@ class Struct:
     - Поля создаются лениво (properties ставятся на класс при первом создании
       инстанса/вызове `from_dict`).
     """
-    __fields__ = ()
-    __defaults__ = ()
-    __index__ = None
+    __fields__: tuple[str, ...] = ()
+    __defaults__: tuple[object, ...] = ()
+    __index__: dict[str, int] | None = None
 
     @classmethod
     def _ensure_index(cls) -> None:
@@ -72,7 +80,7 @@ class Struct:
                 setattr(cls, name, struct_field(i))
 
     @classmethod
-    def from_dict(cls, data: dict[str, object]):
+    def from_dict(cls, data: dict[str, object]) -> Self:
         cls._ensure_index()
         idx = cls.__index__
         if idx is None:
@@ -80,7 +88,7 @@ class Struct:
 
         fields = getattr(cls, "__fields__", ())
         n = len(fields)
-        vals: list[object] = [None] * n
+        vals: list[object | None] = [None] * n
 
         defaults = getattr(cls, "__defaults__", ())
         if defaults:
@@ -101,7 +109,7 @@ class Struct:
         self.__dict__["_v"] = vals
         return self
 
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, *args: object, **kwargs: object) -> None:
         cls = type(self)
         cls._ensure_index()
         idx = cls.__index__
@@ -110,7 +118,7 @@ class Struct:
 
         fields = getattr(cls, "__fields__", ())
         n = len(fields)
-        vals: list[object] = [None] * n
+        vals: list[object | None] = [None] * n
 
         defaults = getattr(cls, "__defaults__", ())
         if defaults:

@@ -1,3 +1,19 @@
+LCG_U32_A = 1664525
+LCG_U32_C = 1013904223
+LCG_U31_A = 1103515245
+LCG_U31_C = 12345
+
+
+def lcg_next_u32(seed: int) -> int:
+    """LCG-шаг в 32-битном кольце (mod 2**32)."""
+    return ((int(seed) * LCG_U32_A) + LCG_U32_C) & 0xFFFFFFFF
+
+
+def lcg_next_u31(seed: int) -> int:
+    """LCG-шаг в 31-битном кольце (mod 2**31)."""
+    return ((int(seed) * LCG_U31_A) + LCG_U31_C) & 0x7FFFFFFF
+
+
 class Rng:
     """RNG = Random Number Generator (генератор псевдо-случайных чисел).
 
