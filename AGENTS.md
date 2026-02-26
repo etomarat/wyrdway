@@ -87,6 +87,11 @@ include("test")
 
 ## Commit & Pull Request Guidelines
 - Recent commits use short, lower-case summaries (e.g., “add tic80 bundler support and stubs”). Keep messages concise and action-oriented.
+- Recommended commit message format: `<type>: <short summary>` (lower-case, no trailing period).
+- Preferred types: `feat`, `fix`, `refactor`, `balance`, `ui`, `docs`, `chore`, `test`, `perf`, `release`.
+- Keep subject focused and usually within ~72 chars.
+- Use imperative/action wording (e.g., `fix poi timer reset on scene re-enter`).
+- For release prep commits, use `release: prepare vX.Y.Z`.
 - After each successful iteration, provide a suggested commit message.
 - PRs should include: a short description of gameplay or tooling changes, how you tested (command + outcome), and screenshots or GIFs for visual changes.
 
