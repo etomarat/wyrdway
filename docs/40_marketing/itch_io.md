@@ -1,6 +1,6 @@
 # itch.io page — current copy & notes
 
-Обновлено: 2026-02-24
+Обновлено: 2026-02-26
 
 Здесь лежит актуальный текст страницы (Markdown) + заметки по оформлению.
 Старые версии не храним.
@@ -27,7 +27,7 @@ Drive → reach a POI → loot what you can → extract → **survive the return
 - Garage upgrades and build customization
 - Real POI gameplay layer (loot interactions, threats, decisions)
 - Route map with branching choices and risk/reward
-- Music + stronger soundscape
+- Music + sound effects + stronger soundscape
 - Visual polish + more content variety
 - Story hooks and progression
 
@@ -52,8 +52,13 @@ If you try the build, I’d love your feedback:
 - What was confusing?
 - Did anything break?
 
-Discord: **[link_will_be_added]**  
-Or leave a comment on this page.
+Leave a comment on this page.
+
+Follow me on itch.io for updates.
+
+Dev updates:
+- Mastodon: **https://mastodon.gamedev.place/@wyrdway**
+- Bluesky: **https://bsky.app/profile/wyrdwaygame.bsky.social**
 
 #### Support
 - Crypto tip jar: **https://nowpayments.io/donation/etomarat**
@@ -82,7 +87,7 @@ Wyrdway — **ретро роад‑трип роглайт**, в который
 - Апгрейды в гараже и сборки машины
 - Полноценный слой POI‑геймплея (интеракции, угрозы, решения)
 - Карта маршрута с развилками и риск‑награда
-- Музыка и более сильная звуковая атмосфера
+- Музыка, звуковые эффекты и более сильная звуковая атмосфера
 - Полировка визуала и больше разнообразия контента
 - Сюжетные зацепки и прогрессия
 
@@ -107,8 +112,13 @@ Wyrdway — **ретро роад‑трип роглайт**, в который
 - что было непонятно
 - что сломалось
 
-Discord: **[link_will_be_added]**  
-Или оставь комментарий на странице.
+Оставь комментарий на странице.
+
+Подпишись на мой профиль на itch.io, чтобы не пропустить апдейты.
+
+Апдейты разработки:
+- Mastodon: **https://mastodon.gamedev.place/@wyrdway**
+- Bluesky: **https://bsky.app/profile/wyrdwaygame.bsky.social**
 
 #### Поддержка
 - Crypto tip jar: **https://nowpayments.io/donation/etomarat**

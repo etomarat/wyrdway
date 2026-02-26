@@ -1,11 +1,17 @@
 # Social posts — templates & bank
 
-Дата: 2026-02-24
+Дата: 2026-02-26
 
 Цель: быстро собирать посты, не выдумывая заново формулировки. Храним заготовки,
 варианты хуков, и «банк слов», который совпадает с itch.io.
 
 ---
+
+## 0) Аккаунты / ссылки (copy-paste)
+
+- itch: `https://etomarat.itch.io/wyrdway`
+- Mastodon: `https://mastodon.gamedev.place/@wyrdway` (`@wyrdway@mastodon.gamedev.place`)
+- Bluesky: `https://bsky.app/profile/wyrdwaygame.bsky.social` (`@wyrdwaygame.bsky.social`)
 
 ## 1) Банк коротких формулировок (EN)
 
@@ -43,7 +49,7 @@ If you try it:
 ### “GIF post” (EN)
 Return chase bite in Wyrdway.
 Drive → raid → extract → don’t let it catch you.
-[link]
+[itch link]
 
 ### “Weekly devlog” (RU)
 Wyrdway — недельный апдейт:
@@ -51,10 +57,39 @@ Wyrdway — недельный апдейт:
 - Поправил: [...]
 - Дальше: [...]
 
-Билд: [link]
+Билд: [itch link]
+
+### "New gamepad + controls rework" (RU)
+Взял новый геймпад — и переделываю управление в Wyrdway, чтобы одинаково хорошо игралось и на клавиатуре, и на паде.
+
+Вопрос к тем, кто играет на геймпаде: **ручник** удобнее на `X/A`, на `LB/L1` или на `RB/R1`?
+
+Если хочешь стать ранним тестером управления — напиши, на каком геймпаде играешь.
+
+Ссылка на билд: [itch link, опционально]
+
+### "New gamepad + controls rework" (EN)
+I got a new gamepad — and I’m reworking Wyrdway controls so both keyboard and controller feel good.
+
+Quick question for gamepad players: where do you want **handbrake** — `X/A`, `LB/L1`, or `RB/R1`?
+
+If you want to help test controller feel, tell me what gamepad you use.
+
+Build link: [itch link, optional]
 
 ---
 
 ## 4) Теги/ключевые слова (напоминание)
 
 Для itch: см. `docs/40_marketing/itch_io.md`.
+
+### Для поста про геймпад (фото железа)
+
+- **Bluesky:** обычно достаточно 0–2 тегов или вообще без них: `#gamedev #indiedev`
+- **Mastodon:** 2–4 тега (и обязательно alt‑text к фото): `#gamedev #indiedev #TIC80` (опционально)
+- `#ScreenshotSaturday`: только если это **скрин/гифка из игры** и реально суббота
+
+### Ссылка на itch
+
+- Не обязана быть в каждом посте: если пост “мысль/вопрос/фото”, можно без ссылки (она есть в профиле).
+- Если зовёшь **поиграть/дать фидбек** — добавляй ссылку (или на Bluesky попробуй вариант: ссылка в первом реплае).
