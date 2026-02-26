@@ -16,3 +16,4 @@
 - `devlog/` — посты для devlog на itch.io (и зеркала).
 - `social_plan.md` — план по площадкам и ритму постинга.
 - `social_posts.md` — шаблоны постов и «банк формулировок» (EN/RU).
+- `release_post_template.md` — шаблон релизного devlog/соцпостов на основе `CHANGELOG.md`.

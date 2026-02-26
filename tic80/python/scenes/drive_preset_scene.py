@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from ..core.input_buttons import Button
     from ..core.palette import Color
     from ..core.scene_ids import SceneId
+    from ..core.version import GAME_VERSION
     from ..data.tuning import TUNING
     from ..data.tuning.pursuers import (
         ENTITY_PURSUER_PROFILE,
@@ -315,6 +316,7 @@ class DrivePresetScene:
         print("Z: CONTINUE", 52, 114, Color.LIGHT_GREY)
         if self._chase_test_allowed():
             print("X: CHASE TEST", 52, 122, Color.LIGHT_GREY)
+        print("v" + GAME_VERSION, 196, 2, Color.GREY)
 
     def exit(self) -> None:
         pass

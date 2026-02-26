@@ -42,6 +42,7 @@ docs/
 - `20_tech/pocketpy_runtime.md` — особенности PocketPy/TIC-80 Python.
 - `20_tech/tic80_api_reference.md` — короткая справка по TIC-80 API.
 - `20_tech/TIC-80.wiki/` — полный оффлайн‑клон wiki TIC-80 (очень много файлов).
+- `release_checklist.md` — короткий чеклист релиза (версия, сборка, changelog, tag, постинг).
 
 4) **Стиль/арт‑гайд**
 - `30_style/0_style_car.md` (если нужен быстрый ориентир по визуалу).
