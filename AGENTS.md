@@ -25,6 +25,11 @@
 - Prefer **classes over ad-hoc globals** for game state and behavior. Use small, focused classes (e.g. scenes, data carriers) instead of spreading logic across module-level functions and global variables.
 - Avoid introducing new mutable module-level state where possible. Prefer passing state explicitly or encapsulating it in objects owned by a clear root (e.g. `SceneManager`, `RunState`).
 - Aim for typed code in editor: define shared contracts and shared types in `tic80/python/contracts.py` and import them under `if TYPE_CHECKING:`.
+- For "int enums" (IDs that are plain `int` at runtime but should be strict in the editor), use the local project pattern:
+  - Under `if TYPE_CHECKING:` define a `TypeAlias` to a `Literal[...]` union of allowed ints.
+  - Under `else:` set the alias to `int`.
+  - Annotate constants and public APIs with that alias type.
+  - Example references: `tic80/python/core/palette.py` (`ColorId`), `tic80/python/core/controls/modes.py` (`InputDeviceModeId`, `PromptGlyphDetailId`).
 - Do not use string annotations or `from __future__ import annotations`. Type-only imports (e.g., protocol or TypedDict definitions) go under `if TYPE_CHECKING:` for editor/pyright support.
 
 ## TIC-80 Python Import/Bundling Rules

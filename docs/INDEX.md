@@ -33,6 +33,7 @@ docs/
 - `00_spec/0_gdd_v0.md` — GDD v0 (общая картина).
 - `00_spec/2_architecture.md` — сцены/поток/правила владения кадром.
 - `00_spec/3_runstate.md` — контракт данных (Profile/Run и т.п.).
+- `00_spec/10_controls.md` — управление (клавиатура/геймпад) + планы по LT/RT.
 - `00_spec/8_drive_physics.md` — DRIVE (m1.5): world-space физика и связь с дорогой.
 - `00_spec/9_drive_playtest_camera.md` — DRIVE (m1.6): плейтест, камера и читаемость заноса.
 - `00_spec/5_tuning.md` — принципы TUNING (что вносить в тюнинг и как).
