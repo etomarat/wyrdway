@@ -26,6 +26,25 @@ else:
     PromptState = object
     ActionId = int
 
+_PROMPT_GAP_TOKEN = "{gap}"
+
+
+def ui_prompt_gap_join(parts: list[str]) -> str:
+    out = ""
+    i = 0
+    while i < len(parts):
+        part = str(parts[i])
+        if part != "":
+            if out != "":
+                out += _PROMPT_GAP_TOKEN
+            out += part
+        i += 1
+    return out
+
+
+def ui_prompt_with_text(prompt: str, text: str) -> str:
+    return ui_prompt_gap_join([str(prompt), str(text)])
+
 
 def ui_prompt_for_action(state: PromptState, action: ActionId, show_shoulders: bool | None = None) -> str:
     glyphs = prompt_glyphs_for_action(action, state.input_device_mode)

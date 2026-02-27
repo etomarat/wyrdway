@@ -20,6 +20,7 @@ if TYPE_CHECKING:
     )
     from ..core.ui.panel import ui_panel_draw, ui_panel_draw_split_actions
     from ..core.ui.prompts import ui_prompt_for_action
+    from ..core.ui.prompts import ui_prompt_with_text
     from ..core.ui.rich_text import ui_rich_print, ui_rich_text_center_x
     from ..data.tuning import TUNING
 
@@ -215,13 +216,9 @@ class GarageScene:
 
     def _draw_secondary_actions(self) -> None:
         repair_cost = int(TUNING.PROFILE.repair_cost)
-        left = (
-            ui_prompt_for_action(self._state, Action.SECONDARY)
-            + "{gap}REPAIR (-"
-            + str(repair_cost)
-            + " SCRAP)"
-        )
-        right = ui_prompt_for_action(self._state, Action.HELP) + "{gap}NEW GAME"
+        left_label = "REPAIR (-" + str(repair_cost) + " SCRAP)"
+        left = ui_prompt_with_text(ui_prompt_for_action(self._state, Action.SECONDARY), left_label)
+        right = ui_prompt_with_text(ui_prompt_for_action(self._state, Action.HELP), "NEW GAME")
         ui_panel_draw_split_actions(
             8,
             103,
@@ -241,7 +238,7 @@ class GarageScene:
     def _draw_start_cta(self) -> None:
         # Prompts live on black panels for consistent contrast with glyph sprites.
         ui_panel_draw(6, 119, 228, 14, Color.WHITE, Color.BLACK, Color.BLACK)
-        text = ui_prompt_for_action(self._state, Action.CONFIRM) + "{gap}START RUN"
+        text = ui_prompt_with_text(ui_prompt_for_action(self._state, Action.CONFIRM), "START RUN")
         ui_rich_print(text, ui_rich_text_center_x(text, margin_x=6), 124, Color.WHITE)
 
     def _draw_rollback_popup(self) -> None:
@@ -251,7 +248,7 @@ class GarageScene:
         box_h = self.MODAL_H
         box_x, box_y = ui_modal_centered_box(box_w, box_h)
         ui_modal_draw_box(box_x, box_y, box_w, box_h, Color.ORANGE)
-        close_hint = ui_prompt_for_action(self._state, Action.CANCEL) + "{gap}CLOSE"
+        close_hint = ui_prompt_with_text(ui_prompt_for_action(self._state, Action.CANCEL), "CLOSE")
         lines = (
             ("ROLLBACK RECOVERED", Color.ORANGE),
             (self._rollback_modal_reason, Color.LIGHT_GREY),
@@ -265,8 +262,8 @@ class GarageScene:
         box_h = self.MODAL_H
         box_x, box_y = ui_modal_centered_box(box_w, box_h)
         ui_modal_draw_box(box_x, box_y, box_w, box_h, Color.WHITE, Color.BLACK, Color.BLACK)
-        confirm_hint = ui_prompt_for_action(self._state, Action.CONFIRM) + "{gap}CONFIRM RESET"
-        cancel_hint = ui_prompt_for_action(self._state, Action.CANCEL) + "{gap}CANCEL"
+        confirm_hint = ui_prompt_with_text(ui_prompt_for_action(self._state, Action.CONFIRM), "CONFIRM RESET")
+        cancel_hint = ui_prompt_with_text(ui_prompt_for_action(self._state, Action.CANCEL), "CANCEL")
         lines = (
             ("START NEW GAME?", Color.WHITE),
             ("THIS RESETS PROFILE PROGRESS", Color.LIGHT_GREY),

@@ -9,6 +9,7 @@ if TYPE_CHECKING:
     from ..core.scene_ids import SceneId
     from ..core.ui.text import ui_text_center
     from ..core.ui.prompts import ui_prompt_for_action
+    from ..core.ui.prompts import ui_prompt_with_text
 
 
 class ResultScene:
@@ -189,7 +190,7 @@ class ResultScene:
             ui_text_center(text, y, color, margin_x=4)
             y += 9
         prompt = ui_prompt_for_action(self._state, Action.CONFIRM)
-        cta = prompt + "{gap}" + self._cta
+        cta = ui_prompt_with_text(prompt, self._cta)
         ui_text_center(cta, 112, self._cta_color, margin_x=4)
 
     def exit(self) -> None:
