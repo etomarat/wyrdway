@@ -6,8 +6,12 @@ if TYPE_CHECKING:
 
     from ...contracts import PursuerVariantTuning
     from ...core.palette import Color
-    from ...systems.drive.pursuer_chase import PURSUER_STATE_FAR, PURSUER_STATE_NEAR, PursuerState
     from ...core.text_layout import text_width
+    from ...systems.drive.pursuer_chase import (
+        PURSUER_STATE_FAR,
+        PURSUER_STATE_NEAR,
+        PursuerState
+    )
     from ...systems.drive.rng import lcg_next_u32
     from .pursuer_text_bank import PursuerTextBank
 

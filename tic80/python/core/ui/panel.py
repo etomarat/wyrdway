@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from tic80 import print, rect, rectb
 
-    from .rich_text import ui_rich_print, ui_rich_text_width
+    from .rich_text import ui_rich_has_glyph_tokens, ui_rich_print, ui_rich_text_width
 
 
 def ui_panel_draw(
@@ -52,5 +52,5 @@ def ui_panel_draw_split_actions(
     right_color = right_text_color
     if right_color < 0:
         right_color = text_color
-    ui_rich_print(left_text, left_x, text_y, left_color, True)
-    ui_rich_print(right_text, right_x, text_y, right_color, True)
+    ui_rich_print(left_text, left_x, text_y, left_color, not ui_rich_has_glyph_tokens(left_text))
+    ui_rich_print(right_text, right_x, text_y, right_color, not ui_rich_has_glyph_tokens(right_text))

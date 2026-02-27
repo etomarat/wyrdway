@@ -68,6 +68,18 @@ def ui_rich_text_center_x(
     return x
 
 
+def ui_rich_has_glyph_tokens(text: str) -> bool:
+    s = str(text)
+    n = len(s)
+    i = 0
+    while i < n:
+        kind, _, next_i = rich_token_match(s, i)
+        if kind == 1:
+            return True
+        i = next_i
+    return False
+
+
 def ui_rich_print(
     text: str,
     x: int,
@@ -82,6 +94,7 @@ def ui_rich_print(
     Supported token format: `{g:<int>}` where `<int>` is a PromptGlyph id.
     The token is rendered as a sprite when available, otherwise falls back to
     text: `(SOUTH)` / `[ENTER]` depending on the glyph range.
+    Text chunks are rendered with TIC-80 `print(..., fixed=<fixed>)`.
     """
     s = str(text)
     n = len(s)
@@ -92,8 +105,7 @@ def ui_rich_print(
     sc = int(scale)
     if sc < 1:
         sc = 1
-    # We always print in fixed-width mode so spacing matches our width advances.
-    fx = True
+    fixed_font = bool(fixed)
     # PocketPy is picky about non-literal defaults in function signatures,
     # so we apply the tweak here instead of `glyph_dy=_PROMPT_GLYPH_Y_NUDGE_PX`.
     dy = _PROMPT_GLYPH_Y_NUDGE_PX if glyph_dy is None else int(glyph_dy)
@@ -121,7 +133,7 @@ def ui_rich_print(
             continue
         if kind == 1:
             if buf != "":
-                print(buf, cx, cy, color, fx, sc)
+                print(buf, cx, cy, color, fixed_font, sc)
                 cx += len(buf) * 6 * sc
                 buf = ""
             spr_id = int(prompt_glyph_sprite_id(glyph))
@@ -135,7 +147,7 @@ def ui_rich_print(
                     fallback = "[" + label + "]"
                 else:
                     fallback = "(" + label + ")"
-                print(fallback, cx, cy, color, fx, sc)
+                print(fallback, cx, cy, color, fixed_font, sc)
                 cx += len(fallback) * 6 * sc
             i = next_i
             continue
@@ -144,7 +156,7 @@ def ui_rich_print(
         i = next_i
 
     if buf != "":
-        print(buf, cx, cy, color, fx, sc)
+        print(buf, cx, cy, color, fixed_font, sc)
         cx += len(buf) * 6 * sc
 
     return int(cx - int(x))

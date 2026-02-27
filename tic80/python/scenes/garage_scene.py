@@ -242,7 +242,7 @@ class GarageScene:
         # Prompts live on black panels for consistent contrast with glyph sprites.
         ui_panel_draw(6, 119, 228, 14, Color.WHITE, Color.BLACK, Color.BLACK)
         text = ui_prompt_for_action(self._state, Action.CONFIRM) + "{gap}START RUN"
-        ui_rich_print(text, ui_rich_text_center_x(text, margin_x=6), 124, Color.WHITE, True)
+        ui_rich_print(text, ui_rich_text_center_x(text, margin_x=6), 124, Color.WHITE)
 
     def _draw_rollback_popup(self) -> None:
         if not self._rollback_modal_open:
@@ -264,7 +264,7 @@ class GarageScene:
         box_w = self.MODAL_W
         box_h = self.MODAL_H
         box_x, box_y = ui_modal_centered_box(box_w, box_h)
-        ui_modal_draw_box(box_x, box_y, box_w, box_h, Color.WHITE)
+        ui_modal_draw_box(box_x, box_y, box_w, box_h, Color.WHITE, Color.BLACK, Color.BLACK)
         confirm_hint = ui_prompt_for_action(self._state, Action.CONFIRM) + "{gap}CONFIRM RESET"
         cancel_hint = ui_prompt_for_action(self._state, Action.CANCEL) + "{gap}CANCEL"
         lines = (
