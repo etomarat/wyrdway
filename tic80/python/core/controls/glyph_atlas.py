@@ -23,6 +23,43 @@ if TYPE_CHECKING:
 PROMPT_GLYPH_SPR_BASE = 259
 PROMPT_GLYPH_SPR_ROW_STRIDE = 16
 
+_ROW0_GLYPH_OFFSET = {
+    # Face buttons.
+    0: 0,
+    1: 1,
+    2: 3,
+    3: 2,
+    # Shoulders.
+    4: 9,
+    5: 10,
+    6: 11,
+    7: 12,
+    # D-pad.
+    8: 5,
+    9: 8,
+    10: 7,
+    11: 6,
+    12: 4
+}
+
+_ROW1_GLYPH_OFFSET = {
+    20: 3,   # KEY_UP
+    21: 5,   # KEY_DOWN
+    22: 6,   # KEY_LEFT
+    23: 4,   # KEY_RIGHT
+    24: 7,   # KEY_Z
+    25: 8,   # KEY_X
+    26: 9,   # KEY_A
+    27: 10,  # KEY_S
+    28: 1,   # KEY_ENTER
+    29: 0,   # KEY_SPACE
+    30: 2,   # KEY_BACKSPACE
+    31: 11,  # KEY_Y
+    32: 12   # KEY_B
+}
+
+_GLYPH_ARROWS = 33
+
 
 def prompt_glyph_sprite_id(glyph: int) -> int:
     """Maps PromptGlyph id -> sprite id, or -1 if not available."""
@@ -30,66 +67,15 @@ def prompt_glyph_sprite_id(glyph: int) -> int:
     base = int(PROMPT_GLYPH_SPR_BASE)
     row1 = base + int(PROMPT_GLYPH_SPR_ROW_STRIDE)
 
-    # Gamepad: face positions.
-    if g == 0:  # PromptGlyph.PAD_SOUTH
-        return base + 0
-    if g == 1:  # PromptGlyph.PAD_WEST
-        return base + 1
-    if g == 2:  # PromptGlyph.PAD_EAST
-        return base + 3
-    if g == 3:  # PromptGlyph.PAD_NORTH
-        return base + 2
+    row0_offset = _ROW0_GLYPH_OFFSET.get(g)
+    if row0_offset is not None:
+        return base + int(row0_offset)
 
-    # Gamepad: shoulders.
-    if g == 4:  # PromptGlyph.PAD_RT
-        return base + 9
-    if g == 5:  # PromptGlyph.PAD_LT
-        return base + 10
-    if g == 6:  # PromptGlyph.PAD_RB
-        return base + 11
-    if g == 7:  # PromptGlyph.PAD_LB
-        return base + 12
+    row1_offset = _ROW1_GLYPH_OFFSET.get(g)
+    if row1_offset is not None:
+        return row1 + int(row1_offset)
 
-    # Gamepad: D-pad directions.
-    if g == 8:  # PromptGlyph.PAD_UP
-        return base + 5
-    if g == 9:  # PromptGlyph.PAD_DOWN
-        return base + 8
-    if g == 10:  # PromptGlyph.PAD_LEFT
-        return base + 7
-    if g == 11:  # PromptGlyph.PAD_RIGHT
-        return base + 6
-    if g == 12:  # PromptGlyph.PAD_DPAD
-        return base + 4
-
-    # Keyboard (optional; currently we render keyboard as text by default).
-    if g == 20:  # PromptGlyph.KEY_UP
-        return row1 + 3
-    if g == 21:  # PromptGlyph.KEY_DOWN
-        return row1 + 5
-    if g == 22:  # PromptGlyph.KEY_LEFT
-        return row1 + 6
-    if g == 23:  # PromptGlyph.KEY_RIGHT
-        return row1 + 4
-    if g == 24:  # PromptGlyph.KEY_Z
-        return row1 + 7
-    if g == 25:  # PromptGlyph.KEY_X
-        return row1 + 8
-    if g == 26:  # PromptGlyph.KEY_A
-        return row1 + 9
-    if g == 27:  # PromptGlyph.KEY_S
-        return row1 + 10
-    if g == 28:  # PromptGlyph.KEY_ENTER
-        return row1 + 1
-    if g == 29:  # PromptGlyph.KEY_SPACE
-        return row1 + 0
-    if g == 30:  # PromptGlyph.KEY_BACKSPACE
-        return row1 + 2
-    if g == 31:  # PromptGlyph.KEY_Y
-        return row1 + 11
-    if g == 32:  # PromptGlyph.KEY_B
-        return row1 + 12
-    if g == 33:  # PromptGlyph.KEY_ARROWS
+    if g == _GLYPH_ARROWS:
         # Extra icon lives on the next row under the prompt atlas.
         return base + int(PROMPT_GLYPH_SPR_ROW_STRIDE) * 2
 
