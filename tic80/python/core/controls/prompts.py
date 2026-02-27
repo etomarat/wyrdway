@@ -26,6 +26,7 @@ class PromptGlyph:
     PAD_DOWN = 9
     PAD_LEFT = 10
     PAD_RIGHT = 11
+    PAD_DPAD = 12
 
     # Keyboard labels (text fallback)
     KEY_UP = 20
@@ -39,6 +40,9 @@ class PromptGlyph:
     KEY_ENTER = 28
     KEY_SPACE = 29
     KEY_BACKSPACE = 30
+    KEY_Y = 31
+    KEY_B = 32
+    KEY_ARROWS = 33
 
 
 def glyph_label(glyph: int) -> str:
@@ -65,6 +69,12 @@ def glyph_label(glyph: int) -> str:
         return "SPACE"
     if glyph == PromptGlyph.KEY_BACKSPACE:
         return "BACKSPACE"
+    if glyph == PromptGlyph.KEY_Y:
+        return "Y"
+    if glyph == PromptGlyph.KEY_B:
+        return "B"
+    if glyph == PromptGlyph.KEY_ARROWS:
+        return "ARROWS"
 
     # Gamepad positions / shoulders.
     if glyph == PromptGlyph.PAD_SOUTH:
@@ -91,12 +101,18 @@ def glyph_label(glyph: int) -> str:
         return "LEFT"
     if glyph == PromptGlyph.PAD_RIGHT:
         return "RIGHT"
+    if glyph == PromptGlyph.PAD_DPAD:
+        return "DPAD"
 
     return "?"
 
 
 def format_prompt(glyphs: list[int], detail: PromptGlyphDetailId) -> str:
-    """Formats like '(SOUTH)/(RT)/[Z]'. Uses text fallback only."""
+    """Formats like '{g:0}/{g:4}/[ENTER]'.
+
+    - Glyphs are emitted as rich tokens for the UI renderer: `{g:<id>}`.
+      UI should render those as sprites when available, and fall back to text when not.
+    """
     if not glyphs:
         return ""
     show_all = detail != PromptGlyphDetail.PRIMARY_ONLY
@@ -104,11 +120,8 @@ def format_prompt(glyphs: list[int], detail: PromptGlyphDetailId) -> str:
         glyphs = glyphs[:1]
     parts: list[str] = []
     for g in glyphs:
-        if _glyph_is_keyboard(g):
-            parts.append("[" + glyph_label(g) + "]")
-        else:
-            parts.append("(" + glyph_label(g) + ")")
-    return "/".join(parts)
+        parts.append("{g:" + str(int(g)) + "}")
+    return "{sep}".join(parts)
 
 
 def prompt_glyphs_for_action(action: int, device: InputDeviceModeId) -> list[int]:
@@ -170,6 +183,11 @@ def prompt_glyphs_for_action(action: int, device: InputDeviceModeId) -> list[int
     return []
 
 
+def prompt_glyphs_for_nav_hint(device: InputDeviceModeId) -> list[int]:
+    """Compact movement hint: dpad icon and arrow-cluster icon."""
+    return _select_device(device, [PromptGlyph.PAD_DPAD], [PromptGlyph.KEY_ARROWS])
+
+
 def _select_device(device: InputDeviceModeId, pad: list[int], key: list[int]) -> list[int]:
     if device == InputDeviceMode.GAMEPAD:
         return list(pad)
@@ -178,10 +196,11 @@ def _select_device(device: InputDeviceModeId, pad: list[int], key: list[int]) ->
     if device == InputDeviceMode.BOTH:
         # In BOTH mode we only show primary controls for each device.
         out: list[int] = []
-        if len(pad) > 0:
-            out.append(pad[0])
+        # Keyboard first so "both" reads naturally on PC.
         if len(key) > 0:
             out.append(key[0])
+        if len(pad) > 0:
+            out.append(pad[0])
         return out
     return list(pad)
 

@@ -119,7 +119,7 @@ class PoiScene:
         self._draw_pursuit_line(82, pursuit_suffix)
         ui_text_center("return to base immediately", 90, Color.WHITE, margin_x=2)
         prompt = ui_prompt_for_action(self._state, Action.CONFIRM)
-        ui_text_center(prompt + " BEGIN RETURN", 112, Color.WHITE, margin_x=2)
+        ui_text_center(prompt + "{gap}BEGIN RETURN", 112, Color.WHITE, margin_x=2)
 
     def _draw_pursuit_line(self, y: int, suffix: str) -> None:
         name = str(self._pursuer_name)
@@ -170,12 +170,12 @@ class PoiScene:
             self.ACTION_PANEL_Y,
             self.ACTION_PANEL_W,
             self.ACTION_PANEL_H,
-            ui_prompt_for_action(self._state, Action.CONFIRM) + ": LOOT (TEMP)",
-            ui_prompt_for_action(self._state, Action.CANCEL) + ": LEAVE",
+            ui_prompt_for_action(self._state, Action.CONFIRM) + "{gap}LOOT (TEMP)",
+            ui_prompt_for_action(self._state, Action.CANCEL) + "{gap}LEAVE",
             Color.GREY,
             Color.WHITE,
             Color.BLACK,
-            Color.DARK_GREY
+            Color.BLACK
         )
 
     def _update_interact(self, dt: float) -> None:

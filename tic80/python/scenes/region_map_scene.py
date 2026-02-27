@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from ..core.text_layout import text_center_x
     from ..core.ui.panel import ui_panel_draw
     from ..core.ui.prompts import ui_prompt_for_action
+    from ..core.ui.rich_text import ui_rich_print, ui_rich_text_center_x
     from ..data.tuning import TUNING
 
 
@@ -118,13 +119,13 @@ class RegionMapScene:
             self.FOOTER_PANEL_H,
             Color.GREY,
             Color.BLACK,
-            Color.DARK_GREY
+            Color.BLACK
         )
         if self._debug_seed_edit_enabled():
             print("L/R +/-1", 14, 124, Color.LIGHT_GREY, True)
         prompt = ui_prompt_for_action(self._state, Action.CONFIRM)
-        text = prompt + " GO"
-        print(text, text_center_x(text, margin_x=4), 124, Color.WHITE, True)
+        text = prompt + "{gap}GO"
+        ui_rich_print(text, ui_rich_text_center_x(text, margin_x=4), 124, Color.WHITE, True)
 
     def _draw_selected_node_details(self, run: RunState | None) -> None:
         if run is None:

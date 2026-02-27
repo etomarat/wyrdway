@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from tic80 import print, rect, rectb
 
-    from ..text_layout import text_width
+    from .rich_text import ui_rich_print, ui_rich_text_width
 
 
 def ui_panel_draw(
@@ -44,13 +44,13 @@ def ui_panel_draw_split_actions(
     rect(divider_x, y + 1, 1, h - 2, border_color)
 
     text_y = y + int((h - 6) * 0.5) + 1
-    left_x = x + int((left_w - text_width(left_text)) * 0.5)
-    right_x = divider_x + int((right_w - text_width(right_text)) * 0.5)
+    left_x = x + int((left_w - ui_rich_text_width(left_text)) * 0.5)
+    right_x = divider_x + int((right_w - ui_rich_text_width(right_text)) * 0.5)
     left_color = left_text_color
     if left_color < 0:
         left_color = text_color
     right_color = right_text_color
     if right_color < 0:
         right_color = text_color
-    print(left_text, left_x, text_y, left_color, True)
-    print(right_text, right_x, text_y, right_color, True)
+    ui_rich_print(left_text, left_x, text_y, left_color, True)
+    ui_rich_print(right_text, right_x, text_y, right_color, True)

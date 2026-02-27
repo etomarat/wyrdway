@@ -16,6 +16,8 @@ if TYPE_CHECKING:
     from ..core.scene_ids import SceneId
     from ..core.version import GAME_VERSION
     from ..core.ui.prompts import ui_prompt_for_action
+    from ..core.ui.prompts import ui_prompt_for_nav_hint
+    from ..core.ui.rich_text import ui_rich_print
     from ..data.tuning import TUNING
     from ..data.tuning.pursuers import (
         ENTITY_PURSUER_PROFILE,
@@ -319,10 +321,10 @@ class DrivePresetScene:
             marker = ">" if i == self._selected else " "
             print(marker + " " + preset.label, 52, y, Color.WHITE)
             y += 10
-        print("ARROWS: SELECT", 52, 106, Color.LIGHT_GREY)
-        print(ui_prompt_for_action(self._state, Action.CONFIRM) + " CONTINUE", 52, 114, Color.LIGHT_GREY)
+        ui_rich_print(ui_prompt_for_nav_hint(self._state) + "{gap}SELECT", 52, 106, Color.LIGHT_GREY)
+        ui_rich_print(ui_prompt_for_action(self._state, Action.CONFIRM) + "{gap}CONTINUE", 52, 114, Color.LIGHT_GREY)
         if self._chase_test_allowed():
-            print(ui_prompt_for_action(self._state, Action.SECONDARY) + " CHASE TEST", 52, 122, Color.LIGHT_GREY)
+            ui_rich_print(ui_prompt_for_action(self._state, Action.SECONDARY) + "{gap}CHASE TEST", 52, 122, Color.LIGHT_GREY)
         print("v" + GAME_VERSION, 196, 2, Color.GREY)
 
     def exit(self) -> None:

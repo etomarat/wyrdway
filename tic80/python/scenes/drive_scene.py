@@ -9,6 +9,8 @@ if TYPE_CHECKING:
     from ..core.run_state import RunState
     from ..core.scene_ids import SceneId
     from ..core.ui.prompts import ui_prompt_for_action
+    from ..core.ui.prompts import ui_prompt_for_nav_hint
+    from ..core.ui.rich_text import ui_rich_print
     from ..data.tuning import TUNING
     from ..systems.drive.drive_input import read_drive_input
     from ..systems.drive.drive_logic_core import DriveLogic
@@ -317,9 +319,10 @@ class DriveScene:
             )
         self._draw_popups()
         if logic.finished():
-            print(ui_prompt_for_action(self._state, Action.CONFIRM) + " CONTINUE", 2, 128, Color.WHITE)
+            ui_rich_print(ui_prompt_for_action(self._state, Action.CONFIRM) + "{gap}CONTINUE", 2, 128, Color.WHITE)
         else:
-            print("ARROWS + X", 2, 128, Color.WHITE)
+            hint = ui_prompt_for_nav_hint(self._state) + "{gap}+{gap}" + ui_prompt_for_action(self._state, Action.HANDBRAKE)
+            ui_rich_print(hint, 2, 128, Color.WHITE)
         if self._state.debug_enabled:
             lines = drive_debug_lines(road, logic, run, objects, TUNING)
             if self._pursuer.active:

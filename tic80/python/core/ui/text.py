@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from tic80 import print
 
-    from ..text_layout import text_center_x
+    from .rich_text import ui_rich_print, ui_rich_text_center_x
 
 
 def ui_text_center(
@@ -14,9 +14,9 @@ def ui_text_center(
     margin_x: int = 4,
     fixed: bool = True
 ) -> None:
-    print(
+    ui_rich_print(
         text,
-        text_center_x(text, screen_w=screen_w, margin_x=margin_x),
+        ui_rich_text_center_x(text, screen_w=screen_w, margin_x=margin_x),
         y,
         color,
         fixed

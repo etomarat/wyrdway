@@ -189,7 +189,7 @@ class ResultScene:
             ui_text_center(text, y, color, margin_x=4)
             y += 9
         prompt = ui_prompt_for_action(self._state, Action.CONFIRM)
-        cta = prompt + " " + self._cta
+        cta = prompt + "{gap}" + self._cta
         ui_text_center(cta, 112, self._cta_color, margin_x=4)
 
     def exit(self) -> None:

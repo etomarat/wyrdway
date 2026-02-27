@@ -4,6 +4,7 @@ if TYPE_CHECKING:
     from ..controls.prompts import (
         filter_prompt_glyphs,
         format_prompt,
+        prompt_glyphs_for_nav_hint,
         prompt_glyphs_for_action
     )
     from ..controls.actions import ActionId
@@ -34,4 +35,9 @@ def ui_prompt_for_action(state: PromptState, action: ActionId, show_shoulders: b
         # PocketPy keyword argument handling is not always consistent; pass
         # positionally.
         glyphs = filter_prompt_glyphs(glyphs, False)
+    return format_prompt(glyphs, state.prompt_glyph_detail)
+
+
+def ui_prompt_for_nav_hint(state: PromptState) -> str:
+    glyphs = prompt_glyphs_for_nav_hint(state.input_device_mode)
     return format_prompt(glyphs, state.prompt_glyph_detail)
