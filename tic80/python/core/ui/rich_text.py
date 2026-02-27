@@ -5,6 +5,7 @@ if TYPE_CHECKING:
 
     from ..controls.glyph_atlas import prompt_glyph_sprite_id
     from ..controls.prompts import glyph_label
+    from ..rich_tokens import rich_token_match
 
 
 _PROMPT_GLYPH_COLORKEY = 0
@@ -19,8 +20,8 @@ _PROMPT_GLYPH_Y_NUDGE_PX = -1
 _PROMPT_TEXT_GAP_PX = 3
 
 # `{sep}` is drawn as a thin vertical line between glyphs, with configurable padding.
-_PROMPT_SEP_PAD_BEFORE_PX = 1
-_PROMPT_SEP_PAD_AFTER_PX = 1
+_PROMPT_SEP_PAD_BEFORE_PX = 2
+_PROMPT_SEP_PAD_AFTER_PX = 2
 _PROMPT_SEP_LINE_W_PX = 1
 _PROMPT_SEP_LINE_H_PX = 7
 
@@ -35,33 +36,22 @@ def ui_rich_text_width(text: str, scale: int = 1) -> int:
         sc = 1
     w = 0
     while i < n:
-        if i + 4 < n and s[i] == "{":
-            # Glyph: {g:<int>}
-            if i + 3 < n and s[i + 1] == "g" and s[i + 2] == ":":
-                j = i + 3
-                if j < n and s[j] >= "0" and s[j] <= "9":
-                    while j < n and s[j] >= "0" and s[j] <= "9":
-                        j += 1
-                    if j < n and s[j] == "}":
-                        w += 8 * sc
-                        i = j + 1
-                        continue
-
-            # Gap: {gap}
-            if s[i:i + 5] == "{gap}":
-                w += _PROMPT_TEXT_GAP_PX * sc
-                i += 5
-                continue
-
-            # Separator: {sep}
-            if s[i:i + 5] == "{sep}":
-                w += (_PROMPT_SEP_PAD_BEFORE_PX +
-                      _PROMPT_SEP_LINE_W_PX + _PROMPT_SEP_PAD_AFTER_PX) * sc
-                i += 5
-                continue
-
+        kind, _, next_i = rich_token_match(s, i)
+        if kind == 1:
+            w += 8 * sc
+            i = next_i
+            continue
+        if kind == 2:
+            w += _PROMPT_TEXT_GAP_PX * sc
+            i = next_i
+            continue
+        if kind == 3:
+            w += (_PROMPT_SEP_PAD_BEFORE_PX +
+                  _PROMPT_SEP_LINE_W_PX + _PROMPT_SEP_PAD_AFTER_PX) * sc
+            i = next_i
+            continue
         w += 6 * sc
-        i += 1
+        i = next_i
     return int(w)
 
 
@@ -110,58 +100,48 @@ def ui_rich_print(
     base_y = cy - sc + dy
 
     while i < n:
-        if i + 4 < n and s[i] == "{":
-            # Gap token.
-            if s[i:i + 5] == "{gap}":
-                cx += _PROMPT_TEXT_GAP_PX * sc
-                i += 5
-                continue
-
-            # Separator token.
-            if s[i:i + 5] == "{sep}":
-                cx += _PROMPT_SEP_PAD_BEFORE_PX * sc
-                # Draw line centered within 8px glyph height.
-                rect(
-                    cx,
-                    base_y + sc,
-                    _PROMPT_SEP_LINE_W_PX * sc,
-                    _PROMPT_SEP_LINE_H_PX * sc,
-                    color
-                )
-                cx += _PROMPT_SEP_LINE_W_PX * sc
-                cx += _PROMPT_SEP_PAD_AFTER_PX * sc
-                i += 5
-                continue
-
-        if i + 3 < n and s[i] == "{" and s[i + 1] == "g" and s[i + 2] == ":":
-            j = i + 3
-            if j < n and s[j] >= "0" and s[j] <= "9":
-                while j < n and s[j] >= "0" and s[j] <= "9":
-                    j += 1
-                if j < n and s[j] == "}":
-                    if buf != "":
-                        print(buf, cx, cy, color, fx, sc)
-                        cx += len(buf) * 6 * sc
-                        buf = ""
-                    glyph = int(s[i + 3:j])
-                    spr_id = int(prompt_glyph_sprite_id(glyph))
-                    if spr_id >= 0:
-                        # Align 8px sprite with 6px text cell.
-                        spr(spr_id, cx, base_y, _PROMPT_GLYPH_COLORKEY, sc)
-                        cx += 8 * sc
-                    else:
-                        label = str(glyph_label(glyph))
-                        if glyph >= 20:
-                            fallback = "[" + label + "]"
-                        else:
-                            fallback = "(" + label + ")"
-                        print(fallback, cx, cy, color, fx, sc)
-                        cx += len(fallback) * 6 * sc
-                    i = j + 1
-                    continue
+        kind, glyph, next_i = rich_token_match(s, i)
+        if kind == 2:
+            cx += _PROMPT_TEXT_GAP_PX * sc
+            i = next_i
+            continue
+        if kind == 3:
+            cx += _PROMPT_SEP_PAD_BEFORE_PX * sc
+            # Draw line centered within 8px glyph height.
+            rect(
+                cx,
+                base_y + sc,
+                _PROMPT_SEP_LINE_W_PX * sc,
+                _PROMPT_SEP_LINE_H_PX * sc,
+                color
+            )
+            cx += _PROMPT_SEP_LINE_W_PX * sc
+            cx += _PROMPT_SEP_PAD_AFTER_PX * sc
+            i = next_i
+            continue
+        if kind == 1:
+            if buf != "":
+                print(buf, cx, cy, color, fx, sc)
+                cx += len(buf) * 6 * sc
+                buf = ""
+            spr_id = int(prompt_glyph_sprite_id(glyph))
+            if spr_id >= 0:
+                # Align 8px sprite with 6px text cell.
+                spr(spr_id, cx, base_y, _PROMPT_GLYPH_COLORKEY, sc)
+                cx += 8 * sc
+            else:
+                label = str(glyph_label(glyph))
+                if glyph >= 20:
+                    fallback = "[" + label + "]"
+                else:
+                    fallback = "(" + label + ")"
+                print(fallback, cx, cy, color, fx, sc)
+                cx += len(fallback) * 6 * sc
+            i = next_i
+            continue
 
         buf += s[i]
-        i += 1
+        i = next_i
 
     if buf != "":
         print(buf, cx, cy, color, fx, sc)

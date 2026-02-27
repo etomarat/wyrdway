@@ -1,3 +1,9 @@
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .rich_tokens import rich_token_match
+
+
 def text_width(text: str, char_w: int = 6) -> int:
     cw = int(char_w)
     if cw < 1:
@@ -5,7 +11,13 @@ def text_width(text: str, char_w: int = 6) -> int:
     return len(text) * cw
 
 
-def rich_text_width(text: str, char_w: int = 6, glyph_w: int = 8) -> int:
+def rich_text_width(
+    text: str,
+    char_w: int = 6,
+    glyph_w: int = 8,
+    gap_w: int = 3,
+    sep_w: int = 3
+) -> int:
     """Text width for strings that may contain prompt glyph tokens.
 
     Token format: `{g:<int>}`. It counts as a single glyph of `glyph_w` pixels.
@@ -18,23 +30,33 @@ def rich_text_width(text: str, char_w: int = 6, glyph_w: int = 8) -> int:
     if gw < 1:
         gw = 1
 
+    s = str(text)
     i = 0
     w = 0
-    s = str(text)
     n = len(s)
+    gap = int(gap_w)
+    if gap < 1:
+        gap = 1
+    sep = int(sep_w)
+    if sep < 1:
+        sep = 1
+
     while i < n:
-        if i + 3 < n and s[i] == "{" and s[i + 1] == "g" and s[i + 2] == ":":
-            j = i + 3
-            # Parse digits.
-            if j < n and s[j] >= "0" and s[j] <= "9":
-                while j < n and s[j] >= "0" and s[j] <= "9":
-                    j += 1
-                if j < n and s[j] == "}":
-                    w += gw
-                    i = j + 1
-                    continue
+        kind, _, next_i = rich_token_match(s, i)
+        if kind == 1:
+            w += gw
+            i = next_i
+            continue
+        if kind == 2:
+            w += gap
+            i = next_i
+            continue
+        if kind == 3:
+            w += sep
+            i = next_i
+            continue
         w += cw
-        i += 1
+        i = next_i
     return int(w)
 
 

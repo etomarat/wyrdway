@@ -6,6 +6,7 @@ if TYPE_CHECKING:
 
 include("core.debug")
 include("core.version")
+include("core.rich_tokens")
 include("core.text_layout")
 include("core.poi_text")
 include("core.ui.__init__")
