@@ -6,6 +6,7 @@ if TYPE_CHECKING:
 
 include("core.controls.modes")
 include("core.controls.actions")
+include("core.controls.key_codes")
 include("core.controls.bindings")
 include("core.controls.prompts")
-
+include("core.controls.input")

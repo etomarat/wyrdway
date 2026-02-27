@@ -22,6 +22,10 @@ class PromptGlyph:
     PAD_LT = 5
     PAD_RB = 6
     PAD_LB = 7
+    PAD_UP = 8
+    PAD_DOWN = 9
+    PAD_LEFT = 10
+    PAD_RIGHT = 11
 
     # Keyboard labels (text fallback)
     KEY_UP = 20
@@ -34,6 +38,7 @@ class PromptGlyph:
     KEY_S = 27
     KEY_ENTER = 28
     KEY_SPACE = 29
+    KEY_BACKSPACE = 30
 
 
 def glyph_label(glyph: int) -> str:
@@ -58,6 +63,8 @@ def glyph_label(glyph: int) -> str:
         return "ENTER"
     if glyph == PromptGlyph.KEY_SPACE:
         return "SPACE"
+    if glyph == PromptGlyph.KEY_BACKSPACE:
+        return "BACKSPACE"
 
     # Gamepad positions / shoulders.
     if glyph == PromptGlyph.PAD_SOUTH:
@@ -76,12 +83,20 @@ def glyph_label(glyph: int) -> str:
         return "RB"
     if glyph == PromptGlyph.PAD_LB:
         return "LB"
+    if glyph == PromptGlyph.PAD_UP:
+        return "UP"
+    if glyph == PromptGlyph.PAD_DOWN:
+        return "DOWN"
+    if glyph == PromptGlyph.PAD_LEFT:
+        return "LEFT"
+    if glyph == PromptGlyph.PAD_RIGHT:
+        return "RIGHT"
 
     return "?"
 
 
 def format_prompt(glyphs: list[int], detail: PromptGlyphDetailId) -> str:
-    """Formats like '[SOUTH]/[RT]/[Z]'. Uses text fallback only."""
+    """Formats like '(SOUTH)/(RT)/[Z]'. Uses text fallback only."""
     if not glyphs:
         return ""
     show_all = detail != PromptGlyphDetail.PRIMARY_ONLY
@@ -89,7 +104,10 @@ def format_prompt(glyphs: list[int], detail: PromptGlyphDetailId) -> str:
         glyphs = glyphs[:1]
     parts: list[str] = []
     for g in glyphs:
-        parts.append("[" + glyph_label(g) + "]")
+        if _glyph_is_keyboard(g):
+            parts.append("[" + glyph_label(g) + "]")
+        else:
+            parts.append("(" + glyph_label(g) + ")")
     return "/".join(parts)
 
 
@@ -102,22 +120,32 @@ def prompt_glyphs_for_action(action: int, device: InputDeviceModeId) -> list[int
     """
     if action == Action.CONFIRM:
         pad = [PromptGlyph.PAD_SOUTH, PromptGlyph.PAD_RT]
-        key = [PromptGlyph.KEY_Z]
+        key = [PromptGlyph.KEY_ENTER, PromptGlyph.KEY_Z]
         return _select_device(device, pad, key)
 
     if action == Action.CANCEL:
         pad = [PromptGlyph.PAD_EAST, PromptGlyph.PAD_LT]
-        key = [PromptGlyph.KEY_X]
+        key = [PromptGlyph.KEY_BACKSPACE, PromptGlyph.KEY_X]
+        return _select_device(device, pad, key)
+
+    if action == Action.SECONDARY:
+        pad = [PromptGlyph.PAD_WEST, PromptGlyph.PAD_LB]
+        key = [PromptGlyph.KEY_A]
+        return _select_device(device, pad, key)
+
+    if action == Action.HELP:
+        pad = [PromptGlyph.PAD_NORTH, PromptGlyph.PAD_RB]
+        key = [PromptGlyph.KEY_S]
         return _select_device(device, pad, key)
 
     if action == Action.NAV_UP:
-        return [PromptGlyph.KEY_UP]
+        return _select_device(device, [PromptGlyph.PAD_UP], [PromptGlyph.KEY_UP])
     if action == Action.NAV_DOWN:
-        return [PromptGlyph.KEY_DOWN]
+        return _select_device(device, [PromptGlyph.PAD_DOWN], [PromptGlyph.KEY_DOWN])
     if action == Action.NAV_LEFT:
-        return [PromptGlyph.KEY_LEFT]
+        return _select_device(device, [PromptGlyph.PAD_LEFT], [PromptGlyph.KEY_LEFT])
     if action == Action.NAV_RIGHT:
-        return [PromptGlyph.KEY_RIGHT]
+        return _select_device(device, [PromptGlyph.PAD_RIGHT], [PromptGlyph.KEY_RIGHT])
 
     if action == Action.THROTTLE:
         pad = [PromptGlyph.PAD_SOUTH, PromptGlyph.PAD_RT]
@@ -131,7 +159,7 @@ def prompt_glyphs_for_action(action: int, device: InputDeviceModeId) -> list[int
 
     if action == Action.HANDBRAKE:
         pad = [PromptGlyph.PAD_WEST, PromptGlyph.PAD_LB]
-        key = [PromptGlyph.KEY_X]
+        key = [PromptGlyph.KEY_SPACE, PromptGlyph.KEY_X]
         return _select_device(device, pad, key)
 
     if action == Action.SKILL:
@@ -148,5 +176,35 @@ def _select_device(device: InputDeviceModeId, pad: list[int], key: list[int]) ->
     if device == InputDeviceMode.KEYBOARD:
         return list(key)
     if device == InputDeviceMode.BOTH:
-        return list(pad) + list(key)
+        # In BOTH mode we only show primary controls for each device.
+        out: list[int] = []
+        if len(pad) > 0:
+            out.append(pad[0])
+        if len(key) > 0:
+            out.append(key[0])
+        return out
     return list(pad)
+
+
+def _glyph_is_keyboard(glyph: int) -> bool:
+    return glyph >= PromptGlyph.KEY_UP
+
+
+def filter_prompt_glyphs(glyphs: list[int], show_shoulders: bool) -> list[int]:
+    if show_shoulders:
+        return list(glyphs)
+    out: list[int] = []
+    for g in glyphs:
+        if _glyph_is_pad_shoulder(g):
+            continue
+        out.append(g)
+    return out
+
+
+def _glyph_is_pad_shoulder(glyph: int) -> bool:
+    return (
+        glyph == PromptGlyph.PAD_RT
+        or glyph == PromptGlyph.PAD_LT
+        or glyph == PromptGlyph.PAD_RB
+        or glyph == PromptGlyph.PAD_LB
+    )

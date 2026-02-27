@@ -1,16 +1,17 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from tic80 import btnp, cls, print
+    from tic80 import cls, print
 
     from ..contracts import DriveEnterParams, SceneEnterParams, SceneNavigator
-    from ..core.input_buttons import Button
+    from ..core.controls.actions import Action
     from ..core.palette import Color
     from ..core.poi_text import poi_type_label
     from ..core.run_state import RunState
     from ..core.scene_ids import SceneId
     from ..core.text_layout import text_center_x
     from ..core.ui.panel import ui_panel_draw
+    from ..core.ui.prompts import ui_prompt_for_action
     from ..data.tuning import TUNING
 
 
@@ -50,16 +51,16 @@ class RegionMapScene:
         return self._state.debug_enabled
 
     def update(self, dt: float) -> None:
-        if btnp(Button.UP):
+        if self._state.controls.pressed(Action.NAV_UP):
             self.selected_node = max(1, self.selected_node - 1)
-        if btnp(Button.DOWN):
+        if self._state.controls.pressed(Action.NAV_DOWN):
             self.selected_node = min(self.node_count, self.selected_node + 1)
         if self._debug_seed_edit_enabled():
-            if btnp(Button.LEFT):
+            if self._state.controls.pressed(Action.NAV_LEFT):
                 self._state.debug_shift_active_run_seed(-1)
-            if btnp(Button.RIGHT):
+            if self._state.controls.pressed(Action.NAV_RIGHT):
                 self._state.debug_shift_active_run_seed(1)
-        if btnp(Button.A):
+        if self._state.controls.pressed(Action.CONFIRM):
             run = self._state.require_run()
             run.ensure_outbound_segment(
                 self.selected_node,
@@ -121,7 +122,9 @@ class RegionMapScene:
         )
         if self._debug_seed_edit_enabled():
             print("L/R +/-1", 14, 124, Color.LIGHT_GREY, True)
-        print("Z = GO", text_center_x("Z = GO", margin_x=4), 124, Color.WHITE, True)
+        prompt = ui_prompt_for_action(self._state, Action.CONFIRM)
+        text = prompt + " GO"
+        print(text, text_center_x(text, margin_x=4), 124, Color.WHITE, True)
 
     def _draw_selected_node_details(self, run: RunState | None) -> None:
         if run is None:

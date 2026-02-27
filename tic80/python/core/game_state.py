@@ -5,6 +5,8 @@ if TYPE_CHECKING:
 
     from ..contracts import PursuerVariantId
     from ..data.tuning import TUNING
+    from .controls.bindings import ActionBindings, make_default_bindings
+    from .controls.input import Controls
     from .controls.modes import (
         InputDeviceMode,
         InputDeviceModeId,
@@ -22,7 +24,7 @@ class GameState:
                  '_profile_tuning_version', '_debug_lines',
                  '_debug_overlay_enabled', '_last_rollback_reason',
                  '_last_rollback_theseus_gain', '_input_device_mode',
-                 '_prompt_glyph_detail')
+                 '_prompt_glyph_detail', '_prompt_show_shoulders', '_controls')
 
     def __init__(self) -> None:
         self._profile = Profile(
@@ -44,6 +46,8 @@ class GameState:
         # not attempt to detect input device.
         self._input_device_mode: InputDeviceModeId = InputDeviceMode.BOTH
         self._prompt_glyph_detail: PromptGlyphDetailId = PromptGlyphDetail.ALL
+        self._prompt_show_shoulders = False
+        self._controls = Controls(make_default_bindings())
 
     @property
     def profile(self) -> Profile:
@@ -82,6 +86,17 @@ class GameState:
 
     def set_prompt_glyph_detail(self, detail: PromptGlyphDetailId) -> None:
         self._prompt_glyph_detail = detail
+
+    @property
+    def prompt_show_shoulders(self) -> bool:
+        return bool(self._prompt_show_shoulders)
+
+    def set_prompt_show_shoulders(self, enabled: bool) -> None:
+        self._prompt_show_shoulders = bool(enabled)
+
+    @property
+    def controls(self) -> Controls:
+        return self._controls
 
     def set_debug_overlay_enabled(self, enabled: bool) -> None:
         if not self.debug_enabled:

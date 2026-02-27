@@ -1,13 +1,14 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from tic80 import btnp, cls, line, print
+    from tic80 import cls, line, print
 
     from ..contracts import ResultEnterParams, SceneEnterParams, SceneNavigator
-    from ..core.input_buttons import Button
+    from ..core.controls.actions import Action
     from ..core.palette import Color, ColorId
     from ..core.scene_ids import SceneId
     from ..core.ui.text import ui_text_center
+    from ..core.ui.prompts import ui_prompt_for_action
 
 
 class ResultScene:
@@ -21,7 +22,7 @@ class ResultScene:
         self._subtitle = ""
         self._subtitle_color: ColorId = Color.LIGHT_GREY
         self._lines: list[tuple[str, ColorId]] = []
-        self._cta = "Z = CONTINUE TO GARAGE"
+        self._cta = "CONTINUE TO GARAGE"
         self._cta_color: ColorId = Color.WHITE
 
     def _set_layout(
@@ -68,7 +69,7 @@ class ResultScene:
             "Reality anchor restored",
             Color.LIGHT_GREY,
             lines,
-            "Z = CONTINUE TO GARAGE",
+            "CONTINUE TO GARAGE",
             Color.RED
         )
 
@@ -84,7 +85,7 @@ class ResultScene:
             subtitle,
             Color.LIGHT_GREY,
             lines,
-            "Z = CONTINUE TO GARAGE",
+            "CONTINUE TO GARAGE",
             Color.WHITE
         )
 
@@ -137,7 +138,7 @@ class ResultScene:
             subtitle,
             subtitle_color,
             lines,
-            "Z = CONTINUE TO GARAGE",
+            "CONTINUE TO GARAGE",
             cta_color
         )
 
@@ -173,7 +174,7 @@ class ResultScene:
         self._build_run_report_layout(poi_action, delivered_scrap, fuel_recovered)
 
     def update(self, dt: float) -> None:
-        if btnp(Button.A):
+        if self._state.controls.pressed(Action.CONFIRM):
             self._state.apply_run_results()
             self._nav.go(SceneId.GARAGE)
 
@@ -187,7 +188,9 @@ class ResultScene:
         for text, color in self._lines:
             ui_text_center(text, y, color, margin_x=4)
             y += 9
-        ui_text_center(self._cta, 112, self._cta_color, margin_x=4)
+        prompt = ui_prompt_for_action(self._state, Action.CONFIRM)
+        cta = prompt + " " + self._cta
+        ui_text_center(cta, 112, self._cta_color, margin_x=4)
 
     def exit(self) -> None:
         pass

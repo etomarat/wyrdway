@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from tic80 import btnp, cls, print
+    from tic80 import cls, print
 
     from ..contracts import (
         DriveEnterParams,
@@ -9,13 +9,14 @@ if TYPE_CHECKING:
         SceneEnterParams,
         SceneNavigator
     )
-    from ..core.input_buttons import Button
+    from ..core.controls.actions import Action
     from ..core.palette import Color
     from ..core.poi_text import poi_type_label
     from ..core.run_state import PoiAction
     from ..core.scene_ids import SceneId
     from ..core.text_layout import text_center_x, text_width
     from ..core.ui.panel import ui_panel_draw, ui_panel_draw_split_actions
+    from ..core.ui.prompts import ui_prompt_for_action
     from ..core.ui.text import ui_text_center
     from ..data.tuning import TUNING
     from ..systems.drive.pursuers.registry import (
@@ -117,7 +118,8 @@ class PoiScene:
         ui_text_center(fuel_line, 64, Color.YELLOW, margin_x=2)
         self._draw_pursuit_line(82, pursuit_suffix)
         ui_text_center("return to base immediately", 90, Color.WHITE, margin_x=2)
-        ui_text_center("Z = BEGIN RETURN", 112, Color.WHITE, margin_x=2)
+        prompt = ui_prompt_for_action(self._state, Action.CONFIRM)
+        ui_text_center(prompt + " BEGIN RETURN", 112, Color.WHITE, margin_x=2)
 
     def _draw_pursuit_line(self, y: int, suffix: str) -> None:
         name = str(self._pursuer_name)
@@ -168,8 +170,8 @@ class PoiScene:
             self.ACTION_PANEL_Y,
             self.ACTION_PANEL_W,
             self.ACTION_PANEL_H,
-            "Z: LOOT (TEMP)",
-            "X: LEAVE",
+            ui_prompt_for_action(self._state, Action.CONFIRM) + ": LOOT (TEMP)",
+            ui_prompt_for_action(self._state, Action.CANCEL) + ": LEAVE",
             Color.GREY,
             Color.WHITE,
             Color.BLACK,
@@ -178,10 +180,10 @@ class PoiScene:
 
     def _update_interact(self, dt: float) -> None:
         self.timer = max(0.0, self.timer - dt)
-        if btnp(Button.A):
+        if self._state.controls.pressed(Action.CONFIRM):
             self._start_loot_summary()
             return
-        if btnp(Button.B):
+        if self._state.controls.pressed(Action.CANCEL):
             self._start_leave_summary()
             return
         if self.timer <= 0.0:
@@ -189,11 +191,11 @@ class PoiScene:
 
     def update(self, dt: float) -> None:
         if self._mode == self.MODE_LOOT_SUMMARY:
-            if btnp(Button.A):
+            if self._state.controls.pressed(Action.CONFIRM):
                 self._leave("loot")
             return
         if self._mode == self.MODE_LEAVE_SUMMARY:
-            if btnp(Button.A):
+            if self._state.controls.pressed(Action.CONFIRM):
                 self._leave("leave")
             return
 
