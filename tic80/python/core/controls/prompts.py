@@ -44,67 +44,51 @@ class PromptGlyph:
     KEY_B = 32
     KEY_ARROWS = 33
 
+_GLYPH_LABELS = {
+    # Keyboard labels.
+    PromptGlyph.KEY_UP: "UP",
+    PromptGlyph.KEY_DOWN: "DOWN",
+    PromptGlyph.KEY_LEFT: "LEFT",
+    PromptGlyph.KEY_RIGHT: "RIGHT",
+    PromptGlyph.KEY_Z: "Z",
+    PromptGlyph.KEY_X: "X",
+    PromptGlyph.KEY_A: "A",
+    PromptGlyph.KEY_S: "S",
+    PromptGlyph.KEY_ENTER: "ENTER",
+    PromptGlyph.KEY_SPACE: "SPACE",
+    PromptGlyph.KEY_BACKSPACE: "BACKSPACE",
+    PromptGlyph.KEY_Y: "Y",
+    PromptGlyph.KEY_B: "B",
+    PromptGlyph.KEY_ARROWS: "ARROWS",
+    # Gamepad positions / shoulders.
+    PromptGlyph.PAD_SOUTH: "SOUTH",
+    PromptGlyph.PAD_WEST: "WEST",
+    PromptGlyph.PAD_EAST: "EAST",
+    PromptGlyph.PAD_NORTH: "NORTH",
+    PromptGlyph.PAD_RT: "RT",
+    PromptGlyph.PAD_LT: "LT",
+    PromptGlyph.PAD_RB: "RB",
+    PromptGlyph.PAD_LB: "LB",
+    PromptGlyph.PAD_UP: "UP",
+    PromptGlyph.PAD_DOWN: "DOWN",
+    PromptGlyph.PAD_LEFT: "LEFT",
+    PromptGlyph.PAD_RIGHT: "RIGHT",
+    PromptGlyph.PAD_DPAD: "DPAD"
+}
+
+_PAD_SHOULDER_GLYPHS = {
+    PromptGlyph.PAD_RT,
+    PromptGlyph.PAD_LT,
+    PromptGlyph.PAD_RB,
+    PromptGlyph.PAD_LB
+}
+
 
 def glyph_label(glyph: int) -> str:
-    # Keyboard labels.
-    if glyph == PromptGlyph.KEY_UP:
-        return "UP"
-    if glyph == PromptGlyph.KEY_DOWN:
-        return "DOWN"
-    if glyph == PromptGlyph.KEY_LEFT:
-        return "LEFT"
-    if glyph == PromptGlyph.KEY_RIGHT:
-        return "RIGHT"
-    if glyph == PromptGlyph.KEY_Z:
-        return "Z"
-    if glyph == PromptGlyph.KEY_X:
-        return "X"
-    if glyph == PromptGlyph.KEY_A:
-        return "A"
-    if glyph == PromptGlyph.KEY_S:
-        return "S"
-    if glyph == PromptGlyph.KEY_ENTER:
-        return "ENTER"
-    if glyph == PromptGlyph.KEY_SPACE:
-        return "SPACE"
-    if glyph == PromptGlyph.KEY_BACKSPACE:
-        return "BACKSPACE"
-    if glyph == PromptGlyph.KEY_Y:
-        return "Y"
-    if glyph == PromptGlyph.KEY_B:
-        return "B"
-    if glyph == PromptGlyph.KEY_ARROWS:
-        return "ARROWS"
-
-    # Gamepad positions / shoulders.
-    if glyph == PromptGlyph.PAD_SOUTH:
-        return "SOUTH"
-    if glyph == PromptGlyph.PAD_WEST:
-        return "WEST"
-    if glyph == PromptGlyph.PAD_EAST:
-        return "EAST"
-    if glyph == PromptGlyph.PAD_NORTH:
-        return "NORTH"
-    if glyph == PromptGlyph.PAD_RT:
-        return "RT"
-    if glyph == PromptGlyph.PAD_LT:
-        return "LT"
-    if glyph == PromptGlyph.PAD_RB:
-        return "RB"
-    if glyph == PromptGlyph.PAD_LB:
-        return "LB"
-    if glyph == PromptGlyph.PAD_UP:
-        return "UP"
-    if glyph == PromptGlyph.PAD_DOWN:
-        return "DOWN"
-    if glyph == PromptGlyph.PAD_LEFT:
-        return "LEFT"
-    if glyph == PromptGlyph.PAD_RIGHT:
-        return "RIGHT"
-    if glyph == PromptGlyph.PAD_DPAD:
-        return "DPAD"
-
-    return "?"
+    label = _GLYPH_LABELS.get(int(glyph))
+    if label is None:
+        return "?"
+    return str(label)
 
 
 def format_prompt(glyphs: list[int], detail: PromptGlyphDetailId) -> str:
@@ -221,9 +205,4 @@ def filter_prompt_glyphs(glyphs: list[int], show_shoulders: bool) -> list[int]:
 
 
 def _glyph_is_pad_shoulder(glyph: int) -> bool:
-    return (
-        glyph == PromptGlyph.PAD_RT
-        or glyph == PromptGlyph.PAD_LT
-        or glyph == PromptGlyph.PAD_RB
-        or glyph == PromptGlyph.PAD_LB
-    )
+    return int(glyph) in _PAD_SHOULDER_GLYPHS
