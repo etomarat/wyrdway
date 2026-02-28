@@ -3,8 +3,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from tic80 import print
 
-    from ...contracts import PursuerVariantId
-    from ...contracts import PursuerVariantIdValue
+    from ...contracts import PursuerVariantId, PursuerVariantIdValue
     from ...core.palette import Color
     from ...core.text_layout import text_right_x
     from ...systems.drive.rng import lcg_next_u32

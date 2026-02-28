@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from tic80 import btnp, cls, print, trace
+    from tic80 import cls, print, trace
 
     from ..contracts import (
         DriveEnterParams,
@@ -11,9 +11,16 @@ if TYPE_CHECKING:
         SceneEnterParams,
         SceneNavigator
     )
-    from ..core.input_buttons import Button
+    from ..core.controls.actions import Action
     from ..core.palette import Color
     from ..core.scene_ids import SceneId
+    from ..core.ui.prompts import (
+        ui_prompt_for_action,
+        ui_prompt_for_nav_hint,
+        ui_prompt_with_text
+    )
+    from ..core.ui.rich_text import ui_rich_print
+    from ..core.version import GAME_VERSION
     from ..data.tuning import TUNING
     from ..data.tuning.pursuers import (
         ENTITY_PURSUER_PROFILE,
@@ -288,15 +295,21 @@ class DrivePresetScene:
         )
 
     def update(self, dt: float) -> None:
-        if btnp(Button.LEFT) or btnp(Button.UP):
+        if (
+            self._state.controls.pressed(Action.NAV_LEFT)
+            or self._state.controls.pressed(Action.NAV_UP)
+        ):
             self._selected = (self._selected - 1) % len(self._presets)
-        if btnp(Button.RIGHT) or btnp(Button.DOWN):
+        if (
+            self._state.controls.pressed(Action.NAV_RIGHT)
+            or self._state.controls.pressed(Action.NAV_DOWN)
+        ):
             self._selected = (self._selected + 1) % len(self._presets)
-        if btnp(Button.A):
+        if self._state.controls.pressed(Action.CONFIRM):
             if not self._apply_selected_preset():
                 return
             self._nav.go(SceneId.GARAGE)
-        elif btnp(Button.B):
+        elif self._state.controls.pressed(Action.SECONDARY):
             if not self._chase_test_allowed():
                 return
             if not self._apply_selected_preset():
@@ -311,10 +324,11 @@ class DrivePresetScene:
             marker = ">" if i == self._selected else " "
             print(marker + " " + preset.label, 52, y, Color.WHITE)
             y += 10
-        print("ARROWS: SELECT", 52, 106, Color.LIGHT_GREY)
-        print("Z: CONTINUE", 52, 114, Color.LIGHT_GREY)
+        ui_rich_print(ui_prompt_with_text(ui_prompt_for_nav_hint(self._state), "SELECT"), 52, 106, Color.LIGHT_GREY)
+        ui_rich_print(ui_prompt_with_text(ui_prompt_for_action(self._state, Action.CONFIRM), "CONTINUE"), 52, 114, Color.LIGHT_GREY)
         if self._chase_test_allowed():
-            print("X: CHASE TEST", 52, 122, Color.LIGHT_GREY)
+            ui_rich_print(ui_prompt_with_text(ui_prompt_for_action(self._state, Action.SECONDARY), "CHASE TEST"), 52, 122, Color.LIGHT_GREY)
+        print("v" + GAME_VERSION, 0, 2, Color.GREY)
 
     def exit(self) -> None:
         pass

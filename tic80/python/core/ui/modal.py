@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from tic80 import print, rect, rectb
 
-    from ..text_layout import text_center_x
+    from .rich_text import ui_rich_has_glyph_tokens, ui_rich_print, ui_rich_text_center_x
 
 
 def ui_modal_centered_box(
@@ -44,7 +44,7 @@ def ui_modal_draw_lines(
     i = 0
     while i < len(lines):
         text, color = lines[i]
-        x = box_x + text_center_x(text, screen_w=box_w, margin_x=0)
-        print(text, x, y, color, True)
+        x = box_x + ui_rich_text_center_x(text, screen_w=box_w, margin_x=0)
+        ui_rich_print(text, x, y, color, not ui_rich_has_glyph_tokens(text))
         y += step
         i += 1

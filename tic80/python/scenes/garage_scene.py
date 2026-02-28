@@ -1,10 +1,10 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from tic80 import btnp, cls, line, print, rect, time
+    from tic80 import cls, line, print, rect, time
 
     from ..contracts import SceneEnterParams, SceneNavigator
-    from ..core.input_buttons import Button
+    from ..core.controls.actions import Action
     from ..core.palette import Color
     from ..core.scene_ids import SceneId
     from ..core.text_layout import text_center_x, text_width
@@ -19,6 +19,9 @@ if TYPE_CHECKING:
         ui_modal_draw_lines
     )
     from ..core.ui.panel import ui_panel_draw, ui_panel_draw_split_actions
+    from ..core.ui.prompts import ui_prompt_for_action
+    from ..core.ui.prompts import ui_prompt_with_text
+    from ..core.ui.rich_text import ui_rich_print, ui_rich_text_center_x
     from ..data.tuning import TUNING
 
 
@@ -213,27 +216,30 @@ class GarageScene:
 
     def _draw_secondary_actions(self) -> None:
         repair_cost = int(TUNING.PROFILE.repair_cost)
+        left_label = "REPAIR (-" + str(repair_cost) + " SCRAP)"
+        left = ui_prompt_with_text(ui_prompt_for_action(self._state, Action.SECONDARY), left_label)
+        right = ui_prompt_with_text(ui_prompt_for_action(self._state, Action.HELP), "NEW GAME")
         ui_panel_draw_split_actions(
             8,
             103,
             224,
             14,
-            "X: REPAIR (-" + str(repair_cost) + " SCRAP)",
-            "A: NEW GAME",
+            left,
+            right,
             Color.GREY,
             Color.WHITE,
             Color.BLACK,
-            Color.DARK_GREY,
+            Color.BLACK,
             left_width=140,
             left_text_color=Color.YELLOW,
             right_text_color=Color.ORANGE
         )
 
     def _draw_start_cta(self) -> None:
-        ui_panel_draw(6, 119, 228, 14, Color.WHITE,
-                      Color.LIGHT_GREEN, Color.LIGHT_GREEN)
-        text = "Z: START RUN"
-        print(text, text_center_x(text, margin_x=6), 124, Color.BLACK)
+        # Prompts live on black panels for consistent contrast with glyph sprites.
+        ui_panel_draw(6, 119, 228, 14, Color.WHITE, Color.BLACK, Color.BLACK)
+        text = ui_prompt_with_text(ui_prompt_for_action(self._state, Action.CONFIRM), "START RUN")
+        ui_rich_print(text, ui_rich_text_center_x(text, margin_x=6), 124, Color.WHITE)
 
     def _draw_rollback_popup(self) -> None:
         if not self._rollback_modal_open:
@@ -242,11 +248,12 @@ class GarageScene:
         box_h = self.MODAL_H
         box_x, box_y = ui_modal_centered_box(box_w, box_h)
         ui_modal_draw_box(box_x, box_y, box_w, box_h, Color.ORANGE)
+        close_hint = ui_prompt_with_text(ui_prompt_for_action(self._state, Action.CANCEL), "CLOSE")
         lines = (
             ("ROLLBACK RECOVERED", Color.ORANGE),
             (self._rollback_modal_reason, Color.LIGHT_GREY),
             ("THESEUS +" + str(self._rollback_modal_gain), Color.RED),
-            ("X: CLOSE", Color.LIGHT_GREY)
+            (close_hint, Color.LIGHT_GREY)
         )
         ui_modal_draw_lines(lines, box_x, box_y, box_w, 10, 12)
 
@@ -254,34 +261,36 @@ class GarageScene:
         box_w = self.MODAL_W
         box_h = self.MODAL_H
         box_x, box_y = ui_modal_centered_box(box_w, box_h)
-        ui_modal_draw_box(box_x, box_y, box_w, box_h, Color.WHITE)
+        ui_modal_draw_box(box_x, box_y, box_w, box_h, Color.WHITE, Color.BLACK, Color.BLACK)
+        confirm_hint = ui_prompt_with_text(ui_prompt_for_action(self._state, Action.CONFIRM), "CONFIRM RESET")
+        cancel_hint = ui_prompt_with_text(ui_prompt_for_action(self._state, Action.CANCEL), "CANCEL")
         lines = (
             ("START NEW GAME?", Color.WHITE),
             ("THIS RESETS PROFILE PROGRESS", Color.LIGHT_GREY),
-            ("Z: CONFIRM RESET", Color.RED),
-            ("X: CANCEL / A: CANCEL", Color.LIGHT_GREY)
+            (confirm_hint, Color.RED),
+            (cancel_hint, Color.LIGHT_GREY)
         )
         ui_modal_draw_lines(lines, box_x, box_y, box_w, 10, 12)
 
     def update(self, dt: float) -> None:
         if self._rollback_modal_open:
-            if btnp(Button.B):
+            if self._state.controls.pressed(Action.CANCEL):
                 self._rollback_modal_open = False
             return
 
         if self._confirm_new_game:
-            if btnp(Button.A):
+            if self._state.controls.pressed(Action.CONFIRM):
                 self._state.start_new_game()
                 self._confirm_new_game = False
                 self._pick_header_text()
-            elif btnp(Button.B) or btnp(Button.X):
+            elif self._state.controls.pressed(Action.CANCEL):
                 self._confirm_new_game = False
             return
 
-        if btnp(Button.A):
+        if self._state.controls.pressed(Action.CONFIRM):
             self._state.start_run()
             self._nav.go(SceneId.REGION_MAP)
-        elif btnp(Button.B):
+        elif self._state.controls.pressed(Action.SECONDARY):
             repaired = self._profile.repair(
                 TUNING.PROFILE.repair_cost,
                 TUNING.PROFILE.repair_hp,
@@ -289,7 +298,7 @@ class GarageScene:
             )
             if repaired:
                 self._state.save_profile()
-        elif btnp(Button.X):
+        elif self._state.controls.pressed(Action.HELP):
             self._confirm_new_game = True
 
     def draw(self) -> None:

@@ -4,9 +4,15 @@ if TYPE_CHECKING:
     from tic80 import cls, print
 
     from ..contracts import DriveEnterParams, ResultEnterParams, SceneEnterParams, SceneNavigator
+    from ..core.controls.actions import Action
     from ..core.palette import Color
     from ..core.run_state import RunState
     from ..core.scene_ids import SceneId
+    from ..core.ui.prompts import ui_prompt_for_action
+    from ..core.ui.prompts import ui_prompt_gap_join
+    from ..core.ui.prompts import ui_prompt_for_nav_hint
+    from ..core.ui.prompts import ui_prompt_with_text
+    from ..core.ui.rich_text import ui_rich_print
     from ..data.tuning import TUNING
     from ..systems.drive.drive_input import read_drive_input
     from ..systems.drive.drive_logic_core import DriveLogic
@@ -129,7 +135,7 @@ class DriveScene:
         apply_zone_effects(self._logic, z_before, TUNING)
 
         allow_dash = not self._logic.finished()
-        inp = read_drive_input(allow_dash)
+        inp = read_drive_input(self._state.controls, allow_dash)
         self._logic.update(dt, inp.steer, inp.throttle, inp.brake, inp.handbrake, inp.dash_pressed)
         z_after = zone_at_hitboxes(self._logic, zones)
         self._active_zone = z_after if z_after is not None else z_before
@@ -312,12 +318,17 @@ class DriveScene:
                 self._pursuer_archetype.profile,
                 self._pursuer_archetype.display_name(),
                 int(self._pursuer_archetype.profile.name_color)
-            )
+        )
         self._draw_popups()
         if logic.finished():
-            print("Z = CONTINUE", 2, 128, Color.WHITE)
+            ui_rich_print(ui_prompt_with_text(ui_prompt_for_action(self._state, Action.CONFIRM), "CONTINUE"), 2, 128, Color.WHITE)
         else:
-            print("ARROWS + X", 2, 128, Color.WHITE)
+            hint = ui_prompt_gap_join([
+                ui_prompt_for_nav_hint(self._state),
+                "+",
+                ui_prompt_for_action(self._state, Action.HANDBRAKE)
+            ])
+            ui_rich_print(hint, 2, 128, Color.WHITE)
         if self._state.debug_enabled:
             lines = drive_debug_lines(road, logic, run, objects, TUNING)
             if self._pursuer.active:

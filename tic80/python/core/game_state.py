@@ -5,6 +5,14 @@ if TYPE_CHECKING:
 
     from ..contracts import PursuerVariantId
     from ..data.tuning import TUNING
+    from .controls.bindings import ActionBindings, make_default_bindings
+    from .controls.input import Controls
+    from .controls.modes import (
+        InputDeviceMode,
+        InputDeviceModeId,
+        PromptGlyphDetail,
+        PromptGlyphDetailId
+    )
     from .profile import Profile
     from .run_state import RunState
     from .save_system import SaveSystem
@@ -15,7 +23,8 @@ class GameState:
                  '_profile_loaded', '_profile_tuning_mismatch',
                  '_profile_tuning_version', '_debug_lines',
                  '_debug_overlay_enabled', '_last_rollback_reason',
-                 '_last_rollback_theseus_gain')
+                 '_last_rollback_theseus_gain', '_input_device_mode',
+                 '_prompt_glyph_detail', '_prompt_show_shoulders', '_controls')
 
     def __init__(self) -> None:
         self._profile = Profile(
@@ -33,6 +42,12 @@ class GameState:
         self._debug_overlay_enabled = False
         self._last_rollback_reason: str | None = None
         self._last_rollback_theseus_gain = 0
+        # How we show control prompts in UI. This is a user preference; it does
+        # not attempt to detect input device.
+        self._input_device_mode: InputDeviceModeId = InputDeviceMode.BOTH
+        self._prompt_glyph_detail: PromptGlyphDetailId = PromptGlyphDetail.ALL
+        self._prompt_show_shoulders = False
+        self._controls = Controls(make_default_bindings())
 
     @property
     def profile(self) -> Profile:
@@ -57,6 +72,31 @@ class GameState:
     @property
     def debug_enabled(self) -> bool:
         return bool(TUNING.DEBUG.debug_enabled)
+
+    @property
+    def input_device_mode(self) -> InputDeviceModeId:
+        return self._input_device_mode
+
+    def set_input_device_mode(self, mode: InputDeviceModeId) -> None:
+        self._input_device_mode = mode
+
+    @property
+    def prompt_glyph_detail(self) -> PromptGlyphDetailId:
+        return self._prompt_glyph_detail
+
+    def set_prompt_glyph_detail(self, detail: PromptGlyphDetailId) -> None:
+        self._prompt_glyph_detail = detail
+
+    @property
+    def prompt_show_shoulders(self) -> bool:
+        return bool(self._prompt_show_shoulders)
+
+    def set_prompt_show_shoulders(self, enabled: bool) -> None:
+        self._prompt_show_shoulders = bool(enabled)
+
+    @property
+    def controls(self) -> Controls:
+        return self._controls
 
     def set_debug_overlay_enabled(self, enabled: bool) -> None:
         if not self.debug_enabled:

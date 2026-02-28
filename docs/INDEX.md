@@ -33,6 +33,7 @@ docs/
 - `00_spec/0_gdd_v0.md` — GDD v0 (общая картина).
 - `00_spec/2_architecture.md` — сцены/поток/правила владения кадром.
 - `00_spec/3_runstate.md` — контракт данных (Profile/Run и т.п.).
+- `00_spec/10_controls.md` — управление (клавиатура/геймпад) + планы по LT/RT.
 - `00_spec/8_drive_physics.md` — DRIVE (m1.5): world-space физика и связь с дорогой.
 - `00_spec/9_drive_playtest_camera.md` — DRIVE (m1.6): плейтест, камера и читаемость заноса.
 - `00_spec/5_tuning.md` — принципы TUNING (что вносить в тюнинг и как).
@@ -42,6 +43,7 @@ docs/
 - `20_tech/pocketpy_runtime.md` — особенности PocketPy/TIC-80 Python.
 - `20_tech/tic80_api_reference.md` — короткая справка по TIC-80 API.
 - `20_tech/TIC-80.wiki/` — полный оффлайн‑клон wiki TIC-80 (очень много файлов).
+- `release_checklist.md` — короткий чеклист релиза (версия, сборка, changelog, tag, постинг).
 
 4) **Стиль/арт‑гайд**
 - `30_style/0_style_car.md` (если нужен быстрый ориентир по визуалу).
