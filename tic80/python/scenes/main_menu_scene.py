@@ -176,7 +176,7 @@ class MainMenuScene:
         line(x, y + 16, x + w - 1, y + 16, Color.DARK_GREY)
         print("MENU", x + 3, y + 5, Color.LIGHT_GREY)
         self._draw_menu_items(x + 4, y + 22)
-        self._draw_left_save_info(x, y, w)
+        self._draw_left_save_info(x, y, w, h)
 
     def _draw_menu_items(self, x: int, y: int) -> None:
         i = 0
@@ -198,7 +198,7 @@ class MainMenuScene:
             y += 10
             i += 1
 
-    def _draw_left_save_info(self, x: int, y: int, w: int) -> None:
+    def _draw_left_save_info(self, x: int, y: int, w: int, h: int) -> None:
         if not self._has_continue():
             return
         if self._overlay != self._OVERLAY_NONE:
@@ -207,21 +207,41 @@ class MainMenuScene:
         if selected_id != self._ITEM_CONTINUE:
             return
 
-        split_y = y + 64
+        split_y = y + 66
         line(x, split_y, x + w - 1, split_y, Color.DARK_GREY)
-        print("LOAD SAVE", x + 3, split_y + 3, Color.LIGHT_GREY)
+        print("ON CONTINUE", x + 3, split_y + 4, Color.LIGHT_GREY)
         profile = self._state.profile
-        row_y = split_y + 13
-        print("HP " + str(self._to_ui_int(profile.garage_hp)), x + 3, row_y, Color.WHITE)
-        print("FUEL " + str(self._to_ui_int(profile.garage_fuel)), x + 3, row_y + 8, Color.WHITE)
-        print("SCRAP " + str(profile.scrap), x + 3, row_y + 16, Color.LIGHT_GREY)
-        print("SEED " + str(self._state.seed_counter), x + 3, row_y + 24, Color.GREY)
+        row_step = 8
+        seed_row_y = y + h - 9
+        row_y = seed_row_y - row_step * 3
+        self._draw_kv_row(x, w, row_y, "HP", str(
+            self._to_ui_int(profile.garage_hp)), Color.WHITE, Color.WHITE)
+        self._draw_kv_row(x, w, row_y + row_step, "FUEL",
+                          str(self._to_ui_int(profile.garage_fuel)), Color.WHITE, Color.WHITE)
+        self._draw_kv_row(x, w, row_y + row_step * 2, "SCRAP",
+                          str(profile.scrap), Color.LIGHT_GREY, Color.LIGHT_GREY)
+        self._draw_kv_row(x, w, row_y + row_step * 3, "SEED",
+                          str(self._state.seed_counter), Color.GREY, Color.GREY)
 
     @staticmethod
     def _to_ui_int(value: float) -> int:
         if value >= 0.0:
             return int(value + 0.5)
         return int(value - 0.5)
+
+    @staticmethod
+    def _draw_kv_row(
+        x: int,
+        w: int,
+        y: int,
+        label: str,
+        value: str,
+        label_color: int,
+        value_color: int
+    ) -> None:
+        print(label, x + 3, y, label_color)
+        value_x = text_right_x(value, x + w - 3, 6, x + 3)
+        print(value, value_x, y, value_color, fixed=True)
 
     def _draw_footer(self) -> None:
         ver = game_version_label()
