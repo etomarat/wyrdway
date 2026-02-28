@@ -21,19 +21,32 @@ class TopdownSkidMarks:
         if t > self._start_skid_t:
             self._start_skid_t = t
 
-    def update_and_draw(self, logic: DriveLogic, proj: TopdownProjector, pose: CarPose2D) -> None:
+    def update_and_draw(
+        self,
+        logic: DriveLogic,
+        proj: TopdownProjector,
+        pose: CarPose2D,
+        skid_slip_threshold: float | None = None,
+        skid_min_speed: float | None = None
+    ) -> None:
         # slip = abs(v_side) / (abs(v_forward) + eps)
         denom = abs(logic.v_forward) + TUNING.DRIVE.slip_eps_speed
         slip = abs(logic.v_side) / denom
         if slip > 1.0:
             slip = 1.0
         reverse = logic.v_forward < 0.0
+        slip_threshold = float(TUNING.DRIVE.skid_slip_threshold)
+        if skid_slip_threshold is not None:
+            slip_threshold = float(skid_slip_threshold)
+        min_speed = float(TUNING.DRIVE.skid_min_speed)
+        if skid_min_speed is not None:
+            min_speed = float(skid_min_speed)
 
         # Порог чуть выше нуля, чтобы не рисовать “дрожь” на прямой.
-        active = slip > TUNING.DRIVE.skid_slip_threshold
+        active = slip > slip_threshold
         if not active:
             # Ручник сам по себе тоже должен оставлять следы, если мы реально движемся.
-            if logic.speed > TUNING.DRIVE.skid_min_speed and logic.dbg_handbrake_decel > 0.0:
+            if logic.speed > min_speed and logic.dbg_handbrake_decel > 0.0:
                 active = True
         if reverse:
             active = False
@@ -43,7 +56,7 @@ class TopdownSkidMarks:
             self._start_skid_t -= dt
             if self._start_skid_t < 0.0:
                 self._start_skid_t = 0.0
-            if not reverse and (not active) and logic.speed > TUNING.DRIVE.skid_min_speed:
+            if not reverse and (not active) and logic.speed > min_speed:
                 active = True
 
         i = 0

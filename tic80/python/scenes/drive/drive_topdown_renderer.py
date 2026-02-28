@@ -135,7 +135,12 @@ class DriveTopdownRenderer:
         pursuer_s: float = 0.0,
         strike_flash: float = 0.0,
         screen_glitch_active: bool = False,
-        view_center_x: int | None = None
+        view_center_x: int | None = None,
+        view_center_y: int | None = None,
+        render_back_s: float | None = None,
+        render_forward_s: float | None = None,
+        skid_slip_threshold: float | None = None,
+        skid_min_speed: float | None = None
     ) -> None:
         self._shake.ensure_seed(road.seed)
         self._pursuer_anim_t += float(TUNING.CORE.dt)
@@ -151,7 +156,10 @@ class DriveTopdownRenderer:
         if view_center_x is not None:
             center_x = int(view_center_x)
         center_x += self._round_to_int(shake_x)
-        center_y = self._road_draw.clamp_center_y(int(TUNING.DRIVE.view_center_y))
+        center_y = int(TUNING.DRIVE.view_center_y)
+        if view_center_y is not None:
+            center_y = int(view_center_y)
+        center_y = self._road_draw.clamp_center_y(center_y)
         center_y += self._round_to_int(shake_y)
 
         p_s = logic.road_s
@@ -161,7 +169,12 @@ class DriveTopdownRenderer:
         proj = TopdownProjector(car_x, car_y, cam_fwd_x, cam_fwd_y, center_x, center_y)
         pose = CarPose2D(logic, proj, center_x, center_y)
 
-        start_idx, end_idx = self._road_draw.visible_index_range(road, p_s)
+        start_idx, end_idx = self._road_draw.visible_index_range(
+            road,
+            p_s,
+            render_back_s,
+            render_forward_s
+        )
         zones = objects.zones_items()
         self._road_draw.draw_road_edges_and_zones(
             road,
@@ -200,7 +213,13 @@ class DriveTopdownRenderer:
         start_move = self._fx_overlay.update(road, logic, proj, pose)
         if start_move:
             self._skid_marks.trigger_start(float(TUNING.DRIVE.start_skid_seconds))
-        self._skid_marks.update_and_draw(logic, proj, pose)
+        self._skid_marks.update_and_draw(
+            logic,
+            proj,
+            pose,
+            skid_slip_threshold,
+            skid_min_speed
+        )
 
         # Следы шин должны быть ПОД пылью/дымом.
         self._fx_overlay.draw_world()

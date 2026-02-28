@@ -131,6 +131,45 @@ class DriveLogic:
         """
         drive_logic_set_zone_grip_floor(self, value)
 
+    def set_preview_motion_state(
+        self,
+        x: float,
+        y: float,
+        fwd_x: float,
+        fwd_y: float,
+        vx: float,
+        vy: float,
+        dbg_handbrake_decel: float = 0.0
+    ) -> None:
+        """Задаёт scripted-состояние для превью/фоновых сцен.
+
+        Используется вне обычного `update()` цикла (например, в main menu backdrop),
+        чтобы не дублировать доступ к внутренним полям и держать проекцию на дорогу
+        консистентной в одном месте.
+        """
+        nx = float(fwd_x)
+        ny = float(fwd_y)
+        l2 = nx * nx + ny * ny
+        if l2 > 0.0001:
+            inv = 1.0 / (l2 ** 0.5)
+            nx *= inv
+            ny *= inv
+        else:
+            nx = self._fwd_x
+            ny = self._fwd_y
+
+        self._x = float(x)
+        self._y = float(y)
+        self._fwd_x = nx
+        self._fwd_y = ny
+        self._vx = float(vx)
+        self._vy = float(vy)
+        self._dbg_handbrake_decel = float(dbg_handbrake_decel)
+        drive_update_road_projection(self)
+
+    def refresh_road_projection(self) -> None:
+        drive_update_road_projection(self)
+
     @property
     def dbg_zone_boost_forward(self) -> float:
         return self._dbg_zone_boost_forward

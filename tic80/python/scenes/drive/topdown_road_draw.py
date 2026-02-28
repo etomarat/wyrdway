@@ -20,11 +20,23 @@ class TopdownRoadDraw:
             y = y1
         return y
 
-    def visible_index_range(self, road: RoadModel, p_s: float) -> tuple[int, int]:
+    def visible_index_range(
+        self,
+        road: RoadModel,
+        p_s: float,
+        render_back_s: float | None = None,
+        render_forward_s: float | None = None
+    ) -> tuple[int, int]:
         n = road.center_points_len()
         d = TUNING.DRIVE
-        start_s = p_s - d.render_back_s
-        end_s = p_s + d.render_forward_s
+        back = float(d.render_back_s)
+        fwd = float(d.render_forward_s)
+        if render_back_s is not None:
+            back = float(render_back_s)
+        if render_forward_s is not None:
+            fwd = float(render_forward_s)
+        start_s = p_s - back
+        end_s = p_s + fwd
         start = int(start_s / road.ds)
         end = int(end_s / road.ds)
         if start < 0:

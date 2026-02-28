@@ -145,10 +145,6 @@ class SimpleRoadBackdrop(MainMenuBackdrop):
             fwd_x = raw_fwd_x
             fwd_y = raw_fwd_y
 
-        logic._x = wx
-        logic._y = wy
-        logic._fwd_x = fwd_x
-        logic._fwd_y = fwd_y
         turn_n = self._curvature_n(curvature_now)
         side_ratio = self._menu_side_ratio(turn_n)
         # For menu-autopilot drift visualization we intentionally invert
@@ -159,11 +155,10 @@ class SimpleRoadBackdrop(MainMenuBackdrop):
         right_fwd_x = -fwd_y
         right_fwd_y = fwd_x
         side_speed = self._speed_now * side_ratio * turn_sign
-        logic._vx = fwd_x * self._speed_now + right_fwd_x * side_speed
-        logic._vy = fwd_y * self._speed_now + right_fwd_y * side_speed
-        # Do not force handbrake state in menu: it produced unnatural skid patterns.
-        logic._dbg_handbrake_decel = 0.0
-        logic._update_road_projection()
+        vx = fwd_x * self._speed_now + right_fwd_x * side_speed
+        vy = fwd_y * self._speed_now + right_fwd_y * side_speed
+        # Menu preview is scripted: keep handbrake debug channel neutral.
+        logic.set_preview_motion_state(wx, wy, fwd_x, fwd_y, vx, vy, 0.0)
 
     def draw(self, x: int, y: int, w: int, h: int) -> None:
         road = self._road
@@ -174,21 +169,9 @@ class SimpleRoadBackdrop(MainMenuBackdrop):
         if w <= 0 or h <= 0:
             return
 
-        old_center_y = float(TUNING.DRIVE.view_center_y)
-        old_back = float(TUNING.DRIVE.render_back_s)
-        old_fwd = float(TUNING.DRIVE.render_forward_s)
-        old_skid_slip = float(TUNING.DRIVE.skid_slip_threshold)
-        old_skid_min_speed = float(TUNING.DRIVE.skid_min_speed)
-        TUNING.DRIVE.view_center_y = float(y + int(h * self._MENU_VIEW_CENTER_Y_N))
-        # Menu preview keeps the same renderer but uses shorter ranges to stay smooth.
-        TUNING.DRIVE.render_back_s = self._MENU_RENDER_BACK_S
-        TUNING.DRIVE.render_forward_s = self._MENU_RENDER_FORWARD_S
-        # Menu-only: lower skid trigger threshold so tire trails are visible
-        # with the softer scripted slip profile.
-        TUNING.DRIVE.skid_slip_threshold = self._MENU_SKID_SLIP_THRESHOLD
-        TUNING.DRIVE.skid_min_speed = self._MENU_SKID_MIN_SPEED
         clip(x, y, w, h)
         panel_center_x = x + int(w * 0.5)
+        panel_center_y = y + int(h * self._MENU_VIEW_CENTER_Y_N)
         self._renderer.draw(
             road,
             logic,
@@ -199,14 +182,14 @@ class SimpleRoadBackdrop(MainMenuBackdrop):
             0.0,
             0.0,
             False,
-            panel_center_x
+            panel_center_x,
+            panel_center_y,
+            self._MENU_RENDER_BACK_S,
+            self._MENU_RENDER_FORWARD_S,
+            self._MENU_SKID_SLIP_THRESHOLD,
+            self._MENU_SKID_MIN_SPEED
         )
         clip(0, 0, 240, 136)
-        TUNING.DRIVE.view_center_y = old_center_y
-        TUNING.DRIVE.render_back_s = old_back
-        TUNING.DRIVE.render_forward_s = old_fwd
-        TUNING.DRIVE.skid_slip_threshold = old_skid_slip
-        TUNING.DRIVE.skid_min_speed = old_skid_min_speed
 
     def _sample_centerline_and_dir(
         self,
@@ -302,7 +285,7 @@ class SimpleRoadBackdrop(MainMenuBackdrop):
         self._speed_now = 0.0
         self._speed_phase = 0.0
         if self._logic is not None:
-            self._logic._update_road_projection()
+            self._logic.refresh_road_projection()
 
     def _curvature_n(self, curvature: float) -> float:
         c = curvature
