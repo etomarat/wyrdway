@@ -14,11 +14,13 @@ if TYPE_CHECKING:
     from ..core.controls.actions import Action
     from ..core.palette import Color
     from ..core.scene_ids import SceneId
-    from ..core.version import GAME_VERSION
-    from ..core.ui.prompts import ui_prompt_for_action
-    from ..core.ui.prompts import ui_prompt_with_text
-    from ..core.ui.prompts import ui_prompt_for_nav_hint
+    from ..core.ui.prompts import (
+        ui_prompt_for_action,
+        ui_prompt_for_nav_hint,
+        ui_prompt_with_text
+    )
     from ..core.ui.rich_text import ui_rich_print
+    from ..core.version import GAME_VERSION
     from ..data.tuning import TUNING
     from ..data.tuning.pursuers import (
         ENTITY_PURSUER_PROFILE,
@@ -326,7 +328,7 @@ class DrivePresetScene:
         ui_rich_print(ui_prompt_with_text(ui_prompt_for_action(self._state, Action.CONFIRM), "CONTINUE"), 52, 114, Color.LIGHT_GREY)
         if self._chase_test_allowed():
             ui_rich_print(ui_prompt_with_text(ui_prompt_for_action(self._state, Action.SECONDARY), "CHASE TEST"), 52, 122, Color.LIGHT_GREY)
-        print("v" + GAME_VERSION, 196, 2, Color.GREY)
+        print("v" + GAME_VERSION, 0, 2, Color.GREY)
 
     def exit(self) -> None:
         pass
