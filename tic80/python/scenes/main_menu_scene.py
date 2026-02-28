@@ -7,7 +7,7 @@ if TYPE_CHECKING:
     from ..core.controls.actions import Action
     from ..core.palette import Color
     from ..core.scene_ids import SceneId
-    from ..core.text_layout import text_center_x, text_right_x
+    from ..core.text_layout import text_center_x, text_right_x, text_width
     from ..core.version import game_version_label
     from .drive.pursuer_text_bank import PursuerTextBank
     from .main_menu_backdrop import MainMenuBackdrop, make_main_menu_backdrop
@@ -23,6 +23,7 @@ class MainMenuScene:
     _RIGHT_Y = 20
     _RIGHT_W = 140
     _RIGHT_H = 114
+    _LEFT_HEADER_TEXT = "MAIN MENU"
 
     _ITEM_CONTINUE = 0
     _ITEM_NEW_GAME = 1
@@ -65,7 +66,8 @@ class MainMenuScene:
         self._selected = 0
         self._overlay = self._OVERLAY_NONE
         self._backdrop.enter()
-        self._watch_seed = (0x13579BDF ^ ((int(self._state.seed_counter) + 1) * 97)) & 0xFFFFFFFF
+        self._watch_seed = (0x13579BDF ^ (
+            (int(self._state.seed_counter) + 1) * 97)) & 0xFFFFFFFF
         if self._watch_seed == 0:
             self._watch_seed = 1
         self._watch_event_t = 0.0
@@ -150,8 +152,15 @@ class MainMenuScene:
     def _draw_title(self) -> None:
         rect(0, 0, 240, 18, Color.BLACK)
         line(0, 17, 239, 17, Color.GREY)
-        print("W Y R D W A Y", text_center_x("W Y R D W A Y"), 5, Color.WHITE, True, 1)
-        print("ROAD ROGUELITE", text_center_x("ROAD ROGUELITE"), 12, Color.LIGHT_GREY, False, 1)
+        title = "W Y R D W A Y"
+        tx = 6
+        ty = 3
+        print(title, tx + 1, ty + 1, Color.RED, True, 2)
+        print(title, tx, ty, Color.YELLOW, True, 2)
+        ver = game_version_label()
+        ver_x = tx + text_width(title, 12) + 6
+        ver_y = ty + 6
+        print(ver, ver_x, ver_y, Color.GREY, fixed=True, alt=True)
 
     def _draw_gameplay_panel(self) -> None:
         x = self._RIGHT_X
@@ -173,9 +182,9 @@ class MainMenuScene:
         h = self._LEFT_H
         rect(x - 1, y - 1, w + 2, h + 2, Color.GREY)
         rect(x, y, w, h, Color.BLACK)
-        line(x, y + 16, x + w - 1, y + 16, Color.DARK_GREY)
-        print("MENU", x + 3, y + 5, Color.LIGHT_GREY)
-        self._draw_menu_items(x + 4, y + 22)
+        line(x, y + 11, x + w - 1, y + 11, Color.DARK_GREY)
+        print(self._LEFT_HEADER_TEXT, x + 3, y + 3, Color.LIGHT_GREY)
+        self._draw_menu_items(x + 4, y + 16)
         self._draw_left_save_info(x, y, w, h)
 
     def _draw_menu_items(self, x: int, y: int) -> None:
@@ -244,8 +253,7 @@ class MainMenuScene:
         print(value, value_x, y, value_color, fixed=True)
 
     def _draw_footer(self) -> None:
-        ver = game_version_label()
-        print(ver, 2, 2, Color.GREY)
+        return
 
     def _update_entity_watch(self, dt: float) -> None:
         if dt < 0.0:
@@ -345,7 +353,8 @@ class MainMenuScene:
             i += 1
 
     def _next_watch_seed(self) -> int:
-        self._watch_seed = (self._watch_seed * 1664525 + 1013904223) & 0xFFFFFFFF
+        self._watch_seed = (self._watch_seed * 1664525 +
+                            1013904223) & 0xFFFFFFFF
         if self._watch_seed == 0:
             self._watch_seed = 1
         return int(self._watch_seed)
