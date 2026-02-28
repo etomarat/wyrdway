@@ -134,7 +134,8 @@ class DriveTopdownRenderer:
         pursuer_state: PursuerState | None = None,
         pursuer_s: float = 0.0,
         strike_flash: float = 0.0,
-        screen_glitch_active: bool = False
+        screen_glitch_active: bool = False,
+        view_center_x: int | None = None
     ) -> None:
         self._shake.ensure_seed(road.seed)
         self._pursuer_anim_t += float(TUNING.CORE.dt)
@@ -146,7 +147,10 @@ class DriveTopdownRenderer:
             TUNING
         )
 
-        center_x = 120 + self._round_to_int(shake_x)
+        center_x = 120
+        if view_center_x is not None:
+            center_x = int(view_center_x)
+        center_x += self._round_to_int(shake_x)
         center_y = self._road_draw.clamp_center_y(int(TUNING.DRIVE.view_center_y))
         center_y += self._round_to_int(shake_y)
 

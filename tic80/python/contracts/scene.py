@@ -44,7 +44,7 @@ class Scene(Protocol):
     def exit(self) -> None: ...
 
 
-SceneKeyNoParams = Literal["GARAGE", "REGION_MAP", "POI", "DRIVE_PRESET"]
+SceneKeyNoParams = Literal["MAIN_MENU", "GARAGE", "REGION_MAP", "POI", "DRIVE_PRESET"]
 SceneKeyDrive = Literal["DRIVE"]
 SceneKeyResult = Literal["RESULT"]
 

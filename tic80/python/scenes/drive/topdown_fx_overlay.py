@@ -6,8 +6,8 @@ if TYPE_CHECKING:
     from ...systems.drive.drive_fx import DriveFx, TopdownProjector
     from ...systems.drive.drive_logic_core import DriveLogic
     from ...systems.drive.fx_particles import Particles2D
-    from ...systems.drive.road_model import RoadModel
     from ...systems.drive.rng import lcg_next_u31
+    from ...systems.drive.road_model import RoadModel
     from ...systems.fx.vendor.vand_particles import VandParticles
     from .car_pose2d import CarPose2D
 
@@ -291,7 +291,7 @@ class TopdownFxOverlay:
             mr = (r0 + (r1 - r0) * (0.25 + t * 0.20)) * (0.80 + 0.55 * s)
             if mr < sr:
                 mr = sr
-            mid_life = 26 + int(s * 18.0)
+            mid_life = 14 + int(s * 8.0)
             x3, y3 = pose.local_to_screen(base_x + (u - 0.5) * 1.6, m_back)
             x4, y4 = pose.local_to_screen(base_x - (u - 0.5) * 1.2, m_back + 1.2)
             self._exhaust_smoke.spawn_dust_down_two_tone_life(x3, y3, mr, c0, c1, mid_life)
@@ -301,20 +301,15 @@ class TopdownFxOverlay:
             tail_r = r1 * (0.85 + t * 0.35) * (0.70 + 0.70 * s)
             if tail_r < mr:
                 tail_r = mr
-            tail_life = 34 + int(s * 26.0)
+            tail_life = 18 + int(s * 10.0)
             x5, y5 = pose.local_to_screen(base_x + (t - 0.5) * 2.8, tail_back)
             x6, y6 = pose.local_to_screen(base_x + (u - 0.5) * 2.2 + 1.2, tail_back + 1.6)
             x7, y7 = pose.local_to_screen(base_x - (u - 0.5) * 2.0 - 1.0, tail_back + 2.6)
             x8, y8 = pose.local_to_screen(base_x + (t - 0.5) * 2.0 - 1.4, tail_back + 3.6)
-            x9, y9 = pose.local_to_screen(base_x + (t - 0.5) * 2.4 + 0.8, tail_back + 4.6)
             self._exhaust_smoke.spawn_dust_down_two_tone_life(x5, y5, tail_r, c0, c1, tail_life)
             self._exhaust_smoke.spawn_dust_down_two_tone_life(x6, y6, tail_r * 0.92, c0, c1, tail_life - 2)
             self._exhaust_smoke.spawn_dust_down_two_tone_life(x7, y7, tail_r * 0.88, c0, c1, tail_life - 4)
             self._exhaust_smoke.spawn_dust_down_two_tone_life(x8, y8, tail_r * 0.84, c0, c1, tail_life - 6)
-            self._exhaust_smoke.spawn_dust_down_two_tone_life(x9, y9, tail_r * 0.78, c0, c1, tail_life - 8)
-            if (r & 1) == 0:
-                x10, y10 = pose.local_to_screen(base_x + (u - 0.5) * 2.8, tail_back + 5.4)
-                self._exhaust_smoke.spawn_dust_down_two_tone_life(x10, y10, tail_r * 0.72, c0, c1, tail_life - 10)
             i += 1
 
     def _emit_offroad_transition_sparks(
