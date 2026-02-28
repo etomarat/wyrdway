@@ -19,6 +19,7 @@ if TYPE_CHECKING:
 #
 # Extra:
 # - `spr=291` (row below the atlas, first column) is a compact "ARROWS" icon.
+# - `spr=292` (same row, next column) is an "F6" key icon.
 
 PROMPT_GLYPH_SPR_BASE = 259
 PROMPT_GLYPH_SPR_ROW_STRIDE = 16
@@ -59,6 +60,7 @@ _ROW1_GLYPH_OFFSET = {
 }
 
 _GLYPH_ARROWS = 33
+_GLYPH_F6 = 34
 
 
 def prompt_glyph_sprite_id(glyph: int) -> int:
@@ -78,5 +80,8 @@ def prompt_glyph_sprite_id(glyph: int) -> int:
     if g == _GLYPH_ARROWS:
         # Extra icon lives on the next row under the prompt atlas.
         return base + int(PROMPT_GLYPH_SPR_ROW_STRIDE) * 2
+    if g == _GLYPH_F6:
+        # F6 icon is placed right after ARROWS icon.
+        return base + int(PROMPT_GLYPH_SPR_ROW_STRIDE) * 2 + 1
 
     return -1

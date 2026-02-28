@@ -43,6 +43,7 @@ class PromptGlyph:
     KEY_Y = 31
     KEY_B = 32
     KEY_ARROWS = 33
+    KEY_F6 = 34
 
 _GLYPH_LABELS = {
     # Keyboard labels.
@@ -60,6 +61,7 @@ _GLYPH_LABELS = {
     PromptGlyph.KEY_Y: "Y",
     PromptGlyph.KEY_B: "B",
     PromptGlyph.KEY_ARROWS: "ARROWS",
+    PromptGlyph.KEY_F6: "F6",
     # Gamepad positions / shoulders.
     PromptGlyph.PAD_SOUTH: "SOUTH",
     PromptGlyph.PAD_WEST: "WEST",
