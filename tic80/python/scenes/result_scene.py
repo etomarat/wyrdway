@@ -1,19 +1,33 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from tic80 import cls, line
+    from tic80 import cls
 
     from ..contracts import ResultEnterParams, SceneEnterParams, SceneNavigator
     from ..core.controls.actions import Action
     from ..core.palette import Color, ColorId
     from ..core.scene_ids import SceneId
-    from ..core.ui.text import ui_text_center
+    from ..core.ui.overlay_footer import ui_overlay_footer_draw
+    from ..core.ui.overlay_layout import OverlayLayout
+    from ..core.ui.overlay_modal import (
+        ui_overlay_modal_centered_box,
+        ui_overlay_modal_draw_centered_lines,
+        ui_overlay_modal_draw_chrome
+    )
     from ..core.ui.prompts import ui_prompt_for_action
     from ..core.ui.prompts import ui_prompt_with_text
+else:
+    OverlayLayout = dict
 
 
 class ResultScene:
     SCENE_ID = SceneId.RESULT
+    OVERLAY_W = 216
+    OVERLAY_H = 104
+    OVERLAY_HEADER_TEXT_OFFSET_Y = 9
+    OVERLAY_BODY_TOP_OFFSET_Y = 24
+    OVERLAY_FOOTER_LINE_OFFSET_Y = 84
+    OVERLAY_FOOTER_TEXT_OFFSET_Y = 88
 
     def __init__(self, nav: SceneNavigator) -> None:
         self._nav = nav
@@ -179,19 +193,69 @@ class ResultScene:
             self._state.apply_run_results()
             self._nav.go(SceneId.GARAGE)
 
+    def _overlay_layout(self) -> OverlayLayout:
+        box_x, box_y = ui_overlay_modal_centered_box(self.OVERLAY_W, self.OVERLAY_H)
+        return {
+            "box_x": box_x,
+            "box_y": box_y,
+            "box_w": self.OVERLAY_W,
+            "box_h": self.OVERLAY_H,
+            "header_text_y": box_y + self.OVERLAY_HEADER_TEXT_OFFSET_Y,
+            "body_top": box_y + self.OVERLAY_BODY_TOP_OFFSET_Y,
+            "footer_line_y": box_y + self.OVERLAY_FOOTER_LINE_OFFSET_Y,
+            "footer_text_y": box_y + self.OVERLAY_FOOTER_TEXT_OFFSET_Y,
+            "slot_count": 1,
+            "slot_weights": (1,),
+            "slot_nav": 0,
+            "slot_confirm": 0,
+            "slot_cancel": 0
+        }
+
+    def _body_lines(self) -> list[tuple[str, ColorId]]:
+        body: list[tuple[str, ColorId]] = []
+        if self._subtitle != "":
+            body.append((self._subtitle, self._subtitle_color))
+            body.append(("", Color.WHITE))
+        i = 0
+        while i < len(self._lines):
+            body.append(self._lines[i])
+            i += 1
+        return body
+
     def draw(self) -> None:
         cls(Color.BLACK)
-        ui_text_center(self._title, 24, self._title_color, margin_x=4)
-        if self._subtitle != "":
-            ui_text_center(self._subtitle, 40, self._subtitle_color, margin_x=4)
-        line(24, 50, 216, 50, self._title_color)
-        y = 60
-        for text, color in self._lines:
-            ui_text_center(text, y, color, margin_x=4)
-            y += 9
+        layout = self._overlay_layout()
+        box_x, _box_y, box_w, _box_h, body_top, footer_line_y, footer_text_y = ui_overlay_modal_draw_chrome(
+            layout,
+            self._title,
+            self._title_color,
+            Color.BLACK,
+            Color.DARK_GREY,
+            Color.BLACK,
+            Color.GREY
+        )
+        ui_overlay_modal_draw_centered_lines(
+            self._body_lines(),
+            box_x,
+            box_w,
+            body_top,
+            8
+        )
         prompt = ui_prompt_for_action(self._state, Action.CONFIRM)
         cta = ui_prompt_with_text(prompt, self._cta)
-        ui_text_center(cta, 112, self._cta_color, margin_x=4)
+        ui_overlay_footer_draw(
+            layout,
+            [cta],
+            [self._state.controls.down(Action.CONFIRM)],
+            [False],
+            footer_line_y,
+            footer_text_y,
+            Color.BLACK,
+            Color.GREY,
+            False,
+            -1,
+            self._cta_color
+        )
 
     def exit(self) -> None:
         pass

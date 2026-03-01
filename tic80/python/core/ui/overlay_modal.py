@@ -1,6 +1,8 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from typing import Sequence
+
     from tic80 import line, print, rect
 
     from .rich_text import ui_rich_has_glyph_tokens, ui_rich_print, ui_rich_text_center_x
@@ -46,7 +48,7 @@ def ui_overlay_modal_draw_chrome(
 
 
 def ui_overlay_modal_draw_centered_lines(
-    lines: list[tuple[str, int]],
+    lines: Sequence[tuple[str, int]],
     box_x: int,
     box_w: int,
     top_y: int,
