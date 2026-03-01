@@ -5,7 +5,7 @@ if TYPE_CHECKING:
 
     from ..contracts import PursuerVariantId
     from ..data.tuning import TUNING
-    from .controls.bindings import ActionBindings, make_default_bindings
+    from .controls.bindings import make_default_bindings
     from .controls.input import Controls
     from .controls.modes import (
         InputDeviceMode,

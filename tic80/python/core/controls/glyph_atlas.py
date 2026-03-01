@@ -1,9 +1,3 @@
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from .prompts import PromptGlyph
-
-
 # Prompt glyph sprites live right of the car sprites in the second sprite bank.
 #
 # Car block (3x4) starts at `spr=256` (see `drive_topdown_renderer._CAR_SPRITE_BASE_ID`).

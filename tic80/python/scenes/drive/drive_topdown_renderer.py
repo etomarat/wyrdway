@@ -2,7 +2,7 @@ import math
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from tic80 import circ, circb, line, print, ttri
+    from tic80 import circ, circb, ttri
 
     from ...contracts import PursuerVariantIdValue
     from ...contracts import PursuerVariantTuning

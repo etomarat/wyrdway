@@ -1,8 +1,6 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from tic80 import print
-
     from .rich_text import ui_rich_has_glyph_tokens, ui_rich_print, ui_rich_text_center_x
 
 

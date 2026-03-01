@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from tic80 import cls, line, print
+    from tic80 import cls, line
 
     from ..contracts import ResultEnterParams, SceneEnterParams, SceneNavigator
     from ..core.controls.actions import Action

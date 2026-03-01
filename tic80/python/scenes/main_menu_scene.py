@@ -1,6 +1,8 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from typing import TypeAlias
+
     from tic80 import circ, cls, line, pix, print, rect
 
     from ..contracts import SceneEnterParams, SceneNavigator
@@ -17,6 +19,11 @@ if TYPE_CHECKING:
     from ..core.version import game_version_label
     from .drive.pursuer_text_bank import PursuerTextBank
     from .main_menu_backdrop import MainMenuBackdrop, make_main_menu_backdrop
+    OverlayLayoutValue: TypeAlias = int | tuple[int, ...]
+    OverlayLayout: TypeAlias = dict[str, OverlayLayoutValue]
+else:
+    OverlayLayoutValue = int
+    OverlayLayout = dict
 
 
 class MainMenuScene:
@@ -49,7 +56,7 @@ class MainMenuScene:
     _OVERLAY_NEW_GAME_CONFIRM = 3
     _OVERLAY_BODY_X_PAD = 8
     _OVERLAY_BODY_LINE_STEP = 8
-    _OVERLAY_LAYOUT_DEFAULT = {
+    _OVERLAY_LAYOUT_DEFAULT: OverlayLayout = {
         "box_x": 20,
         "box_y": 28,
         "box_w": 200,
@@ -65,7 +72,7 @@ class MainMenuScene:
         "slot_confirm": 2,
         "slot_cancel": 3
     }
-    _OVERLAY_LAYOUTS = {
+    _OVERLAY_LAYOUTS: dict[int, OverlayLayout] = {
         _OVERLAY_CONTROLS: {
             "box_x": 14,
             "box_y": 28,
@@ -513,29 +520,31 @@ class MainMenuScene:
             return self._new_game_overlay_lines()
         return []
 
-    def _overlay_layout(self) -> dict:
+    def _overlay_layout(self) -> OverlayLayout:
         layout = self._OVERLAY_LAYOUTS.get(self._overlay)
         if layout is None:
             return self._OVERLAY_LAYOUT_DEFAULT
         return layout
 
     @staticmethod
-    def _layout_int(layout: dict, key: str, fallback: int) -> int:
+    def _layout_int(layout: OverlayLayout, key: str, fallback: int) -> int:
         value = layout.get(key)
         if value is None:
+            return int(fallback)
+        if isinstance(value, tuple):
             return int(fallback)
         return int(value)
 
     @staticmethod
     def _layout_slot_index(
-        layout: dict,
+        layout: OverlayLayout,
         key: str,
         fallback: int,
         slot_count: int
     ) -> int:
         idx = int(fallback)
         value = layout.get(key)
-        if value is not None:
+        if value is not None and not isinstance(value, tuple):
             idx = int(value)
         if idx < 0:
             return 0
@@ -544,13 +553,13 @@ class MainMenuScene:
         return idx
 
     @staticmethod
-    def _layout_slot_weights(layout: dict, slot_count: int) -> list[int]:
+    def _layout_slot_weights(layout: OverlayLayout, slot_count: int) -> list[int]:
         raw = layout.get("slot_weights")
         weights: list[int] = []
         i = 0
         while i < slot_count:
             w = 1
-            if raw is not None and i < len(raw):
+            if isinstance(raw, tuple) and i < len(raw):
                 w = int(raw[i])
                 if w < 1:
                     w = 1
@@ -558,7 +567,7 @@ class MainMenuScene:
             i += 1
         return weights
 
-    def _draw_overlay_footer(self, layout: dict) -> None:
+    def _draw_overlay_footer(self, layout: OverlayLayout) -> None:
         x = self._layout_int(layout, "box_x", 20)
         w = self._layout_int(layout, "box_w", 200)
         footer_line_y = self._layout_int(layout, "footer_line_y", 104)
@@ -592,7 +601,7 @@ class MainMenuScene:
             slot_ends.append(slot_x1)
             i += 1
 
-        button_bg_y = footer_line_y + 2
+        button_bg_y = footer_line_y + 1
         button_bg_h = footer_text_y + 8 - button_bg_y
         if button_bg_h < 1:
             button_bg_h = 1
@@ -605,8 +614,8 @@ class MainMenuScene:
                 slot_x0 = slot_starts[i]
                 slot_x1 = slot_ends[i]
                 slot_w = slot_x1 - slot_x0
-                if slot_w > 2:
-                    rect(slot_x0 + 1, button_bg_y, slot_w - 2,
+                if slot_w > 0:
+                    rect(slot_x0, button_bg_y, slot_w,
                          button_bg_h, button_bg_color)
             i += 1
 
@@ -663,7 +672,7 @@ class MainMenuScene:
                 )
             i += 1
 
-    def _overlay_footer_slots(self, layout: dict, slot_count: int) -> list[str]:
+    def _overlay_footer_slots(self, layout: OverlayLayout, slot_count: int) -> list[str]:
         slots: list[str] = []
         i = 0
         while i < slot_count:
@@ -697,7 +706,7 @@ class MainMenuScene:
             slots[slot_nav] = ui_prompt_with_text(nav_prompt, "NAV")
         return slots
 
-    def _overlay_max_chars_per_line(self, layout: dict = None) -> int:
+    def _overlay_max_chars_per_line(self, layout: OverlayLayout | None = None) -> int:
         if layout is None:
             layout = self._overlay_layout()
         box_w = self._layout_int(layout, "box_w", 200)
@@ -706,7 +715,7 @@ class MainMenuScene:
             return 8
         return chars
 
-    def _overlay_visible_lines(self, layout: dict = None) -> int:
+    def _overlay_visible_lines(self, layout: OverlayLayout | None = None) -> int:
         if layout is None:
             layout = self._overlay_layout()
         footer_line_y = self._layout_int(layout, "footer_line_y", 104)
@@ -718,7 +727,11 @@ class MainMenuScene:
             return 1
         return count
 
-    def _overlay_wrap_lines(self, lines: list[str], layout: dict = None) -> list[str]:
+    def _overlay_wrap_lines(
+        self,
+        lines: list[str],
+        layout: OverlayLayout | None = None
+    ) -> list[str]:
         max_chars = self._overlay_max_chars_per_line(layout)
         out: list[str] = []
         i = 0
@@ -748,14 +761,22 @@ class MainMenuScene:
             i += 1
         return out
 
-    def _overlay_max_scroll(self, lines: list[str], layout: dict = None) -> int:
+    def _overlay_max_scroll(
+        self,
+        lines: list[str],
+        layout: OverlayLayout | None = None
+    ) -> int:
         wrapped = self._overlay_wrap_lines(lines, layout)
         max_scroll = len(wrapped) - self._overlay_visible_lines(layout)
         if max_scroll < 0:
             return 0
         return max_scroll
 
-    def _clamp_overlay_scroll(self, lines: list[str], layout: dict = None) -> None:
+    def _clamp_overlay_scroll(
+        self,
+        lines: list[str],
+        layout: OverlayLayout | None = None
+    ) -> None:
         max_scroll = self._overlay_max_scroll(lines, layout)
         if self._overlay_scroll < 0:
             self._overlay_scroll = 0
