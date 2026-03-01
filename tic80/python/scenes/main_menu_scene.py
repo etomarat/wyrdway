@@ -1,8 +1,6 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import TypeAlias
-
     from tic80 import circ, cls, line, mouse, pix, print, rect
 
     from ..contracts import SceneEnterParams, SceneNavigator
@@ -16,7 +14,7 @@ if TYPE_CHECKING:
     )
     from ..core.palette import Color
     from ..core.scene_ids import SceneId
-    from ..core.text_layout import text_center_x, text_right_x, text_width
+    from ..core.text_layout import text_right_x, text_width
     from ..core.ui.prompts import (
         ui_prompt_for_action,
         ui_prompt_for_nav_hint,
@@ -24,13 +22,19 @@ if TYPE_CHECKING:
         ui_prompt_with_text
     )
     from ..core.ui.rich_text import ui_rich_print, ui_rich_text_width
+    from ..core.ui.overlay_layout import (
+        OverlayLayout,
+        ui_overlay_footer_slot_at,
+        ui_overlay_layout_int,
+        ui_overlay_layout_slot_index,
+        ui_overlay_layout_slot_count
+    )
+    from ..core.ui.overlay_modal import ui_overlay_modal_draw_chrome
+    from ..core.ui.overlay_footer import ui_overlay_footer_draw
     from ..core.version import game_version_label
     from .drive.pursuer_text_bank import PursuerTextBank
     from .main_menu_backdrop import MainMenuBackdrop, make_main_menu_backdrop
-    OverlayLayoutValue: TypeAlias = int | tuple[int, ...]
-    OverlayLayout: TypeAlias = dict[str, OverlayLayoutValue]
 else:
-    OverlayLayoutValue = int
     OverlayLayout = dict
 
 
@@ -403,13 +407,15 @@ class MainMenuScene:
             return False, False, False
         layout = self._overlay_layout()
         nav_enabled = self._overlay_footer_nav_enabled(layout)
-        slot_count = self._overlay_slot_count(layout)
+        slot_count = ui_overlay_layout_slot_count(layout)
         slots = self._overlay_footer_slots(layout, slot_count)
-        hover_slot = self._overlay_footer_slot_at(
+        hover_slot = ui_overlay_footer_slot_at(
             layout,
             slots,
             self._mouse_x,
-            self._mouse_y
+            self._mouse_y,
+            ui_overlay_layout_int(layout, "footer_line_y", 104),
+            ui_overlay_layout_int(layout, "footer_text_y", 108)
         )
         self._overlay_mouse_hover_slot = hover_slot
         if self._mouse_left_pressed:
@@ -422,15 +428,15 @@ class MainMenuScene:
             ):
                 released_slot = hover_slot
             self._overlay_mouse_down_slot = -1
-            slot_nav = self._layout_slot_index(
+            slot_nav = ui_overlay_layout_slot_index(
                 layout, "slot_nav", 0, slot_count)
-            slot_confirm = self._layout_slot_index(
+            slot_confirm = ui_overlay_layout_slot_index(
                 layout,
                 "slot_confirm",
                 2,
                 slot_count
             )
-            slot_cancel = self._layout_slot_index(
+            slot_cancel = ui_overlay_layout_slot_index(
                 layout,
                 "slot_cancel",
                 slot_count - 1,
@@ -963,18 +969,15 @@ class MainMenuScene:
 
     def _draw_overlay_box(self, title: str, lines: list[str]) -> None:
         layout = self._overlay_layout()
-        x = self._layout_int(layout, "box_x", 20)
-        y = self._layout_int(layout, "box_y", 28)
-        w = self._layout_int(layout, "box_w", 200)
-        h = self._layout_int(layout, "box_h", 90)
-        header_text_y = self._layout_int(layout, "header_text_y", 37)
-        body_top = self._layout_int(layout, "body_top", 54)
-        rect(x, y, w, h, Color.BLACK)
-        rect(x + 1, y + 1, w - 2, h - 2, Color.DARK_GREY)
-        rect(x + 4, y + 4, w - 8, 14, Color.BLACK)
-        line(x + 4, y + 18, x + w - 5, y + 18, Color.GREY)
-        print(title, text_center_x(title, margin_x=x + 4),
-              header_text_y, Color.WHITE)
+        x, _y, w, _h, body_top, _footer_line_y, _footer_text_y = ui_overlay_modal_draw_chrome(
+            layout,
+            title,
+            Color.WHITE,
+            Color.BLACK,
+            Color.DARK_GREY,
+            Color.BLACK,
+            Color.GREY
+        )
         self._draw_overlay_footer(layout)
         wrapped = self._overlay_wrap_lines(lines, layout)
         self._clamp_overlay_scroll(lines, layout)
@@ -1017,171 +1020,61 @@ class MainMenuScene:
             return self._OVERLAY_LAYOUT_DEFAULT
         return layout
 
-    @staticmethod
-    def _layout_int(layout: OverlayLayout, key: str, fallback: int) -> int:
-        value = layout.get(key)
-        if value is None:
-            return int(fallback)
-        if isinstance(value, tuple):
-            return int(fallback)
-        return int(value)
-
-    @staticmethod
-    def _layout_slot_index(
-        layout: OverlayLayout,
-        key: str,
-        fallback: int,
-        slot_count: int
-    ) -> int:
-        idx = int(fallback)
-        value = layout.get(key)
-        if value is not None and not isinstance(value, tuple):
-            idx = int(value)
-        if idx < 0:
-            return 0
-        if idx >= slot_count:
-            return slot_count - 1
-        return idx
-
-    @staticmethod
-    def _layout_slot_weights(layout: OverlayLayout, slot_count: int) -> list[int]:
-        raw = layout.get("slot_weights")
-        weights: list[int] = []
-        i = 0
-        while i < slot_count:
-            w = 1
-            if isinstance(raw, tuple) and i < len(raw):
-                w = int(raw[i])
-                if w < 1:
-                    w = 1
-            weights.append(w)
-            i += 1
-        return weights
-
     def _draw_overlay_footer(self, layout: OverlayLayout) -> None:
-        x = self._layout_int(layout, "box_x", 20)
-        w = self._layout_int(layout, "box_w", 200)
-        footer_line_y = self._layout_int(layout, "footer_line_y", 104)
-        footer_text_y = self._layout_int(layout, "footer_text_y", 108)
-        button_bg_color = self._layout_int(layout, "footer_bg_color", 0)
-        line(x + 4, footer_line_y, x + w - 5, footer_line_y, Color.GREY)
+        footer_line_y = ui_overlay_layout_int(layout, "footer_line_y", 104)
+        footer_text_y = ui_overlay_layout_int(layout, "footer_text_y", 108)
+        button_bg_color = ui_overlay_layout_int(layout, "footer_bg_color", 0)
         nav_enabled = self._overlay_footer_nav_enabled(layout)
-        slot_count = self._overlay_slot_count(layout)
-        slot_nav = self._layout_slot_index(layout, "slot_nav", 0, slot_count)
-        slot_confirm = self._layout_slot_index(
-            layout, "slot_confirm", 2, slot_count)
-        slot_cancel = self._layout_slot_index(
-            layout, "slot_cancel", slot_count - 1, slot_count)
+        slot_count = ui_overlay_layout_slot_count(layout)
+        slot_nav = ui_overlay_layout_slot_index(layout, "slot_nav", 0, slot_count)
+        slot_confirm = ui_overlay_layout_slot_index(layout, "slot_confirm", 2, slot_count)
+        slot_cancel = ui_overlay_layout_slot_index(layout, "slot_cancel", slot_count - 1, slot_count)
         slots = self._overlay_footer_slots(layout, slot_count)
-        slot_starts, slot_ends, button_bg_y, button_bg_h = self._overlay_footer_slot_geometry(
-            layout,
-            slot_count,
-            footer_line_y,
-            footer_text_y
-        )
-        slot_text_colors: list[int] = []
+
+        slot_active: list[bool] = []
+        slot_hover: list[bool] = []
         i = 0
         while i < slot_count:
-            slot_text_colors.append(Color.LIGHT_GREY)
-            i += 1
-        i = 0
-        while i < slot_count:
-            text = ""
-            if i < len(slots):
-                text = str(slots[i])
-            if text != "":
-                slot_x0 = slot_starts[i]
-                slot_x1 = slot_ends[i]
-                slot_w = slot_x1 - slot_x0
-                if slot_w > 0:
-                    slot_active = False
-                    if nav_enabled and i == slot_nav and self._overlay_nav_any_down():
-                        slot_active = True
-                    if (
-                        i == slot_confirm
-                        and self._overlay_confirm_armed
-                        and self._state.controls.down(Action.CONFIRM)
-                    ):
-                        slot_active = True
-                    if (
-                        i == slot_cancel
-                        and self._overlay_cancel_armed
-                        and self._state.controls.down(Action.CANCEL)
-                    ):
-                        slot_active = True
-                    if (
-                        self._mouse_left_down
-                        and self._overlay_mouse_down_slot == i
-                        and self._overlay_mouse_hover_slot == i
-                    ):
-                        slot_active = True
-                    slot_hover = (
-                        not slot_active
-                        and self._overlay_mouse_hover_slot == i
-                    )
-                    slot_bg_color = button_bg_color
-                    if slot_active:
-                        slot_bg_color = Color.DARK_BLUE
-                        slot_text_colors[i] = Color.WHITE
-                    elif slot_hover:
-                        slot_bg_color = Color.DARK_GREY
-                        slot_text_colors[i] = Color.WHITE
-                    rect(slot_x0, button_bg_y, slot_w,
-                         button_bg_h, slot_bg_color)
+            active = False
+            if nav_enabled and i == slot_nav and self._overlay_nav_any_down():
+                active = True
+            if (
+                i == slot_confirm
+                and self._overlay_confirm_armed
+                and self._state.controls.down(Action.CONFIRM)
+            ):
+                active = True
+            if (
+                i == slot_cancel
+                and self._overlay_cancel_armed
+                and self._state.controls.down(Action.CANCEL)
+            ):
+                active = True
+            if (
+                self._mouse_left_down
+                and self._overlay_mouse_down_slot == i
+                and self._overlay_mouse_hover_slot == i
+            ):
+                active = True
+            slot_active.append(active)
+            hover = (not active) and self._overlay_mouse_hover_slot == i
+            slot_hover.append(hover)
             i += 1
 
-        if self._OVERLAY_FOOTER_DEBUG_SLOTS:
-            debug_y = footer_line_y + 1
-            debug_h = 11
-            debug_colors = [
-                Color.DARK_BLUE,
-                Color.BLUE,
-                Color.DARK_GREEN,
-                Color.PURPLE
-            ]
-            j = 0
-            while j < slot_count:
-                slot_x0 = slot_starts[j]
-                slot_x1 = slot_ends[j]
-                slot_w = slot_x1 - slot_x0
-                rect(slot_x0, debug_y, slot_w, debug_h,
-                     debug_colors[j % len(debug_colors)])
-                print(str(j + 1), slot_x0 + 1, debug_y +
-                      1, Color.YELLOW, fixed=True)
-                j += 1
         split_color = Color.GREY
         if self._OVERLAY_FOOTER_DEBUG_SLOTS:
             split_color = Color.LIGHT_GREY
-        j = 1
-        while j < slot_count:
-            split_x = slot_starts[j]
-            line(
-                split_x,
-                footer_line_y + 1,
-                split_x,
-                footer_text_y + 7,
-                split_color
-            )
-            j += 1
-        i = 0
-        while i < slot_count:
-            text = ""
-            if i < len(slots):
-                text = str(slots[i])
-            if text != "":
-                slot_x0 = slot_starts[i]
-                slot_x1 = slot_ends[i]
-                slot_w = slot_x1 - slot_x0
-                text_w = ui_rich_text_width(text)
-                draw_x = slot_x0 + int((slot_w - text_w) * 0.5)
-                ui_rich_print(
-                    text,
-                    draw_x,
-                    footer_text_y,
-                    slot_text_colors[i],
-                    fixed=True
-                )
-            i += 1
+        ui_overlay_footer_draw(
+            layout,
+            slots,
+            slot_active,
+            slot_hover,
+            footer_line_y,
+            footer_text_y,
+            button_bg_color,
+            split_color,
+            self._OVERLAY_FOOTER_DEBUG_SLOTS
+        )
 
     def _overlay_footer_slots(self, layout: OverlayLayout, slot_count: int) -> list[str]:
         slots: list[str] = []
@@ -1189,10 +1082,10 @@ class MainMenuScene:
         while i < slot_count:
             slots.append("")
             i += 1
-        slot_nav = self._layout_slot_index(layout, "slot_nav", 0, slot_count)
-        slot_confirm = self._layout_slot_index(
+        slot_nav = ui_overlay_layout_slot_index(layout, "slot_nav", 0, slot_count)
+        slot_confirm = ui_overlay_layout_slot_index(
             layout, "slot_confirm", 2, slot_count)
-        slot_cancel = self._layout_slot_index(
+        slot_cancel = ui_overlay_layout_slot_index(
             layout, "slot_cancel", slot_count - 1, slot_count)
 
         if self._overlay == self._OVERLAY_NEW_GAME_CONFIRM:
@@ -1225,85 +1118,10 @@ class MainMenuScene:
         lines = self._overlay_body_lines_for(self._overlay)
         return self._overlay_max_scroll(lines, layout) > 0
 
-    @staticmethod
-    def _overlay_slot_count(layout: OverlayLayout) -> int:
-        slot_count = MainMenuScene._layout_int(layout, "slot_count", 4)
-        if slot_count < 1:
-            return 1
-        return slot_count
-
-    def _overlay_footer_slot_geometry(
-        self,
-        layout: OverlayLayout,
-        slot_count: int,
-        footer_line_y: int,
-        footer_text_y: int
-    ) -> tuple[list[int], list[int], int, int]:
-        inner_x = self._layout_int(layout, "box_x", 20) + 4
-        inner_w = self._layout_int(layout, "box_w", 200) - 8
-        weights = self._layout_slot_weights(layout, slot_count)
-        total_weight = 0
-        i = 0
-        while i < len(weights):
-            total_weight += int(weights[i])
-            i += 1
-        if total_weight < 1:
-            total_weight = slot_count
-
-        slot_starts: list[int] = []
-        slot_ends: list[int] = []
-        acc = 0
-        i = 0
-        while i < slot_count:
-            slot_x0 = inner_x + int(inner_w * acc / total_weight)
-            acc += int(weights[i])
-            slot_x1 = inner_x + int(inner_w * acc / total_weight)
-            slot_starts.append(slot_x0)
-            slot_ends.append(slot_x1)
-            i += 1
-
-        # Keep a visual gap before footer content via `footer_text_y`, but
-        # hover/active fill should start right under the separator line.
-        button_bg_y = footer_line_y + 1
-        button_bg_h = footer_text_y + 8 - button_bg_y
-        if button_bg_h < 1:
-            button_bg_h = 1
-        return slot_starts, slot_ends, button_bg_y, button_bg_h
-
-    def _overlay_footer_slot_at(
-        self,
-        layout: OverlayLayout,
-        slots: list[str],
-        mx: int,
-        my: int
-    ) -> int:
-        slot_count = self._overlay_slot_count(layout)
-        footer_line_y = self._layout_int(layout, "footer_line_y", 104)
-        footer_text_y = self._layout_int(layout, "footer_text_y", 108)
-        slot_starts, slot_ends, button_bg_y, button_bg_h = self._overlay_footer_slot_geometry(
-            layout,
-            slot_count,
-            footer_line_y,
-            footer_text_y
-        )
-        i = 0
-        while i < slot_count:
-            if i >= len(slots):
-                return -1
-            if slots[i] == "":
-                i += 1
-                continue
-            x0 = slot_starts[i]
-            x1 = slot_ends[i]
-            if mx >= x0 and mx < x1 and my >= button_bg_y and my < button_bg_y + button_bg_h:
-                return i
-            i += 1
-        return -1
-
     def _overlay_max_chars_per_line(self, layout: OverlayLayout | None = None) -> int:
         if layout is None:
             layout = self._overlay_layout()
-        box_w = self._layout_int(layout, "box_w", 200)
+        box_w = ui_overlay_layout_int(layout, "box_w", 200)
         chars = int((box_w - self._OVERLAY_BODY_X_PAD * 2) / 6)
         if chars < 8:
             return 8
@@ -1312,8 +1130,8 @@ class MainMenuScene:
     def _overlay_visible_lines(self, layout: OverlayLayout | None = None) -> int:
         if layout is None:
             layout = self._overlay_layout()
-        footer_line_y = self._layout_int(layout, "footer_line_y", 104)
-        body_top = self._layout_int(layout, "body_top", 54)
+        footer_line_y = ui_overlay_layout_int(layout, "footer_line_y", 104)
+        body_top = ui_overlay_layout_int(layout, "body_top", 54)
         footer_cutoff = footer_line_y - 4
         body_h = footer_cutoff - body_top
         count = int(body_h / self._OVERLAY_BODY_LINE_STEP)
@@ -1380,20 +1198,16 @@ class MainMenuScene:
 
     def _draw_controls_overlay(self) -> None:
         layout = self._overlay_layout()
-        x = self._layout_int(layout, "box_x", 20)
-        y = self._layout_int(layout, "box_y", 28)
-        w = self._layout_int(layout, "box_w", 200)
-        h = self._layout_int(layout, "box_h", 90)
-        header_text_y = self._layout_int(layout, "header_text_y", 37)
-        body_top = self._layout_int(layout, "body_top", 54)
-        rect(x, y, w, h, Color.DARK_GREY)
-        rect(x + 1, y + 1, w - 2, h - 2, Color.BLACK)
-        rect(x + 4, y + 4, w - 8, 14, Color.BLACK)
-        line(x + 4, y + 18, x + w - 5, y + 18, Color.GREY)
-        print("OPTIONS", text_center_x("OPTIONS", margin_x=x + 4),
-              header_text_y, Color.WHITE)
+        x, _y, w, _h, body_top, footer_line_y, _footer_text_y = ui_overlay_modal_draw_chrome(
+            layout,
+            "OPTIONS",
+            Color.WHITE,
+            Color.DARK_GREY,
+            Color.BLACK,
+            Color.BLACK,
+            Color.GREY
+        )
         self._draw_overlay_footer(layout)
-        footer_line_y = self._layout_int(layout, "footer_line_y", 104)
         line_step = 7
         body_x = x + self._OVERLAY_BODY_X_PAD
         self._draw_controls_overlay_settings(
@@ -1427,7 +1241,7 @@ class MainMenuScene:
         right_gap = ui_rich_text_width("{gap}")
         # Visual nudge for right arrow to keep perceived left/right gap symmetric.
         right_gap_comp = -1
-        row_w = self._layout_int(layout, "box_w", 200) - \
+        row_w = ui_overlay_layout_int(layout, "box_w", 200) - \
             self._OVERLAY_BODY_X_PAD * 2 - 2
         row = 0
         while row < 3:
@@ -1528,10 +1342,10 @@ class MainMenuScene:
         )
 
     def _controls_setting_row_at(self, layout: OverlayLayout, mx: int, my: int) -> int:
-        body_top = self._layout_int(layout, "body_top", 54)
-        body_x = self._layout_int(layout, "box_x", 20) + \
+        body_top = ui_overlay_layout_int(layout, "body_top", 54)
+        body_x = ui_overlay_layout_int(layout, "box_x", 20) + \
             self._OVERLAY_BODY_X_PAD
-        body_w = self._layout_int(layout, "box_w", 200) - \
+        body_w = ui_overlay_layout_int(layout, "box_w", 200) - \
             self._OVERLAY_BODY_X_PAD * 2
         line_step = 7
         if mx < body_x or mx >= body_x + body_w:
@@ -1555,12 +1369,12 @@ class MainMenuScene:
             return 0
         if not self._controls_setting_enabled(row):
             return 0
-        body_top = self._layout_int(layout, "body_top", 54)
+        body_top = ui_overlay_layout_int(layout, "body_top", 54)
         line_step = 7
         row_y = body_top + row * line_step
         if my < row_y - 1 or my >= row_y + 7:
             return 0
-        body_x = self._layout_int(layout, "box_x", 20) + \
+        body_x = ui_overlay_layout_int(layout, "box_x", 20) + \
             self._OVERLAY_BODY_X_PAD
         value_x = body_x + text_width("CONTROL MODE:", 6) + 14
         left_arrow = self._controls_keyboard_nav_arrow(Action.NAV_LEFT)
@@ -1593,8 +1407,8 @@ class MainMenuScene:
         footer_line_y: int
     ) -> None:
         table_x0 = body_x
-        table_x1 = self._layout_int(
-            layout, "box_x", 20) + self._layout_int(layout, "box_w", 200) - 9
+        table_x1 = ui_overlay_layout_int(
+            layout, "box_x", 20) + ui_overlay_layout_int(layout, "box_w", 200) - 9
         table_y0 = area_top
         table_y1 = footer_line_y - 4
         if table_x1 <= table_x0 or table_y1 <= table_y0:

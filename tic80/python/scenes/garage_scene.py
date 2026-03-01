@@ -13,16 +13,20 @@ if TYPE_CHECKING:
         ui_meter_draw_labeled,
         ui_meter_fill_ratio
     )
-    from ..core.ui.modal import (
-        ui_modal_centered_box,
-        ui_modal_draw_box,
-        ui_modal_draw_lines
+    from ..core.ui.overlay_footer import ui_overlay_footer_draw
+    from ..core.ui.overlay_layout import OverlayLayout
+    from ..core.ui.overlay_modal import (
+        ui_overlay_modal_centered_box,
+        ui_overlay_modal_draw_centered_lines,
+        ui_overlay_modal_draw_chrome
     )
     from ..core.ui.panel import ui_panel_draw, ui_panel_draw_split_actions
     from ..core.ui.prompts import ui_prompt_for_action
     from ..core.ui.prompts import ui_prompt_with_text
     from ..core.ui.rich_text import ui_rich_print, ui_rich_text_center_x
     from ..data.tuning import TUNING
+else:
+    OverlayLayout = dict
 
 
 class GarageScene:
@@ -53,6 +57,10 @@ class GarageScene:
     VEHICLE_METER_BAR_H = 7
     MODAL_W = 188
     MODAL_H = 64
+    MODAL_HEADER_TEXT_OFFSET_Y = 9
+    MODAL_BODY_TOP_OFFSET_Y = 24
+    MODAL_FOOTER_LINE_OFFSET_Y = 50
+    MODAL_FOOTER_TEXT_OFFSET_Y = 54
 
     def __init__(self, nav: SceneNavigator) -> None:
         self._nav = nav
@@ -244,33 +252,118 @@ class GarageScene:
     def _draw_rollback_popup(self) -> None:
         if not self._rollback_modal_open:
             return
-        box_w = self.MODAL_W
-        box_h = self.MODAL_H
-        box_x, box_y = ui_modal_centered_box(box_w, box_h)
-        ui_modal_draw_box(box_x, box_y, box_w, box_h, Color.ORANGE)
-        close_hint = ui_prompt_with_text(ui_prompt_for_action(self._state, Action.CANCEL), "CLOSE")
-        lines = (
-            ("ROLLBACK RECOVERED", Color.ORANGE),
-            (self._rollback_modal_reason, Color.LIGHT_GREY),
-            ("THESEUS +" + str(self._rollback_modal_gain), Color.RED),
-            (close_hint, Color.LIGHT_GREY)
+        layout = self._modal_layout(
+            1,
+            (1,),
+            0,
+            0,
+            0
         )
-        ui_modal_draw_lines(lines, box_x, box_y, box_w, 10, 12)
+        box_x, _box_y, box_w, _box_h, body_top, footer_line_y, footer_text_y = ui_overlay_modal_draw_chrome(
+            layout,
+            "ROLLBACK RECOVERED",
+            Color.ORANGE,
+            Color.ORANGE,
+            Color.BLACK,
+            Color.BLACK,
+            Color.GREY
+        )
+        reason_line = self._rollback_modal_reason
+        if reason_line == "":
+            reason_line = "PROFILE RECOVERY APPLIED"
+        body_lines: list[tuple[str, int]] = [
+            (reason_line, Color.LIGHT_GREY),
+            ("THESEUS +" + str(self._rollback_modal_gain), Color.RED)
+        ]
+        ui_overlay_modal_draw_centered_lines(
+            body_lines,
+            box_x,
+            box_w,
+            body_top,
+            10
+        )
+        close_hint = ui_prompt_with_text(ui_prompt_for_action(self._state, Action.CANCEL), "CLOSE")
+        ui_overlay_footer_draw(
+            layout,
+            [close_hint],
+            [self._state.controls.down(Action.CANCEL)],
+            [False],
+            footer_line_y,
+            footer_text_y,
+            Color.BLACK,
+            Color.GREY
+        )
 
     def _draw_new_game_confirm(self) -> None:
-        box_w = self.MODAL_W
-        box_h = self.MODAL_H
-        box_x, box_y = ui_modal_centered_box(box_w, box_h)
-        ui_modal_draw_box(box_x, box_y, box_w, box_h, Color.WHITE, Color.BLACK, Color.BLACK)
+        layout = self._modal_layout(
+            2,
+            (1, 1),
+            0,
+            0,
+            1
+        )
+        box_x, _box_y, box_w, _box_h, body_top, footer_line_y, footer_text_y = ui_overlay_modal_draw_chrome(
+            layout,
+            "CONFIRM RESET",
+            Color.WHITE,
+            Color.WHITE,
+            Color.BLACK,
+            Color.BLACK,
+            Color.GREY
+        )
+        body_lines: list[tuple[str, int]] = [
+            ("START NEW GAME?", Color.WHITE),
+            ("THIS RESETS PROFILE PROGRESS", Color.LIGHT_GREY)
+        ]
+        ui_overlay_modal_draw_centered_lines(
+            body_lines,
+            box_x,
+            box_w,
+            body_top,
+            10
+        )
         confirm_hint = ui_prompt_with_text(ui_prompt_for_action(self._state, Action.CONFIRM), "CONFIRM RESET")
         cancel_hint = ui_prompt_with_text(ui_prompt_for_action(self._state, Action.CANCEL), "CANCEL")
-        lines = (
-            ("START NEW GAME?", Color.WHITE),
-            ("THIS RESETS PROFILE PROGRESS", Color.LIGHT_GREY),
-            (confirm_hint, Color.RED),
-            (cancel_hint, Color.LIGHT_GREY)
+        ui_overlay_footer_draw(
+            layout,
+            [confirm_hint, cancel_hint],
+            [
+                self._state.controls.down(Action.CONFIRM),
+                self._state.controls.down(Action.CANCEL)
+            ],
+            [False, False],
+            footer_line_y,
+            footer_text_y,
+            Color.BLACK,
+            Color.GREY
         )
-        ui_modal_draw_lines(lines, box_x, box_y, box_w, 10, 12)
+
+    def _modal_layout(
+        self,
+        slot_count: int,
+        slot_weights: tuple[int, ...],
+        slot_nav: int,
+        slot_confirm: int,
+        slot_cancel: int
+    ) -> OverlayLayout:
+        box_w = self.MODAL_W
+        box_h = self.MODAL_H
+        box_x, box_y = ui_overlay_modal_centered_box(box_w, box_h)
+        return {
+            "box_x": box_x,
+            "box_y": box_y,
+            "box_w": box_w,
+            "box_h": box_h,
+            "header_text_y": box_y + self.MODAL_HEADER_TEXT_OFFSET_Y,
+            "body_top": box_y + self.MODAL_BODY_TOP_OFFSET_Y,
+            "footer_line_y": box_y + self.MODAL_FOOTER_LINE_OFFSET_Y,
+            "footer_text_y": box_y + self.MODAL_FOOTER_TEXT_OFFSET_Y,
+            "slot_count": int(slot_count),
+            "slot_weights": slot_weights,
+            "slot_nav": int(slot_nav),
+            "slot_confirm": int(slot_confirm),
+            "slot_cancel": int(slot_cancel)
+        }
 
     def update(self, dt: float) -> None:
         if self._rollback_modal_open:

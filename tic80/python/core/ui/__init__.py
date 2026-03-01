@@ -5,8 +5,10 @@ if TYPE_CHECKING:
 
 
 include("core.ui.rich_text")
+include("core.ui.overlay_layout")
+include("core.ui.overlay_modal")
+include("core.ui.overlay_footer")
 include("core.ui.panel")
-include("core.ui.modal")
 include("core.ui.text")
 include("core.ui.meter")
 include("core.ui.prompts")
