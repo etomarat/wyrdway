@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from typing import TypeAlias
 
-    from tic80 import circ, cls, line, pix, print, rect
+    from tic80 import circ, cls, line, mouse, pix, print, rect
 
     from ..contracts import SceneEnterParams, SceneNavigator
     from ..core.controls.actions import Action
@@ -136,6 +136,18 @@ class MainMenuScene:
         self._selected = 0
         self._overlay = self._OVERLAY_NONE
         self._overlay_scroll = 0
+        self._mouse_x = 0
+        self._mouse_y = 0
+        self._mouse_left_down = False
+        self._mouse_left_pressed = False
+        self._mouse_left_released = False
+        self._mouse_scroll_y = 0
+        self._menu_mouse_hover_index = -1
+        self._menu_mouse_down_index = -1
+        self._overlay_mouse_hover_slot = -1
+        self._overlay_mouse_down_slot = -1
+        self._menu_confirm_was_down = False
+        self._menu_confirm_armed = True
         self._overlay_nav_up_was_down = False
         self._overlay_nav_down_was_down = False
         self._overlay_confirm_was_down = False
@@ -157,6 +169,12 @@ class MainMenuScene:
         self._selected = 0
         self._overlay = self._OVERLAY_NONE
         self._overlay_scroll = 0
+        self._menu_mouse_hover_index = -1
+        self._menu_mouse_down_index = -1
+        self._overlay_mouse_hover_slot = -1
+        self._overlay_mouse_down_slot = -1
+        self._menu_confirm_was_down = False
+        self._menu_confirm_armed = True
         self._reset_overlay_input_latches()
         self._backdrop.enter()
         self._watch_seed = (0x13579BDF ^ (
@@ -170,6 +188,7 @@ class MainMenuScene:
         self._watch_rec_t = 0.0
 
     def update(self, dt: float) -> None:
+        self._poll_mouse_state()
         self._backdrop.update(dt)
         self._update_entity_watch(dt)
         if self._overlay != self._OVERLAY_NONE:
@@ -188,7 +207,16 @@ class MainMenuScene:
             while self._selected >= item_count:
                 self._selected -= item_count
 
-        if self._state.controls.pressed(Action.CONFIRM):
+        self._menu_mouse_hover_index = self._menu_item_at(
+            self._mouse_x,
+            self._mouse_y
+        )
+        if self._menu_mouse_hover_index >= 0:
+            self._selected = self._menu_mouse_hover_index
+
+        mouse_confirm_released = self._poll_menu_mouse_confirm_release()
+        keyboard_confirm_released = self._poll_menu_confirm_release()
+        if mouse_confirm_released or keyboard_confirm_released:
             self._activate_selected_item()
 
     def draw(self) -> None:
@@ -207,6 +235,13 @@ class MainMenuScene:
 
     def _update_overlay_input(self) -> None:
         nav_up_released, nav_down_released, confirm_released, cancel_released = self._poll_overlay_release_events()
+        mouse_nav_released, mouse_confirm_released, mouse_cancel_released = self._poll_overlay_footer_mouse_release()
+        if mouse_nav_released:
+            nav_down_released = True
+        if mouse_confirm_released:
+            confirm_released = True
+        if mouse_cancel_released:
+            cancel_released = True
         if self._overlay == self._OVERLAY_NEW_GAME_CONFIRM:
             if cancel_released:
                 self._close_overlay()
@@ -252,12 +287,100 @@ class MainMenuScene:
     def _open_overlay(self, overlay_id: int) -> None:
         self._overlay = int(overlay_id)
         self._overlay_scroll = 0
+        self._menu_mouse_down_index = -1
+        self._overlay_mouse_hover_slot = -1
+        self._overlay_mouse_down_slot = -1
         self._reset_overlay_input_latches()
 
     def _close_overlay(self) -> None:
         self._overlay = self._OVERLAY_NONE
         self._overlay_scroll = 0
+        self._overlay_mouse_hover_slot = -1
+        self._overlay_mouse_down_slot = -1
         self._reset_overlay_input_latches()
+
+    def _poll_mouse_state(self) -> None:
+        mx, my, left_btn, _mid_btn, _right_btn, _scroll_x, scroll_y = mouse()
+        left_down = bool(left_btn)
+        self._mouse_left_pressed = left_down and (not self._mouse_left_down)
+        self._mouse_left_released = (not left_down) and self._mouse_left_down
+        self._mouse_left_down = left_down
+        self._mouse_x = int(mx)
+        self._mouse_y = int(my)
+        self._mouse_scroll_y = int(scroll_y)
+
+    def _poll_menu_confirm_release(self) -> bool:
+        confirm_down = self._state.controls.down(Action.CONFIRM)
+        confirm_released, self._menu_confirm_armed = self._released_from_hold(
+            self._menu_confirm_was_down,
+            confirm_down,
+            self._menu_confirm_armed
+        )
+        self._menu_confirm_was_down = confirm_down
+        return confirm_released
+
+    def _poll_menu_mouse_confirm_release(self) -> bool:
+        hover_idx = self._menu_mouse_hover_index
+        if self._mouse_left_pressed:
+            self._menu_mouse_down_index = hover_idx
+        if not self._mouse_left_down and not self._mouse_left_released:
+            self._menu_mouse_down_index = -1
+        if not self._mouse_left_released:
+            return False
+        activated = (
+            self._menu_mouse_down_index >= 0
+            and self._menu_mouse_down_index == hover_idx
+        )
+        self._menu_mouse_down_index = -1
+        return activated
+
+    def _poll_overlay_footer_mouse_release(self) -> tuple[bool, bool, bool]:
+        if self._overlay == self._OVERLAY_NONE:
+            self._overlay_mouse_hover_slot = -1
+            self._overlay_mouse_down_slot = -1
+            return False, False, False
+        layout = self._overlay_layout()
+        nav_enabled = self._overlay_footer_nav_enabled(layout)
+        slot_count = self._overlay_slot_count(layout)
+        slots = self._overlay_footer_slots(layout, slot_count)
+        hover_slot = self._overlay_footer_slot_at(
+            layout,
+            slots,
+            self._mouse_x,
+            self._mouse_y
+        )
+        self._overlay_mouse_hover_slot = hover_slot
+        if self._mouse_left_pressed:
+            self._overlay_mouse_down_slot = hover_slot
+        if self._mouse_left_released:
+            released_slot = -1
+            if (
+                self._overlay_mouse_down_slot >= 0
+                and self._overlay_mouse_down_slot == hover_slot
+            ):
+                released_slot = hover_slot
+            self._overlay_mouse_down_slot = -1
+            slot_nav = self._layout_slot_index(layout, "slot_nav", 0, slot_count)
+            slot_confirm = self._layout_slot_index(
+                layout,
+                "slot_confirm",
+                2,
+                slot_count
+            )
+            slot_cancel = self._layout_slot_index(
+                layout,
+                "slot_cancel",
+                slot_count - 1,
+                slot_count
+            )
+            return (
+                nav_enabled and released_slot == slot_nav,
+                released_slot == slot_confirm,
+                released_slot == slot_cancel
+            )
+        if not self._mouse_left_down:
+            self._overlay_mouse_down_slot = -1
+        return False, False, False
 
     def _reset_overlay_input_latches(self) -> None:
         nav_up_down = self._state.controls.down(Action.NAV_UP)
@@ -375,12 +498,50 @@ class MainMenuScene:
                 color = Color.GREY
             if selected and enabled:
                 color = Color.YELLOW
+            active = self._menu_item_active(i, enabled, selected)
+            if active:
+                rect(self._LEFT_X + 2, y - 1, self._LEFT_W - 4, 8, Color.DARK_GREY)
+                if enabled:
+                    color = Color.WHITE
             marker = "  "
             if selected:
                 marker = "> "
             print(marker + label, x, y, color)
             y += 10
             i += 1
+
+    def _menu_item_active(self, index: int, enabled: bool, selected: bool) -> bool:
+        # UI rule: when a modal/overlay is open, background UI must not react.
+        # Keep this behavior when moving modals to a shared UI layer.
+        if self._overlay != self._OVERLAY_NONE:
+            return False
+        if not enabled:
+            return False
+        keyboard_active = (
+            selected
+            and self._menu_confirm_armed
+            and self._state.controls.down(Action.CONFIRM)
+        )
+        mouse_active = (
+            self._mouse_left_down
+            and self._menu_mouse_down_index == index
+            and self._menu_mouse_hover_index == index
+        )
+        return keyboard_active or mouse_active
+
+    def _menu_item_at(self, mx: int, my: int) -> int:
+        row_x = self._LEFT_X + 2
+        row_w = self._LEFT_W - 4
+        if mx < row_x or mx >= row_x + row_w:
+            return -1
+        y0 = self._LEFT_Y + 16
+        i = 0
+        while i < len(self._MENU_ITEMS):
+            row_y = y0 + i * 10
+            if my >= row_y - 1 and my < row_y + 7:
+                return i
+            i += 1
+        return -1
 
     def _draw_left_save_info(self, x: int, y: int, w: int, h: int) -> None:
         if not self._has_continue():
@@ -650,40 +811,23 @@ class MainMenuScene:
         footer_text_y = self._layout_int(layout, "footer_text_y", 108)
         button_bg_color = self._layout_int(layout, "footer_bg_color", 0)
         line(x + 4, footer_line_y, x + w - 5, footer_line_y, Color.GREY)
-        inner_x = x + 4
-        inner_w = w - 8
-        slot_count = self._layout_int(layout, "slot_count", 4)
-        if slot_count < 1:
-            slot_count = 1
+        nav_enabled = self._overlay_footer_nav_enabled(layout)
+        slot_count = self._overlay_slot_count(layout)
         slot_nav = self._layout_slot_index(layout, "slot_nav", 0, slot_count)
         slot_confirm = self._layout_slot_index(layout, "slot_confirm", 2, slot_count)
         slot_cancel = self._layout_slot_index(layout, "slot_cancel", slot_count - 1, slot_count)
         slots = self._overlay_footer_slots(layout, slot_count)
-        weights = self._layout_slot_weights(layout, slot_count)
-        total_weight = 0
-        i = 0
-        while i < len(weights):
-            total_weight += int(weights[i])
-            i += 1
-        if total_weight < 1:
-            total_weight = slot_count
-
-        slot_starts: list[int] = []
-        slot_ends: list[int] = []
-        acc = 0
+        slot_starts, slot_ends, button_bg_y, button_bg_h = self._overlay_footer_slot_geometry(
+            layout,
+            slot_count,
+            footer_line_y,
+            footer_text_y
+        )
+        slot_text_colors: list[int] = []
         i = 0
         while i < slot_count:
-            slot_x0 = inner_x + int(inner_w * acc / total_weight)
-            acc += int(weights[i])
-            slot_x1 = inner_x + int(inner_w * acc / total_weight)
-            slot_starts.append(slot_x0)
-            slot_ends.append(slot_x1)
+            slot_text_colors.append(Color.LIGHT_GREY)
             i += 1
-
-        button_bg_y = footer_line_y + 1
-        button_bg_h = footer_text_y + 8 - button_bg_y
-        if button_bg_h < 1:
-            button_bg_h = 1
         i = 0
         while i < slot_count:
             text = ""
@@ -695,7 +839,7 @@ class MainMenuScene:
                 slot_w = slot_x1 - slot_x0
                 if slot_w > 0:
                     slot_active = False
-                    if i == slot_nav and self._overlay_nav_any_down():
+                    if nav_enabled and i == slot_nav and self._overlay_nav_any_down():
                         slot_active = True
                     if (
                         i == slot_confirm
@@ -709,9 +853,23 @@ class MainMenuScene:
                         and self._state.controls.down(Action.CANCEL)
                     ):
                         slot_active = True
+                    if (
+                        self._mouse_left_down
+                        and self._overlay_mouse_down_slot == i
+                        and self._overlay_mouse_hover_slot == i
+                    ):
+                        slot_active = True
+                    slot_hover = (
+                        not slot_active
+                        and self._overlay_mouse_hover_slot == i
+                    )
                     slot_bg_color = button_bg_color
                     if slot_active:
+                        slot_bg_color = Color.DARK_BLUE
+                        slot_text_colors[i] = Color.WHITE
+                    elif slot_hover:
                         slot_bg_color = Color.DARK_GREY
+                        slot_text_colors[i] = Color.WHITE
                     rect(slot_x0, button_bg_y, slot_w, button_bg_h, slot_bg_color)
             i += 1
 
@@ -763,7 +921,7 @@ class MainMenuScene:
                     text,
                     draw_x,
                     footer_text_y,
-                    Color.LIGHT_GREY,
+                    slot_text_colors[i],
                     fixed=True
                 )
             i += 1
@@ -801,6 +959,87 @@ class MainMenuScene:
             nav_prompt = ui_prompt_for_nav_hint(self._state)
             slots[slot_nav] = ui_prompt_with_text(nav_prompt, "NAV")
         return slots
+
+    def _overlay_footer_nav_enabled(self, layout: OverlayLayout) -> bool:
+        if self._overlay == self._OVERLAY_CONTROLS:
+            return True
+        if self._overlay == self._OVERLAY_NONE:
+            return False
+        lines = self._overlay_body_lines_for(self._overlay)
+        return self._overlay_max_scroll(lines, layout) > 0
+
+    @staticmethod
+    def _overlay_slot_count(layout: OverlayLayout) -> int:
+        slot_count = MainMenuScene._layout_int(layout, "slot_count", 4)
+        if slot_count < 1:
+            return 1
+        return slot_count
+
+    def _overlay_footer_slot_geometry(
+        self,
+        layout: OverlayLayout,
+        slot_count: int,
+        footer_line_y: int,
+        footer_text_y: int
+    ) -> tuple[list[int], list[int], int, int]:
+        inner_x = self._layout_int(layout, "box_x", 20) + 4
+        inner_w = self._layout_int(layout, "box_w", 200) - 8
+        weights = self._layout_slot_weights(layout, slot_count)
+        total_weight = 0
+        i = 0
+        while i < len(weights):
+            total_weight += int(weights[i])
+            i += 1
+        if total_weight < 1:
+            total_weight = slot_count
+
+        slot_starts: list[int] = []
+        slot_ends: list[int] = []
+        acc = 0
+        i = 0
+        while i < slot_count:
+            slot_x0 = inner_x + int(inner_w * acc / total_weight)
+            acc += int(weights[i])
+            slot_x1 = inner_x + int(inner_w * acc / total_weight)
+            slot_starts.append(slot_x0)
+            slot_ends.append(slot_x1)
+            i += 1
+
+        button_bg_y = footer_line_y + 1
+        button_bg_h = footer_text_y + 8 - button_bg_y
+        if button_bg_h < 1:
+            button_bg_h = 1
+        return slot_starts, slot_ends, button_bg_y, button_bg_h
+
+    def _overlay_footer_slot_at(
+        self,
+        layout: OverlayLayout,
+        slots: list[str],
+        mx: int,
+        my: int
+    ) -> int:
+        slot_count = self._overlay_slot_count(layout)
+        footer_line_y = self._layout_int(layout, "footer_line_y", 104)
+        footer_text_y = self._layout_int(layout, "footer_text_y", 108)
+        slot_starts, slot_ends, button_bg_y, button_bg_h = self._overlay_footer_slot_geometry(
+            layout,
+            slot_count,
+            footer_line_y,
+            footer_text_y
+        )
+        i = 0
+        while i < slot_count:
+            if i >= len(slots):
+                return -1
+            if slots[i] == "":
+                i += 1
+                continue
+            x0 = slot_starts[i]
+            x1 = slot_ends[i]
+            if mx >= x0 and mx < x1 and my >= button_bg_y and my < button_bg_y + button_bg_h:
+                return i
+            i += 1
+        return -1
 
     def _overlay_max_chars_per_line(self, layout: OverlayLayout | None = None) -> int:
         if layout is None:
