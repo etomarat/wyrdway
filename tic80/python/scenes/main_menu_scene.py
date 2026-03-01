@@ -8,6 +8,12 @@ if TYPE_CHECKING:
     from ..core.palette import Color
     from ..core.scene_ids import SceneId
     from ..core.text_layout import text_center_x, text_right_x, text_width
+    from ..core.ui.prompts import (
+        ui_prompt_for_action,
+        ui_prompt_for_nav_hint,
+        ui_prompt_with_text
+    )
+    from ..core.ui.rich_text import ui_rich_print, ui_rich_text_width
     from ..core.version import game_version_label
     from .drive.pursuer_text_bank import PursuerTextBank
     from .main_menu_backdrop import MainMenuBackdrop, make_main_menu_backdrop
@@ -41,6 +47,75 @@ class MainMenuScene:
     _OVERLAY_CONTROLS = 1
     _OVERLAY_CREDITS = 2
     _OVERLAY_NEW_GAME_CONFIRM = 3
+    _OVERLAY_BODY_X_PAD = 8
+    _OVERLAY_BODY_LINE_STEP = 8
+    _OVERLAY_LAYOUT_DEFAULT = {
+        "box_x": 20,
+        "box_y": 28,
+        "box_w": 200,
+        "box_h": 90,
+        "header_text_y": 37,
+        "body_top": 54,
+        "footer_line_y": 104,
+        "footer_text_y": 108,
+        "footer_bg_color": 0,
+        "slot_count": 4,
+        "slot_weights": (1, 1, 1, 1),
+        "slot_nav": 0,
+        "slot_confirm": 2,
+        "slot_cancel": 3
+    }
+    _OVERLAY_LAYOUTS = {
+        _OVERLAY_CONTROLS: {
+            "box_x": 14,
+            "box_y": 28,
+            "box_w": 212,
+            "box_h": 90,
+            "header_text_y": 37,
+            "body_top": 54,
+            "footer_line_y": 104,
+            "footer_text_y": 108,
+            "footer_bg_color": 0,
+            "slot_count": 3,
+            "slot_weights": (1, 1, 1),
+            "slot_nav": 0,
+            "slot_confirm": 1,
+            "slot_cancel": 2
+        },
+        _OVERLAY_CREDITS: {
+            "box_x": 20,
+            "box_y": 28,
+            "box_w": 200,
+            "box_h": 90,
+            "header_text_y": 37,
+            "body_top": 54,
+            "footer_line_y": 104,
+            "footer_text_y": 108,
+            "footer_bg_color": 0,
+            "slot_count": 4,
+            "slot_weights": (1, 1, 1, 1),
+            "slot_nav": 0,
+            "slot_confirm": 2,
+            "slot_cancel": 3
+        },
+        _OVERLAY_NEW_GAME_CONFIRM: {
+            "box_x": 20,
+            "box_y": 28,
+            "box_w": 200,
+            "box_h": 90,
+            "header_text_y": 37,
+            "body_top": 54,
+            "footer_line_y": 104,
+            "footer_text_y": 108,
+            "footer_bg_color": 0,
+            "slot_count": 2,
+            "slot_weights": (1, 1),
+            "slot_nav": 0,
+            "slot_confirm": 0,
+            "slot_cancel": 1
+        }
+    }
+    _OVERLAY_FOOTER_DEBUG_SLOTS = False
     _WATCH_PULSE_SECONDS = 4.8
     _WATCH_GLITCH_SECONDS = 0.18
     _WATCH_ERROR_HOLD_SECONDS = 0.18
@@ -53,6 +128,7 @@ class MainMenuScene:
         self._state = nav.state
         self._selected = 0
         self._overlay = self._OVERLAY_NONE
+        self._overlay_scroll = 0
         self._backdrop: MainMenuBackdrop = make_main_menu_backdrop()
         self._watch_text_bank = PursuerTextBank()
         self._watch_seed = 0x13579BDF
@@ -65,6 +141,7 @@ class MainMenuScene:
     def enter(self, params: SceneEnterParams = None) -> None:
         self._selected = 0
         self._overlay = self._OVERLAY_NONE
+        self._overlay_scroll = 0
         self._backdrop.enter()
         self._watch_seed = (0x13579BDF ^ (
             (int(self._state.seed_counter) + 1) * 97)) & 0xFFFFFFFF
@@ -116,17 +193,28 @@ class MainMenuScene:
         if self._overlay == self._OVERLAY_NEW_GAME_CONFIRM:
             if self._state.controls.pressed(Action.CANCEL):
                 self._overlay = self._OVERLAY_NONE
+                self._overlay_scroll = 0
                 return
             if self._state.controls.pressed(Action.CONFIRM):
                 self._state.start_new_game()
                 self._nav.go(SceneId.DRIVE_PRESET)
             return
 
+        body_lines = self._overlay_body_lines_for(self._overlay)
+        self._clamp_overlay_scroll(body_lines)
+        if self._state.controls.pressed(Action.NAV_UP):
+            self._overlay_scroll -= 1
+            self._clamp_overlay_scroll(body_lines)
+        elif self._state.controls.pressed(Action.NAV_DOWN):
+            self._overlay_scroll += 1
+            self._clamp_overlay_scroll(body_lines)
+
         if (
             self._state.controls.pressed(Action.CANCEL)
             or self._state.controls.pressed(Action.CONFIRM)
         ):
             self._overlay = self._OVERLAY_NONE
+            self._overlay_scroll = 0
 
     def _activate_selected_item(self) -> None:
         item_id, _ = self._MENU_ITEMS[self._selected]
@@ -137,17 +225,21 @@ class MainMenuScene:
             return
         if item_id == self._ITEM_NEW_GAME:
             if self._has_continue():
-                self._overlay = self._OVERLAY_NEW_GAME_CONFIRM
+                self._open_overlay(self._OVERLAY_NEW_GAME_CONFIRM)
                 return
             self._state.start_new_game()
             self._nav.go(SceneId.DRIVE_PRESET)
             return
         if item_id == self._ITEM_CONTROLS:
-            self._overlay = self._OVERLAY_CONTROLS
+            self._open_overlay(self._OVERLAY_CONTROLS)
             return
         if item_id == self._ITEM_CREDITS:
-            self._overlay = self._OVERLAY_CREDITS
+            self._open_overlay(self._OVERLAY_CREDITS)
             return
+
+    def _open_overlay(self, overlay_id: int) -> None:
+        self._overlay = int(overlay_id)
+        self._overlay_scroll = 0
 
     def _draw_title(self) -> None:
         rect(0, 0, 240, 18, Color.BLACK)
@@ -373,20 +465,316 @@ class MainMenuScene:
             return
 
     def _draw_overlay_box(self, title: str, lines: list[str]) -> None:
-        rect(20, 28, 200, 90, Color.BLACK)
-        rect(21, 29, 198, 88, Color.DARK_GREY)
-        rect(24, 32, 192, 14, Color.BLACK)
-        line(24, 46, 215, 46, Color.GREY)
-        print(title, text_center_x(title, margin_x=24), 37, Color.WHITE)
-        y = 54
+        layout = self._overlay_layout()
+        x = self._layout_int(layout, "box_x", 20)
+        y = self._layout_int(layout, "box_y", 28)
+        w = self._layout_int(layout, "box_w", 200)
+        h = self._layout_int(layout, "box_h", 90)
+        header_text_y = self._layout_int(layout, "header_text_y", 37)
+        body_top = self._layout_int(layout, "body_top", 54)
+        rect(x, y, w, h, Color.BLACK)
+        rect(x + 1, y + 1, w - 2, h - 2, Color.DARK_GREY)
+        rect(x + 4, y + 4, w - 8, 14, Color.BLACK)
+        line(x + 4, y + 18, x + w - 5, y + 18, Color.GREY)
+        print(title, text_center_x(title, margin_x=x + 4),
+              header_text_y, Color.WHITE)
+        self._draw_overlay_footer(layout)
+        wrapped = self._overlay_wrap_lines(lines, layout)
+        self._clamp_overlay_scroll(lines, layout)
+        visible_lines = self._overlay_visible_lines(layout)
+        max_scroll = self._overlay_max_scroll(lines, layout)
+        body_x = x + self._OVERLAY_BODY_X_PAD
+        draw_y = body_top
         i = 0
-        while i < len(lines):
-            print(lines[i], 28, y, Color.LIGHT_GREY)
-            y += 10
+        while i < visible_lines:
+            src_i = self._overlay_scroll + i
+            if src_i >= len(wrapped):
+                break
+            print(wrapped[src_i], body_x, draw_y, Color.LIGHT_GREY)
+            draw_y += self._OVERLAY_BODY_LINE_STEP
+            i += 1
+        if max_scroll > 0:
+            up_color = Color.DARK_GREY
+            down_color = Color.DARK_GREY
+            if self._overlay_scroll > 0:
+                up_color = Color.LIGHT_GREY
+            if self._overlay_scroll < max_scroll:
+                down_color = Color.LIGHT_GREY
+            print("^", x + w - 9, body_top, up_color)
+            print("v", x + w - 9, body_top +
+                  (visible_lines - 1) * self._OVERLAY_BODY_LINE_STEP, down_color)
+
+    def _overlay_body_lines_for(self, overlay_id: int) -> list[str]:
+        if overlay_id == self._OVERLAY_CONTROLS:
+            return self._controls_overlay_lines()
+        if overlay_id == self._OVERLAY_CREDITS:
+            return self._credits_overlay_lines()
+        if overlay_id == self._OVERLAY_NEW_GAME_CONFIRM:
+            return self._new_game_overlay_lines()
+        return []
+
+    def _overlay_layout(self) -> dict:
+        layout = self._OVERLAY_LAYOUTS.get(self._overlay)
+        if layout is None:
+            return self._OVERLAY_LAYOUT_DEFAULT
+        return layout
+
+    @staticmethod
+    def _layout_int(layout: dict, key: str, fallback: int) -> int:
+        value = layout.get(key)
+        if value is None:
+            return int(fallback)
+        return int(value)
+
+    @staticmethod
+    def _layout_slot_index(
+        layout: dict,
+        key: str,
+        fallback: int,
+        slot_count: int
+    ) -> int:
+        idx = int(fallback)
+        value = layout.get(key)
+        if value is not None:
+            idx = int(value)
+        if idx < 0:
+            return 0
+        if idx >= slot_count:
+            return slot_count - 1
+        return idx
+
+    @staticmethod
+    def _layout_slot_weights(layout: dict, slot_count: int) -> list[int]:
+        raw = layout.get("slot_weights")
+        weights: list[int] = []
+        i = 0
+        while i < slot_count:
+            w = 1
+            if raw is not None and i < len(raw):
+                w = int(raw[i])
+                if w < 1:
+                    w = 1
+            weights.append(w)
+            i += 1
+        return weights
+
+    def _draw_overlay_footer(self, layout: dict) -> None:
+        x = self._layout_int(layout, "box_x", 20)
+        w = self._layout_int(layout, "box_w", 200)
+        footer_line_y = self._layout_int(layout, "footer_line_y", 104)
+        footer_text_y = self._layout_int(layout, "footer_text_y", 108)
+        button_bg_color = self._layout_int(layout, "footer_bg_color", 0)
+        line(x + 4, footer_line_y, x + w - 5, footer_line_y, Color.GREY)
+        inner_x = x + 4
+        inner_w = w - 8
+        slot_count = self._layout_int(layout, "slot_count", 4)
+        if slot_count < 1:
+            slot_count = 1
+        slots = self._overlay_footer_slots(layout, slot_count)
+        weights = self._layout_slot_weights(layout, slot_count)
+        total_weight = 0
+        i = 0
+        while i < len(weights):
+            total_weight += int(weights[i])
+            i += 1
+        if total_weight < 1:
+            total_weight = slot_count
+
+        slot_starts: list[int] = []
+        slot_ends: list[int] = []
+        acc = 0
+        i = 0
+        while i < slot_count:
+            slot_x0 = inner_x + int(inner_w * acc / total_weight)
+            acc += int(weights[i])
+            slot_x1 = inner_x + int(inner_w * acc / total_weight)
+            slot_starts.append(slot_x0)
+            slot_ends.append(slot_x1)
             i += 1
 
+        button_bg_y = footer_line_y + 2
+        button_bg_h = footer_text_y + 8 - button_bg_y
+        if button_bg_h < 1:
+            button_bg_h = 1
+        i = 0
+        while i < slot_count:
+            text = ""
+            if i < len(slots):
+                text = str(slots[i])
+            if text != "":
+                slot_x0 = slot_starts[i]
+                slot_x1 = slot_ends[i]
+                slot_w = slot_x1 - slot_x0
+                if slot_w > 2:
+                    rect(slot_x0 + 1, button_bg_y, slot_w - 2,
+                         button_bg_h, button_bg_color)
+            i += 1
+
+        if self._OVERLAY_FOOTER_DEBUG_SLOTS:
+            debug_y = footer_line_y + 1
+            debug_h = 11
+            debug_colors = [
+                Color.DARK_BLUE,
+                Color.BLUE,
+                Color.DARK_GREEN,
+                Color.PURPLE
+            ]
+            j = 0
+            while j < slot_count:
+                slot_x0 = slot_starts[j]
+                slot_x1 = slot_ends[j]
+                slot_w = slot_x1 - slot_x0
+                rect(slot_x0, debug_y, slot_w, debug_h,
+                     debug_colors[j % len(debug_colors)])
+                print(str(j + 1), slot_x0 + 1, debug_y +
+                      1, Color.YELLOW, fixed=True)
+                j += 1
+        split_color = Color.GREY
+        if self._OVERLAY_FOOTER_DEBUG_SLOTS:
+            split_color = Color.LIGHT_GREY
+        j = 1
+        while j < slot_count:
+            split_x = slot_starts[j]
+            line(
+                split_x,
+                footer_line_y + 1,
+                split_x,
+                footer_text_y + 7,
+                split_color
+            )
+            j += 1
+        i = 0
+        while i < slot_count:
+            text = ""
+            if i < len(slots):
+                text = str(slots[i])
+            if text != "":
+                slot_x0 = slot_starts[i]
+                slot_x1 = slot_ends[i]
+                slot_w = slot_x1 - slot_x0
+                text_w = ui_rich_text_width(text)
+                draw_x = slot_x0 + int((slot_w - text_w) * 0.5)
+                ui_rich_print(
+                    text,
+                    draw_x,
+                    footer_text_y,
+                    Color.LIGHT_GREY,
+                    fixed=True
+                )
+            i += 1
+
+    def _overlay_footer_slots(self, layout: dict, slot_count: int) -> list[str]:
+        slots: list[str] = []
+        i = 0
+        while i < slot_count:
+            slots.append("")
+            i += 1
+        slot_nav = self._layout_slot_index(layout, "slot_nav", 0, slot_count)
+        slot_confirm = self._layout_slot_index(
+            layout, "slot_confirm", 2, slot_count)
+        slot_cancel = self._layout_slot_index(
+            layout, "slot_cancel", slot_count - 1, slot_count)
+
+        if self._overlay == self._OVERLAY_NEW_GAME_CONFIRM:
+            slots[slot_confirm] = ui_prompt_with_text(
+                ui_prompt_for_action(self._state, Action.CONFIRM), "CONFIRM")
+            slots[slot_cancel] = ui_prompt_with_text(
+                ui_prompt_for_action(self._state, Action.CANCEL), "CANCEL")
+            return slots
+        if self._overlay == self._OVERLAY_CONTROLS:
+            slots[slot_confirm] = ui_prompt_with_text(
+                ui_prompt_for_action(self._state, Action.CONFIRM), "SAVE")
+            slots[slot_cancel] = ui_prompt_with_text(
+                ui_prompt_for_action(self._state, Action.CANCEL), "CANCEL")
+            nav_prompt = ui_prompt_for_nav_hint(self._state)
+            slots[slot_nav] = ui_prompt_with_text(nav_prompt, "NAV")
+            return slots
+        close_hint = ui_prompt_with_text(
+            ui_prompt_for_action(self._state, Action.CANCEL), "CLOSE")
+        slots[slot_cancel] = close_hint
+        if self._overlay_max_scroll(self._overlay_body_lines_for(self._overlay), layout) > 0:
+            nav_prompt = ui_prompt_for_nav_hint(self._state)
+            slots[slot_nav] = ui_prompt_with_text(nav_prompt, "NAV")
+        return slots
+
+    def _overlay_max_chars_per_line(self, layout: dict = None) -> int:
+        if layout is None:
+            layout = self._overlay_layout()
+        box_w = self._layout_int(layout, "box_w", 200)
+        chars = int((box_w - self._OVERLAY_BODY_X_PAD * 2) / 6)
+        if chars < 8:
+            return 8
+        return chars
+
+    def _overlay_visible_lines(self, layout: dict = None) -> int:
+        if layout is None:
+            layout = self._overlay_layout()
+        footer_line_y = self._layout_int(layout, "footer_line_y", 104)
+        body_top = self._layout_int(layout, "body_top", 54)
+        footer_cutoff = footer_line_y - 4
+        body_h = footer_cutoff - body_top
+        count = int(body_h / self._OVERLAY_BODY_LINE_STEP)
+        if count < 1:
+            return 1
+        return count
+
+    def _overlay_wrap_lines(self, lines: list[str], layout: dict = None) -> list[str]:
+        max_chars = self._overlay_max_chars_per_line(layout)
+        out: list[str] = []
+        i = 0
+        while i < len(lines):
+            raw = str(lines[i])
+            if raw == "":
+                out.append("")
+                i += 1
+                continue
+            rest = raw
+            while len(rest) > max_chars:
+                cut = max_chars
+                probe = cut
+                while probe > 0 and rest[probe - 1] != " ":
+                    probe -= 1
+                if probe < int(max_chars * 0.55):
+                    probe = cut
+                part = rest[:probe]
+                part = part.strip()
+                if part == "":
+                    part = rest[:cut]
+                    probe = cut
+                out.append(part)
+                rest = rest[probe:]
+                rest = rest.lstrip()
+            out.append(rest)
+            i += 1
+        return out
+
+    def _overlay_max_scroll(self, lines: list[str], layout: dict = None) -> int:
+        wrapped = self._overlay_wrap_lines(lines, layout)
+        max_scroll = len(wrapped) - self._overlay_visible_lines(layout)
+        if max_scroll < 0:
+            return 0
+        return max_scroll
+
+    def _clamp_overlay_scroll(self, lines: list[str], layout: dict = None) -> None:
+        max_scroll = self._overlay_max_scroll(lines, layout)
+        if self._overlay_scroll < 0:
+            self._overlay_scroll = 0
+            return
+        if self._overlay_scroll > max_scroll:
+            self._overlay_scroll = max_scroll
+
     def _draw_controls_overlay(self) -> None:
-        lines = [
+        self._draw_overlay_box("CONTROLS", self._controls_overlay_lines())
+
+    def _draw_credits_overlay(self) -> None:
+        self._draw_overlay_box("CREDITS", self._credits_overlay_lines())
+
+    def _draw_new_game_overlay(self) -> None:
+        self._draw_overlay_box("CONFIRM RESET", self._new_game_overlay_lines())
+
+    @staticmethod
+    def _controls_overlay_lines() -> list[str]:
+        return [
             "MENU: UP/DOWN OR DPAD",
             "CONFIRM: Z / A",
             "CANCEL: X / B",
@@ -395,10 +783,10 @@ class MainMenuScene:
             "HAND BRAKE: X / LB",
             "DASH SKILL: Z / RB"
         ]
-        self._draw_overlay_box("CONTROLS", lines)
 
-    def _draw_credits_overlay(self) -> None:
-        lines = [
+    @staticmethod
+    def _credits_overlay_lines() -> list[str]:
+        return [
             "WYRDWAY",
             "A GAME BY MARAT AZIZOV",
             "",
@@ -407,17 +795,16 @@ class MainMenuScene:
             "",
             "THANKS FOR PLAYING"
         ]
-        self._draw_overlay_box("CREDITS", lines)
 
-    def _draw_new_game_overlay(self) -> None:
-        lines = [
+    @staticmethod
+    def _new_game_overlay_lines() -> list[str]:
+        return [
             "START NEW GAME?",
             "CURRENT PROFILE PROGRESS",
             "WILL BE RESET",
             "",
             "THIS CANNOT BE UNDONE"
         ]
-        self._draw_overlay_box("CONFIRM RESET", lines)
 
 
 def make_main_menu_scene(nav: SceneNavigator) -> MainMenuScene:
