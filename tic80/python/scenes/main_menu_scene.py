@@ -136,6 +136,14 @@ class MainMenuScene:
         self._selected = 0
         self._overlay = self._OVERLAY_NONE
         self._overlay_scroll = 0
+        self._overlay_nav_up_was_down = False
+        self._overlay_nav_down_was_down = False
+        self._overlay_confirm_was_down = False
+        self._overlay_cancel_was_down = False
+        self._overlay_nav_up_armed = True
+        self._overlay_nav_down_armed = True
+        self._overlay_confirm_armed = True
+        self._overlay_cancel_armed = True
         self._backdrop: MainMenuBackdrop = make_main_menu_backdrop()
         self._watch_text_bank = PursuerTextBank()
         self._watch_seed = 0x13579BDF
@@ -149,6 +157,7 @@ class MainMenuScene:
         self._selected = 0
         self._overlay = self._OVERLAY_NONE
         self._overlay_scroll = 0
+        self._reset_overlay_input_latches()
         self._backdrop.enter()
         self._watch_seed = (0x13579BDF ^ (
             (int(self._state.seed_counter) + 1) * 97)) & 0xFFFFFFFF
@@ -197,31 +206,27 @@ class MainMenuScene:
         return bool(self._state.profile_loaded)
 
     def _update_overlay_input(self) -> None:
+        nav_up_released, nav_down_released, confirm_released, cancel_released = self._poll_overlay_release_events()
         if self._overlay == self._OVERLAY_NEW_GAME_CONFIRM:
-            if self._state.controls.pressed(Action.CANCEL):
-                self._overlay = self._OVERLAY_NONE
-                self._overlay_scroll = 0
+            if cancel_released:
+                self._close_overlay()
                 return
-            if self._state.controls.pressed(Action.CONFIRM):
+            if confirm_released:
                 self._state.start_new_game()
                 self._nav.go(SceneId.DRIVE_PRESET)
             return
 
         body_lines = self._overlay_body_lines_for(self._overlay)
         self._clamp_overlay_scroll(body_lines)
-        if self._state.controls.pressed(Action.NAV_UP):
+        if nav_up_released:
             self._overlay_scroll -= 1
             self._clamp_overlay_scroll(body_lines)
-        elif self._state.controls.pressed(Action.NAV_DOWN):
+        elif nav_down_released:
             self._overlay_scroll += 1
             self._clamp_overlay_scroll(body_lines)
 
-        if (
-            self._state.controls.pressed(Action.CANCEL)
-            or self._state.controls.pressed(Action.CONFIRM)
-        ):
-            self._overlay = self._OVERLAY_NONE
-            self._overlay_scroll = 0
+        if cancel_released or confirm_released:
+            self._close_overlay()
 
     def _activate_selected_item(self) -> None:
         item_id, _ = self._MENU_ITEMS[self._selected]
@@ -247,6 +252,77 @@ class MainMenuScene:
     def _open_overlay(self, overlay_id: int) -> None:
         self._overlay = int(overlay_id)
         self._overlay_scroll = 0
+        self._reset_overlay_input_latches()
+
+    def _close_overlay(self) -> None:
+        self._overlay = self._OVERLAY_NONE
+        self._overlay_scroll = 0
+        self._reset_overlay_input_latches()
+
+    def _reset_overlay_input_latches(self) -> None:
+        nav_up_down = self._state.controls.down(Action.NAV_UP)
+        nav_down_down = self._state.controls.down(Action.NAV_DOWN)
+        confirm_down = self._state.controls.down(Action.CONFIRM)
+        cancel_down = self._state.controls.down(Action.CANCEL)
+        self._overlay_nav_up_was_down = nav_up_down
+        self._overlay_nav_down_was_down = nav_down_down
+        self._overlay_confirm_was_down = confirm_down
+        self._overlay_cancel_was_down = cancel_down
+        self._overlay_nav_up_armed = not nav_up_down
+        self._overlay_nav_down_armed = not nav_down_down
+        self._overlay_confirm_armed = not confirm_down
+        self._overlay_cancel_armed = not cancel_down
+
+    @staticmethod
+    def _released_from_hold(was_down: bool, is_down: bool, armed: bool) -> tuple[bool, bool]:
+        if not armed:
+            if not is_down:
+                return False, True
+            return False, False
+        if was_down and not is_down:
+            return True, True
+        return False, True
+
+    def _poll_overlay_release_events(self) -> tuple[bool, bool, bool, bool]:
+        nav_up_down = self._state.controls.down(Action.NAV_UP)
+        nav_down_down = self._state.controls.down(Action.NAV_DOWN)
+        confirm_down = self._state.controls.down(Action.CONFIRM)
+        cancel_down = self._state.controls.down(Action.CANCEL)
+
+        nav_up_released, self._overlay_nav_up_armed = self._released_from_hold(
+            self._overlay_nav_up_was_down,
+            nav_up_down,
+            self._overlay_nav_up_armed
+        )
+        nav_down_released, self._overlay_nav_down_armed = self._released_from_hold(
+            self._overlay_nav_down_was_down,
+            nav_down_down,
+            self._overlay_nav_down_armed
+        )
+        confirm_released, self._overlay_confirm_armed = self._released_from_hold(
+            self._overlay_confirm_was_down,
+            confirm_down,
+            self._overlay_confirm_armed
+        )
+        cancel_released, self._overlay_cancel_armed = self._released_from_hold(
+            self._overlay_cancel_was_down,
+            cancel_down,
+            self._overlay_cancel_armed
+        )
+
+        self._overlay_nav_up_was_down = nav_up_down
+        self._overlay_nav_down_was_down = nav_down_down
+        self._overlay_confirm_was_down = confirm_down
+        self._overlay_cancel_was_down = cancel_down
+        return nav_up_released, nav_down_released, confirm_released, cancel_released
+
+    def _overlay_nav_any_down(self) -> bool:
+        return bool(
+            self._state.controls.down(Action.NAV_UP)
+            or self._state.controls.down(Action.NAV_DOWN)
+            or self._state.controls.down(Action.NAV_LEFT)
+            or self._state.controls.down(Action.NAV_RIGHT)
+        )
 
     def _draw_title(self) -> None:
         rect(0, 0, 240, 18, Color.BLACK)
@@ -579,6 +655,9 @@ class MainMenuScene:
         slot_count = self._layout_int(layout, "slot_count", 4)
         if slot_count < 1:
             slot_count = 1
+        slot_nav = self._layout_slot_index(layout, "slot_nav", 0, slot_count)
+        slot_confirm = self._layout_slot_index(layout, "slot_confirm", 2, slot_count)
+        slot_cancel = self._layout_slot_index(layout, "slot_cancel", slot_count - 1, slot_count)
         slots = self._overlay_footer_slots(layout, slot_count)
         weights = self._layout_slot_weights(layout, slot_count)
         total_weight = 0
@@ -615,8 +694,25 @@ class MainMenuScene:
                 slot_x1 = slot_ends[i]
                 slot_w = slot_x1 - slot_x0
                 if slot_w > 0:
-                    rect(slot_x0, button_bg_y, slot_w,
-                         button_bg_h, button_bg_color)
+                    slot_active = False
+                    if i == slot_nav and self._overlay_nav_any_down():
+                        slot_active = True
+                    if (
+                        i == slot_confirm
+                        and self._overlay_confirm_armed
+                        and self._state.controls.down(Action.CONFIRM)
+                    ):
+                        slot_active = True
+                    if (
+                        i == slot_cancel
+                        and self._overlay_cancel_armed
+                        and self._state.controls.down(Action.CANCEL)
+                    ):
+                        slot_active = True
+                    slot_bg_color = button_bg_color
+                    if slot_active:
+                        slot_bg_color = Color.DARK_GREY
+                    rect(slot_x0, button_bg_y, slot_w, button_bg_h, slot_bg_color)
             i += 1
 
         if self._OVERLAY_FOOTER_DEBUG_SLOTS:

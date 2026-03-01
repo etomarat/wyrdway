@@ -13,7 +13,10 @@ class Controls:
         self._bindings = bindings
 
     def down(self, action: "ActionId") -> bool:
-        for ref in self._bindings.down_buttons(action):
+        refs = self._bindings.down_buttons(action)
+        if not refs:
+            refs = self._bindings.pressed_buttons(action)
+        for ref in refs:
             if self._down_ref(ref):
                 return True
         return False
