@@ -24,7 +24,8 @@ class GameState:
                  '_profile_tuning_version', '_debug_lines',
                  '_debug_overlay_enabled', '_last_rollback_reason',
                  '_last_rollback_theseus_gain', '_input_device_mode',
-                 '_prompt_glyph_detail', '_prompt_show_shoulders', '_controls')
+                 '_prompt_glyph_detail', '_prompt_show_shoulders',
+                 '_vibration_enabled', '_controls')
 
     def __init__(self) -> None:
         self._profile = Profile(
@@ -47,6 +48,7 @@ class GameState:
         self._input_device_mode: InputDeviceModeId = InputDeviceMode.BOTH
         self._prompt_glyph_detail: PromptGlyphDetailId = PromptGlyphDetail.ALL
         self._prompt_show_shoulders = False
+        self._vibration_enabled = True
         self._controls = Controls(make_default_bindings())
 
     @property
@@ -93,6 +95,13 @@ class GameState:
 
     def set_prompt_show_shoulders(self, enabled: bool) -> None:
         self._prompt_show_shoulders = bool(enabled)
+
+    @property
+    def vibration_enabled(self) -> bool:
+        return bool(self._vibration_enabled)
+
+    def set_vibration_enabled(self, enabled: bool) -> None:
+        self._vibration_enabled = bool(enabled)
 
     @property
     def controls(self) -> Controls:

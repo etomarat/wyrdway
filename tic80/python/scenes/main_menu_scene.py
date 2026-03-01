@@ -7,12 +7,20 @@ if TYPE_CHECKING:
 
     from ..contracts import SceneEnterParams, SceneNavigator
     from ..core.controls.actions import Action
+    from ..core.controls.modes import InputDeviceMode
+    from ..core.controls.prompts import (
+        filter_prompt_glyphs,
+        format_prompt,
+        prompt_glyphs_for_action,
+        prompt_glyphs_for_nav_hint
+    )
     from ..core.palette import Color
     from ..core.scene_ids import SceneId
     from ..core.text_layout import text_center_x, text_right_x, text_width
     from ..core.ui.prompts import (
         ui_prompt_for_action,
         ui_prompt_for_nav_hint,
+        ui_prompt_gap_join,
         ui_prompt_with_text
     )
     from ..core.ui.rich_text import ui_rich_print, ui_rich_text_width
@@ -46,7 +54,7 @@ class MainMenuScene:
     _MENU_ITEMS: list[tuple[int, str]] = [
         (_ITEM_CONTINUE, "CONTINUE"),
         (_ITEM_NEW_GAME, "NEW GAME"),
-        (_ITEM_CONTROLS, "CONTROLS"),
+        (_ITEM_CONTROLS, "OPTIONS"),
         (_ITEM_CREDITS, "CREDITS")
     ]
 
@@ -74,14 +82,15 @@ class MainMenuScene:
     }
     _OVERLAY_LAYOUTS: dict[int, OverlayLayout] = {
         _OVERLAY_CONTROLS: {
-            "box_x": 14,
-            "box_y": 28,
-            "box_w": 212,
-            "box_h": 90,
-            "header_text_y": 37,
-            "body_top": 54,
-            "footer_line_y": 104,
-            "footer_text_y": 108,
+            "box_x": 6,
+            "box_y": 6,
+            "box_w": 228,
+            "box_h": 126,
+            "header_text_y": 15,
+            "body_top": 27,
+            "footer_line_y": 119,
+            "footer_text_y": 123,
+            "footer_button_top_pad": 2,
             "footer_bg_color": 0,
             "slot_count": 3,
             "slot_weights": (1, 1, 1),
@@ -136,11 +145,24 @@ class MainMenuScene:
         self._selected = 0
         self._overlay = self._OVERLAY_NONE
         self._overlay_scroll = 0
+        self._controls_mode_draft = InputDeviceMode.BOTH
+        self._controls_shoulders_draft = False
+        self._controls_vibration_draft = True
+        self._controls_focus_row = 0
+        self._controls_mouse_hover_row = -1
+        self._controls_mouse_hover_dir = 0
+        self._controls_mouse_down_row = -1
+        self._controls_mouse_down_dir = 0
+        self._controls_mouse_right_down_row = -1
+        self._controls_mouse_right_down_dir = 0
         self._mouse_x = 0
         self._mouse_y = 0
         self._mouse_left_down = False
         self._mouse_left_pressed = False
         self._mouse_left_released = False
+        self._mouse_right_down = False
+        self._mouse_right_pressed = False
+        self._mouse_right_released = False
         self._mouse_scroll_y = 0
         self._menu_mouse_hover_index = -1
         self._menu_mouse_down_index = -1
@@ -150,10 +172,14 @@ class MainMenuScene:
         self._menu_confirm_armed = True
         self._overlay_nav_up_was_down = False
         self._overlay_nav_down_was_down = False
+        self._overlay_nav_left_was_down = False
+        self._overlay_nav_right_was_down = False
         self._overlay_confirm_was_down = False
         self._overlay_cancel_was_down = False
         self._overlay_nav_up_armed = True
         self._overlay_nav_down_armed = True
+        self._overlay_nav_left_armed = True
+        self._overlay_nav_right_armed = True
         self._overlay_confirm_armed = True
         self._overlay_cancel_armed = True
         self._backdrop: MainMenuBackdrop = make_main_menu_backdrop()
@@ -175,6 +201,8 @@ class MainMenuScene:
         self._overlay_mouse_down_slot = -1
         self._menu_confirm_was_down = False
         self._menu_confirm_armed = True
+        self._init_controls_overlay_draft()
+        self._reset_controls_overlay_mouse_state()
         self._reset_overlay_input_latches()
         self._backdrop.enter()
         self._watch_seed = (0x13579BDF ^ (
@@ -234,14 +262,39 @@ class MainMenuScene:
         return bool(self._state.profile_loaded)
 
     def _update_overlay_input(self) -> None:
-        nav_up_released, nav_down_released, confirm_released, cancel_released = self._poll_overlay_release_events()
+        nav_up_released, nav_down_released, nav_left_released, nav_right_released, confirm_released, cancel_released = self._poll_overlay_release_events()
         mouse_nav_released, mouse_confirm_released, mouse_cancel_released = self._poll_overlay_footer_mouse_release()
-        if mouse_nav_released:
-            nav_down_released = True
         if mouse_confirm_released:
             confirm_released = True
         if mouse_cancel_released:
             cancel_released = True
+        if self._overlay == self._OVERLAY_CONTROLS:
+            self._update_controls_overlay_mouse_state()
+            self._update_controls_overlay_settings(
+                nav_up_released,
+                nav_down_released,
+                nav_left_released,
+                nav_right_released
+            )
+            if mouse_nav_released:
+                nav_down_released = True
+                self._update_controls_overlay_settings(
+                    False,
+                    nav_down_released,
+                    False,
+                    False
+                )
+            self._poll_controls_overlay_mouse_setting_release()
+            if cancel_released:
+                self._close_overlay()
+                return
+            if confirm_released:
+                self._apply_controls_overlay_settings()
+                self._close_overlay()
+            return
+
+        if mouse_nav_released:
+            nav_down_released = True
         if self._overlay == self._OVERLAY_NEW_GAME_CONFIRM:
             if cancel_released:
                 self._close_overlay()
@@ -290,6 +343,9 @@ class MainMenuScene:
         self._menu_mouse_down_index = -1
         self._overlay_mouse_hover_slot = -1
         self._overlay_mouse_down_slot = -1
+        self._reset_controls_overlay_mouse_state()
+        if self._overlay == self._OVERLAY_CONTROLS:
+            self._init_controls_overlay_draft()
         self._reset_overlay_input_latches()
 
     def _close_overlay(self) -> None:
@@ -297,14 +353,20 @@ class MainMenuScene:
         self._overlay_scroll = 0
         self._overlay_mouse_hover_slot = -1
         self._overlay_mouse_down_slot = -1
+        self._reset_controls_overlay_mouse_state()
         self._reset_overlay_input_latches()
 
     def _poll_mouse_state(self) -> None:
-        mx, my, left_btn, _mid_btn, _right_btn, _scroll_x, scroll_y = mouse()
+        mx, my, left_btn, _mid_btn, right_btn, _scroll_x, scroll_y = mouse()
         left_down = bool(left_btn)
         self._mouse_left_pressed = left_down and (not self._mouse_left_down)
         self._mouse_left_released = (not left_down) and self._mouse_left_down
         self._mouse_left_down = left_down
+        right_down = bool(right_btn)
+        self._mouse_right_pressed = right_down and (not self._mouse_right_down)
+        self._mouse_right_released = (
+            not right_down) and self._mouse_right_down
+        self._mouse_right_down = right_down
         self._mouse_x = int(mx)
         self._mouse_y = int(my)
         self._mouse_scroll_y = int(scroll_y)
@@ -360,7 +422,8 @@ class MainMenuScene:
             ):
                 released_slot = hover_slot
             self._overlay_mouse_down_slot = -1
-            slot_nav = self._layout_slot_index(layout, "slot_nav", 0, slot_count)
+            slot_nav = self._layout_slot_index(
+                layout, "slot_nav", 0, slot_count)
             slot_confirm = self._layout_slot_index(
                 layout,
                 "slot_confirm",
@@ -385,14 +448,20 @@ class MainMenuScene:
     def _reset_overlay_input_latches(self) -> None:
         nav_up_down = self._state.controls.down(Action.NAV_UP)
         nav_down_down = self._state.controls.down(Action.NAV_DOWN)
+        nav_left_down = self._state.controls.down(Action.NAV_LEFT)
+        nav_right_down = self._state.controls.down(Action.NAV_RIGHT)
         confirm_down = self._state.controls.down(Action.CONFIRM)
         cancel_down = self._state.controls.down(Action.CANCEL)
         self._overlay_nav_up_was_down = nav_up_down
         self._overlay_nav_down_was_down = nav_down_down
+        self._overlay_nav_left_was_down = nav_left_down
+        self._overlay_nav_right_was_down = nav_right_down
         self._overlay_confirm_was_down = confirm_down
         self._overlay_cancel_was_down = cancel_down
         self._overlay_nav_up_armed = not nav_up_down
         self._overlay_nav_down_armed = not nav_down_down
+        self._overlay_nav_left_armed = not nav_left_down
+        self._overlay_nav_right_armed = not nav_right_down
         self._overlay_confirm_armed = not confirm_down
         self._overlay_cancel_armed = not cancel_down
 
@@ -406,9 +475,11 @@ class MainMenuScene:
             return True, True
         return False, True
 
-    def _poll_overlay_release_events(self) -> tuple[bool, bool, bool, bool]:
+    def _poll_overlay_release_events(self) -> tuple[bool, bool, bool, bool, bool, bool]:
         nav_up_down = self._state.controls.down(Action.NAV_UP)
         nav_down_down = self._state.controls.down(Action.NAV_DOWN)
+        nav_left_down = self._state.controls.down(Action.NAV_LEFT)
+        nav_right_down = self._state.controls.down(Action.NAV_RIGHT)
         confirm_down = self._state.controls.down(Action.CONFIRM)
         cancel_down = self._state.controls.down(Action.CANCEL)
 
@@ -421,6 +492,16 @@ class MainMenuScene:
             self._overlay_nav_down_was_down,
             nav_down_down,
             self._overlay_nav_down_armed
+        )
+        nav_left_released, self._overlay_nav_left_armed = self._released_from_hold(
+            self._overlay_nav_left_was_down,
+            nav_left_down,
+            self._overlay_nav_left_armed
+        )
+        nav_right_released, self._overlay_nav_right_armed = self._released_from_hold(
+            self._overlay_nav_right_was_down,
+            nav_right_down,
+            self._overlay_nav_right_armed
         )
         confirm_released, self._overlay_confirm_armed = self._released_from_hold(
             self._overlay_confirm_was_down,
@@ -435,9 +516,18 @@ class MainMenuScene:
 
         self._overlay_nav_up_was_down = nav_up_down
         self._overlay_nav_down_was_down = nav_down_down
+        self._overlay_nav_left_was_down = nav_left_down
+        self._overlay_nav_right_was_down = nav_right_down
         self._overlay_confirm_was_down = confirm_down
         self._overlay_cancel_was_down = cancel_down
-        return nav_up_released, nav_down_released, confirm_released, cancel_released
+        return (
+            nav_up_released,
+            nav_down_released,
+            nav_left_released,
+            nav_right_released,
+            confirm_released,
+            cancel_released
+        )
 
     def _overlay_nav_any_down(self) -> bool:
         return bool(
@@ -446,6 +536,168 @@ class MainMenuScene:
             or self._state.controls.down(Action.NAV_LEFT)
             or self._state.controls.down(Action.NAV_RIGHT)
         )
+
+    def _init_controls_overlay_draft(self) -> None:
+        self._controls_mode_draft = self._state.input_device_mode
+        self._controls_shoulders_draft = bool(
+            self._state.prompt_show_shoulders)
+        self._controls_vibration_draft = bool(self._state.vibration_enabled)
+        self._controls_focus_row = 0
+        self._reset_controls_overlay_mouse_state()
+        if not self._controls_shoulders_enabled():
+            self._controls_shoulders_draft = False
+        if not self._controls_vibration_enabled():
+            self._controls_vibration_draft = False
+
+    def _reset_controls_overlay_mouse_state(self) -> None:
+        self._controls_mouse_hover_row = -1
+        self._controls_mouse_hover_dir = 0
+        self._controls_mouse_down_row = -1
+        self._controls_mouse_down_dir = 0
+        self._controls_mouse_right_down_row = -1
+        self._controls_mouse_right_down_dir = 0
+
+    def _controls_shoulders_enabled(self) -> bool:
+        return self._controls_mode_draft == InputDeviceMode.GAMEPAD
+
+    def _controls_vibration_enabled(self) -> bool:
+        return self._controls_mode_draft != InputDeviceMode.KEYBOARD
+
+    def _update_controls_overlay_settings(
+        self,
+        nav_up_released: bool,
+        nav_down_released: bool,
+        nav_left_released: bool,
+        nav_right_released: bool
+    ) -> None:
+        if self._controls_focus_row < 0 or self._controls_focus_row > 2:
+            self._controls_focus_row = 0
+        if nav_up_released or nav_down_released:
+            if nav_down_released:
+                self._controls_focus_row += 1
+                if self._controls_focus_row > 2:
+                    self._controls_focus_row = 0
+            else:
+                self._controls_focus_row -= 1
+                if self._controls_focus_row < 0:
+                    self._controls_focus_row = 2
+        changed_left = nav_left_released
+        changed_right = nav_right_released
+        if changed_left:
+            self._controls_apply_setting_change(self._controls_focus_row, True)
+        if changed_right:
+            self._controls_apply_setting_change(
+                self._controls_focus_row, False)
+
+    def _controls_apply_setting_change(self, row: int, forward: bool) -> None:
+        if row == 0:
+            self._cycle_controls_mode(forward)
+            return
+        if row == 1 and self._controls_shoulders_enabled():
+            self._controls_shoulders_draft = not self._controls_shoulders_draft
+            return
+        if row == 2 and self._controls_vibration_enabled():
+            self._controls_vibration_draft = not self._controls_vibration_draft
+
+    def _cycle_controls_mode(self, forward: bool) -> None:
+        modes = [
+            InputDeviceMode.KEYBOARD,
+            InputDeviceMode.GAMEPAD,
+            InputDeviceMode.BOTH
+        ]
+        current = self._controls_mode_draft
+        idx = 0
+        i = 0
+        while i < len(modes):
+            if modes[i] == current:
+                idx = i
+                break
+            i += 1
+        if forward:
+            idx += 1
+            if idx >= len(modes):
+                idx = 0
+        else:
+            idx -= 1
+            if idx < 0:
+                idx = len(modes) - 1
+        self._controls_mode_draft = modes[idx]
+        if not self._controls_shoulders_enabled():
+            self._controls_shoulders_draft = False
+        if not self._controls_vibration_enabled():
+            self._controls_vibration_draft = False
+        if self._controls_focus_row < 0 or self._controls_focus_row > 2:
+            self._controls_focus_row = 0
+
+    def _update_controls_overlay_mouse_state(self) -> None:
+        layout = self._overlay_layout()
+        hover_row = self._controls_setting_row_at(
+            layout,
+            self._mouse_x,
+            self._mouse_y
+        )
+        hover_dir = 0
+        if hover_row >= 0:
+            self._controls_focus_row = hover_row
+            hover_dir = self._controls_setting_dir_at(
+                layout,
+                hover_row,
+                self._mouse_x,
+                self._mouse_y
+            )
+        self._controls_mouse_hover_row = hover_row
+        self._controls_mouse_hover_dir = hover_dir
+        if self._mouse_left_pressed:
+            self._controls_mouse_down_row = hover_row
+            self._controls_mouse_down_dir = hover_dir
+        if self._mouse_right_pressed:
+            self._controls_mouse_right_down_row = hover_row
+            self._controls_mouse_right_down_dir = hover_dir
+        if not self._mouse_left_down and not self._mouse_left_released:
+            self._controls_mouse_down_row = -1
+            self._controls_mouse_down_dir = 0
+        if not self._mouse_right_down and not self._mouse_right_released:
+            self._controls_mouse_right_down_row = -1
+            self._controls_mouse_right_down_dir = 0
+
+    def _poll_controls_overlay_mouse_setting_release(self) -> None:
+        hover_row = self._controls_mouse_hover_row
+        hover_dir = self._controls_mouse_hover_dir
+        if self._mouse_left_released:
+            down_row = self._controls_mouse_down_row
+            down_dir = self._controls_mouse_down_dir
+            self._controls_mouse_down_row = -1
+            self._controls_mouse_down_dir = 0
+            if down_row >= 0 and down_row == hover_row:
+                self._controls_focus_row = down_row
+                if down_dir != 0:
+                    if down_dir == hover_dir:
+                        self._controls_apply_setting_change(
+                            down_row, down_dir < 0)
+                    return
+                if hover_dir != 0:
+                    self._controls_apply_setting_change(
+                        down_row, hover_dir < 0)
+                    return
+                self._controls_apply_setting_change(down_row, True)
+                return
+        if self._mouse_right_released:
+            down_row = self._controls_mouse_right_down_row
+            self._controls_mouse_right_down_row = -1
+            self._controls_mouse_right_down_dir = 0
+            if down_row < 0 or down_row != hover_row:
+                return
+            self._controls_focus_row = down_row
+            # RMB is always "backward" for setting cycles/toggles.
+            self._controls_apply_setting_change(down_row, False)
+            return
+
+    def _apply_controls_overlay_settings(self) -> None:
+        self._state.set_input_device_mode(self._controls_mode_draft)
+        show_shoulders = self._controls_shoulders_draft and self._controls_shoulders_enabled()
+        self._state.set_prompt_show_shoulders(show_shoulders)
+        vibration_enabled = self._controls_vibration_draft and self._controls_vibration_enabled()
+        self._state.set_vibration_enabled(vibration_enabled)
 
     def _draw_title(self) -> None:
         rect(0, 0, 240, 18, Color.BLACK)
@@ -500,7 +752,8 @@ class MainMenuScene:
                 color = Color.YELLOW
             active = self._menu_item_active(i, enabled, selected)
             if active:
-                rect(self._LEFT_X + 2, y - 1, self._LEFT_W - 4, 8, Color.DARK_GREY)
+                rect(self._LEFT_X + 2, y - 1,
+                     self._LEFT_W - 4, 8, Color.DARK_GREY)
                 if enabled:
                     color = Color.WHITE
             marker = "  "
@@ -750,7 +1003,8 @@ class MainMenuScene:
 
     def _overlay_body_lines_for(self, overlay_id: int) -> list[str]:
         if overlay_id == self._OVERLAY_CONTROLS:
-            return self._controls_overlay_lines()
+            lines, _ = self._controls_overlay_lines()
+            return lines
         if overlay_id == self._OVERLAY_CREDITS:
             return self._credits_overlay_lines()
         if overlay_id == self._OVERLAY_NEW_GAME_CONFIRM:
@@ -814,8 +1068,10 @@ class MainMenuScene:
         nav_enabled = self._overlay_footer_nav_enabled(layout)
         slot_count = self._overlay_slot_count(layout)
         slot_nav = self._layout_slot_index(layout, "slot_nav", 0, slot_count)
-        slot_confirm = self._layout_slot_index(layout, "slot_confirm", 2, slot_count)
-        slot_cancel = self._layout_slot_index(layout, "slot_cancel", slot_count - 1, slot_count)
+        slot_confirm = self._layout_slot_index(
+            layout, "slot_confirm", 2, slot_count)
+        slot_cancel = self._layout_slot_index(
+            layout, "slot_cancel", slot_count - 1, slot_count)
         slots = self._overlay_footer_slots(layout, slot_count)
         slot_starts, slot_ends, button_bg_y, button_bg_h = self._overlay_footer_slot_geometry(
             layout,
@@ -870,7 +1126,8 @@ class MainMenuScene:
                     elif slot_hover:
                         slot_bg_color = Color.DARK_GREY
                         slot_text_colors[i] = Color.WHITE
-                    rect(slot_x0, button_bg_y, slot_w, button_bg_h, slot_bg_color)
+                    rect(slot_x0, button_bg_y, slot_w,
+                         button_bg_h, slot_bg_color)
             i += 1
 
         if self._OVERLAY_FOOTER_DEBUG_SLOTS:
@@ -1005,6 +1262,8 @@ class MainMenuScene:
             slot_ends.append(slot_x1)
             i += 1
 
+        # Keep a visual gap before footer content via `footer_text_y`, but
+        # hover/active fill should start right under the separator line.
         button_bg_y = footer_line_y + 1
         button_bg_h = footer_text_y + 8 - button_bg_y
         if button_bg_h < 1:
@@ -1120,7 +1379,287 @@ class MainMenuScene:
             self._overlay_scroll = max_scroll
 
     def _draw_controls_overlay(self) -> None:
-        self._draw_overlay_box("CONTROLS", self._controls_overlay_lines())
+        layout = self._overlay_layout()
+        x = self._layout_int(layout, "box_x", 20)
+        y = self._layout_int(layout, "box_y", 28)
+        w = self._layout_int(layout, "box_w", 200)
+        h = self._layout_int(layout, "box_h", 90)
+        header_text_y = self._layout_int(layout, "header_text_y", 37)
+        body_top = self._layout_int(layout, "body_top", 54)
+        rect(x, y, w, h, Color.DARK_GREY)
+        rect(x + 1, y + 1, w - 2, h - 2, Color.BLACK)
+        rect(x + 4, y + 4, w - 8, 14, Color.BLACK)
+        line(x + 4, y + 18, x + w - 5, y + 18, Color.GREY)
+        print("OPTIONS", text_center_x("OPTIONS", margin_x=x + 4),
+              header_text_y, Color.WHITE)
+        self._draw_overlay_footer(layout)
+        footer_line_y = self._layout_int(layout, "footer_line_y", 104)
+        line_step = 7
+        body_x = x + self._OVERLAY_BODY_X_PAD
+        self._draw_controls_overlay_settings(
+            layout, body_x, body_top, line_step)
+        info_top = body_top + line_step * 4
+        line(body_x, info_top - 2, x + w - 9, info_top - 2, Color.DARK_GREY)
+        self._draw_controls_overlay_bindings_table(
+            layout,
+            body_x,
+            info_top,
+            footer_line_y
+        )
+
+    def _draw_controls_overlay_settings(
+        self,
+        layout: OverlayLayout,
+        body_x: int,
+        body_top: int,
+        line_step: int
+    ) -> None:
+        selected_row = self._controls_focus_row
+        if selected_row < 0 or selected_row > 2:
+            selected_row = 0
+        marker_x = body_x
+        label_x = body_x + 10
+        value_x = body_x + text_width("CONTROL MODE:", 6) + 14
+        left_arrow = self._controls_keyboard_nav_arrow(Action.NAV_LEFT)
+        right_arrow = self._controls_keyboard_nav_arrow(Action.NAV_RIGHT)
+        left_w = ui_rich_text_width(left_arrow)
+        left_gap = ui_rich_text_width("{gap}")
+        right_gap = ui_rich_text_width("{gap}")
+        # Visual nudge for right arrow to keep perceived left/right gap symmetric.
+        right_gap_comp = -1
+        row_w = self._layout_int(layout, "box_w", 200) - \
+            self._OVERLAY_BODY_X_PAD * 2 - 2
+        row = 0
+        while row < 3:
+            row_y = body_top + row * line_step
+            enabled = self._controls_setting_enabled(row)
+            selected = row == selected_row
+            row_active = self._controls_setting_row_active(
+                row, selected, enabled)
+            if row_active:
+                rect(body_x - 1, row_y - 1, row_w, 8, Color.DARK_GREY)
+            label_color = int(Color.LIGHT_GREY)
+            value_color = int(Color.LIGHT_GREY)
+            marker_color = int(Color.DARK_GREY)
+            if not enabled:
+                label_color = int(Color.DARK_GREY)
+                value_color = int(Color.DARK_GREY)
+            if selected:
+                marker_color = int(Color.YELLOW)
+                if enabled:
+                    label_color = int(Color.YELLOW)
+                    value_color = int(Color.YELLOW)
+            if row_active:
+                marker_color = int(Color.WHITE)
+                if enabled:
+                    label_color = int(Color.WHITE)
+                    value_color = int(Color.WHITE)
+            if selected:
+                print(">", marker_x, row_y, marker_color)
+            label = self._controls_setting_label(row)
+            value = self._controls_setting_value(row)
+            print(label, label_x, row_y, label_color)
+            value_draw_x = value_x + left_w + left_gap
+            print(value, value_draw_x, row_y, value_color, fixed=True)
+            if selected and enabled and left_arrow != "" and right_arrow != "":
+                arrow_color = value_color
+                if row_active:
+                    arrow_color = int(Color.WHITE)
+                left_arrow_x = value_draw_x - left_gap - left_w
+                right_arrow_x = value_draw_x + \
+                    text_width(value, 6) + right_gap + right_gap_comp
+                ui_rich_print(left_arrow, left_arrow_x,
+                              row_y, arrow_color, fixed=True)
+                ui_rich_print(right_arrow, right_arrow_x,
+                              row_y, arrow_color, fixed=True)
+            row += 1
+
+    def _controls_setting_label(self, row: int) -> str:
+        if row == 0:
+            return "CONTROL MODE:"
+        if row == 1:
+            return "SHOULDERS:"
+        return "VIBRATION:"
+
+    def _controls_setting_value(self, row: int) -> str:
+        if row == 0:
+            return self._controls_input_mode_label()
+        if row == 1:
+            if self._controls_shoulders_draft:
+                return "ON"
+            return "OFF"
+        if self._controls_vibration_draft:
+            return "ON"
+        return "OFF"
+
+    def _controls_setting_enabled(self, row: int) -> bool:
+        if row == 0:
+            return True
+        if row == 1:
+            return self._controls_shoulders_enabled()
+        if row == 2:
+            return self._controls_vibration_enabled()
+        return False
+
+    def _controls_setting_row_active(self, row: int, selected: bool, enabled: bool) -> bool:
+        if self._overlay != self._OVERLAY_CONTROLS:
+            return False
+        mouse_active = (
+            self._mouse_left_down
+            and self._controls_mouse_down_row == row
+            and self._controls_mouse_hover_row == row
+        )
+        mouse_right_active = (
+            self._mouse_right_down
+            and self._controls_mouse_right_down_row == row
+            and self._controls_mouse_hover_row == row
+        )
+        if mouse_active:
+            return True
+        if mouse_right_active:
+            return True
+        if not selected:
+            return False
+        if not enabled:
+            return False
+        return bool(
+            self._state.controls.down(Action.NAV_LEFT)
+            or self._state.controls.down(Action.NAV_RIGHT)
+        )
+
+    def _controls_setting_row_at(self, layout: OverlayLayout, mx: int, my: int) -> int:
+        body_top = self._layout_int(layout, "body_top", 54)
+        body_x = self._layout_int(layout, "box_x", 20) + \
+            self._OVERLAY_BODY_X_PAD
+        body_w = self._layout_int(layout, "box_w", 200) - \
+            self._OVERLAY_BODY_X_PAD * 2
+        line_step = 7
+        if mx < body_x or mx >= body_x + body_w:
+            return -1
+        row = 0
+        while row < 3:
+            row_y = body_top + row * line_step
+            if my >= row_y - 1 and my < row_y + 7:
+                return row
+            row += 1
+        return -1
+
+    def _controls_setting_dir_at(
+        self,
+        layout: OverlayLayout,
+        row: int,
+        mx: int,
+        my: int
+    ) -> int:
+        if row < 0 or row > 2:
+            return 0
+        if not self._controls_setting_enabled(row):
+            return 0
+        body_top = self._layout_int(layout, "body_top", 54)
+        line_step = 7
+        row_y = body_top + row * line_step
+        if my < row_y - 1 or my >= row_y + 7:
+            return 0
+        body_x = self._layout_int(layout, "box_x", 20) + \
+            self._OVERLAY_BODY_X_PAD
+        value_x = body_x + text_width("CONTROL MODE:", 6) + 14
+        left_arrow = self._controls_keyboard_nav_arrow(Action.NAV_LEFT)
+        right_arrow = self._controls_keyboard_nav_arrow(Action.NAV_RIGHT)
+        if left_arrow == "" or right_arrow == "":
+            return 0
+        left_w = ui_rich_text_width(left_arrow)
+        left_gap = ui_rich_text_width("{gap}")
+        right_w = ui_rich_text_width(right_arrow)
+        right_gap = ui_rich_text_width("{gap}")
+        right_gap_comp = -1
+        value = self._controls_setting_value(row)
+        value_w = text_width(value, 6)
+        value_x0 = value_x + left_w + left_gap
+        left_x0 = value_x0 - left_gap - left_w
+        left_x1 = left_x0 + left_w
+        right_x0 = value_x0 + value_w + right_gap + right_gap_comp
+        right_x1 = right_x0 + right_w
+        if mx >= left_x0 and mx < left_x1:
+            return -1
+        if mx >= right_x0 and mx < right_x1:
+            return 1
+        return 0
+
+    def _draw_controls_overlay_bindings_table(
+        self,
+        layout: OverlayLayout,
+        body_x: int,
+        area_top: int,
+        footer_line_y: int
+    ) -> None:
+        table_x0 = body_x
+        table_x1 = self._layout_int(
+            layout, "box_x", 20) + self._layout_int(layout, "box_w", 200) - 9
+        table_y0 = area_top
+        table_y1 = footer_line_y - 4
+        if table_x1 <= table_x0 or table_y1 <= table_y0:
+            return
+        split_x = table_x0 + int((table_x1 - table_x0) * 0.5)
+        line(split_x, table_y0 + 1, split_x, table_y1, Color.DARK_GREY)
+
+        left_title_x = table_x0 + 2
+        right_title_x = split_x + 3
+        right_text_x = right_title_x + 2
+        title_y = table_y0 + 2
+        print("MENU", left_title_x, title_y, Color.WHITE)
+        print("DRIVING", right_text_x, title_y, Color.WHITE)
+        line(left_title_x - 2, title_y + 7, split_x -
+             2, title_y + 7, Color.DARK_GREY)
+        line(right_title_x, title_y + 7, table_x1, title_y + 7, Color.DARK_GREY)
+
+        row_step = 8
+        rows_top = title_y + 11
+        bind_dx = 66
+
+        left_rows: list[tuple[str, str]] = [
+            ("NAVIGATION", self._controls_prompt_nav()),
+            ("CONFIRM", self._controls_prompt_for_action(Action.CONFIRM)),
+            ("CANCEL", self._controls_prompt_for_action(Action.CANCEL))
+        ]
+        right_rows: list[tuple[str, str]] = [
+            ("STEER", self._controls_prompt_nav()),
+            ("THROTTLE", self._controls_prompt_for_action(Action.THROTTLE)),
+            ("BRAKE", self._controls_prompt_for_action(Action.BRAKE)),
+            ("HANDBRAKE", self._controls_prompt_for_action(Action.HANDBRAKE)),
+            ("SKILL", self._controls_prompt_for_action(Action.SKILL))
+        ]
+
+        self._draw_controls_overlay_bindings_column(
+            left_title_x,
+            rows_top,
+            bind_dx,
+            row_step,
+            left_rows
+        )
+        self._draw_controls_overlay_bindings_column(
+            right_text_x,
+            rows_top,
+            bind_dx,
+            row_step,
+            right_rows
+        )
+
+    def _draw_controls_overlay_bindings_column(
+        self,
+        col_x: int,
+        rows_top: int,
+        bind_dx: int,
+        row_step: int,
+        rows: list[tuple[str, str]]
+    ) -> None:
+        i = 0
+        while i < len(rows):
+            row_y = rows_top + i * row_step
+            label, prompt = rows[i]
+            print(label, col_x, row_y, Color.LIGHT_GREY)
+            ui_rich_print(prompt, col_x + bind_dx, row_y,
+                          Color.LIGHT_GREY, fixed=True)
+            i += 1
 
     def _draw_credits_overlay(self) -> None:
         self._draw_overlay_box("CREDITS", self._credits_overlay_lines())
@@ -1128,17 +1667,73 @@ class MainMenuScene:
     def _draw_new_game_overlay(self) -> None:
         self._draw_overlay_box("CONFIRM RESET", self._new_game_overlay_lines())
 
-    @staticmethod
-    def _controls_overlay_lines() -> list[str]:
-        return [
-            "MENU: UP/DOWN OR DPAD",
-            "CONFIRM: Z / A",
-            "CANCEL: X / B",
-            "",
-            "DRIVE: ARROWS OR DPAD",
-            "HAND BRAKE: X / LB",
-            "DASH SKILL: Z / RB"
+    def _controls_overlay_lines(self) -> tuple[list[str], list[int]]:
+        menu_nav = ui_prompt_with_text(
+            self._controls_prompt_nav(), "NAVIGATION")
+        menu_ok = ui_prompt_with_text(
+            self._controls_prompt_for_action(Action.CONFIRM), "CONFIRM")
+        menu_back = ui_prompt_with_text(
+            self._controls_prompt_for_action(Action.CANCEL), "CANCEL")
+
+        drive_steer = ui_prompt_with_text(self._controls_prompt_nav(), "STEER")
+        drive_gas = ui_prompt_with_text(
+            self._controls_prompt_for_action(Action.THROTTLE), "THROTTLE")
+        drive_brk = ui_prompt_with_text(
+            self._controls_prompt_for_action(Action.BRAKE), "BRAKE")
+        drive_aux = ui_prompt_gap_join([
+            ui_prompt_with_text(self._controls_prompt_for_action(
+                Action.HANDBRAKE), "HANDBRAKE"),
+            ui_prompt_with_text(
+                self._controls_prompt_for_action(Action.SKILL), "SKILL")
+        ])
+
+        lines = [
+            "MENU",
+            menu_nav,
+            menu_ok,
+            menu_back,
+            "DRIVING",
+            drive_steer,
+            drive_gas,
+            drive_brk,
+            drive_aux
         ]
+        colors: list[int] = [
+            int(Color.WHITE),
+            int(Color.LIGHT_GREY),
+            int(Color.LIGHT_GREY),
+            int(Color.LIGHT_GREY),
+            int(Color.WHITE),
+            int(Color.LIGHT_GREY),
+            int(Color.LIGHT_GREY),
+            int(Color.LIGHT_GREY),
+            int(Color.LIGHT_GREY)
+        ]
+        return lines, colors
+
+    def _controls_input_mode_label(self) -> str:
+        mode = self._controls_mode_draft
+        if mode == InputDeviceMode.KEYBOARD:
+            return "KEYBOARD+mouse"
+        if mode == InputDeviceMode.GAMEPAD:
+            return "GAMEPAD"
+        return "KEYBOARD|GAMEPAD"
+
+    def _controls_prompt_for_action(self, action_id: int) -> str:
+        glyphs = prompt_glyphs_for_action(action_id, self._controls_mode_draft)
+        if not self._controls_shoulders_draft:
+            glyphs = filter_prompt_glyphs(glyphs, False)
+        return format_prompt(glyphs, self._state.prompt_glyph_detail)
+
+    def _controls_prompt_nav(self) -> str:
+        glyphs = prompt_glyphs_for_nav_hint(self._controls_mode_draft)
+        return format_prompt(glyphs, self._state.prompt_glyph_detail)
+
+    def _controls_keyboard_nav_arrow(self, action_id: int) -> str:
+        glyphs = prompt_glyphs_for_action(action_id, InputDeviceMode.KEYBOARD)
+        if len(glyphs) <= 0:
+            return ""
+        return format_prompt([glyphs[0]], self._state.prompt_glyph_detail)
 
     @staticmethod
     def _credits_overlay_lines() -> list[str]:
