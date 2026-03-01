@@ -31,8 +31,9 @@ set "PROJ_DIR=%ROOT%tic80\python"
 set "GAME_FILE=tic80\python\game.py"
 set "MAIN_FILE=tic80\python\main.py"
 set "BUILD_FILE=tic80\python\build.py"
-set "MIN_BUILD_FILE=tic80\python\build.min.py"
+set "MIN_BUILD_FILE=build.min.py"
 set "MINIFY_SCRIPT=%ROOT%scripts\minify_tic80_build.py"
+set "MINIFY_SCRIPT_REL=scripts\minify_tic80_build.py"
 set "DIST_DIR=%ROOT%dist"
 set "OUT_BASE=wyrdway"
 
@@ -98,43 +99,42 @@ if not exist "%MAIN_FILE%" (
   popd >nul
   exit /b 1
 )
+
+REM --- Modes:
+REM   run_tic80_python.bat        -> bundle + minify(via tq-bundler post-build) + run
+REM   run_tic80_python.bat dev    -> bundle + minify(via tq-bundler post-build) + run
+REM   run_tic80_python.bat build  -> bundle + minify(via tq-bundler post-build) only
+REM   run_tic80_python.bat dist   -> bundle + minify(via tq-bundler post-build) + export .tic/.exe/html
+set "MODE=%~1"
+if "%MODE%"=="" set "MODE=run"
+if /i not "%MODE%"=="run" if /i not "%MODE%"=="dev" if /i not "%MODE%"=="build" if /i not "%MODE%"=="dist" (
+  echo [ERROR] Unknown mode: %MODE%
+  echo Usage: run_tic80_python.bat [run^|dev^|build^|dist]
+  popd >nul
+  exit /b 1
+)
+
 if not exist "%MINIFY_SCRIPT%" (
   echo [ERROR] Missing: %MINIFY_SCRIPT%
   popd >nul
   exit /b 1
 )
 
-REM --- Modes:
-REM   run_tic80_python.bat        -> bundle + minify + run (minified, python-minifier always on)
-REM   run_tic80_python.bat dev    -> bundle + run (non-minified, direct)
-REM   run_tic80_python.bat build  -> bundle + minify only
-REM   run_tic80_python.bat dist   -> bundle + minify + export .tic/.exe/html
-set "MODE=%~1"
 if /i "%MODE%"=="dev" goto :run_dev
 if /i "%MODE%"=="build" goto :build_only
 if /i "%MODE%"=="dist" goto :dist
-if not "%MODE%"=="" if /i not "%MODE%"=="run" (
-  echo [ERROR] Unknown mode: %MODE%
-  echo Usage: run_tic80_python.bat [dev^|build^|dist]
+if /i not "%MODE%"=="run" (
+  echo [ERROR] Internal mode dispatch failure: %MODE%
   popd >nul
   exit /b 1
 )
 
 echo [INFO] Using tq-bundler: %TQ_BUNDLER_PATH%
 echo [INFO] Using tic80:     %TIC80_EXE_PATH%
-echo [INFO] Bundling...
-echo        "%TQ_BUNDLER_PATH%" run "%GAME_FILE%" "%MAIN_FILE%"
+echo [INFO] Bundling + minifying via tq-bundler post-build...
+echo        "%TQ_BUNDLER_PATH%" run "%GAME_FILE%" "%MAIN_FILE%" --post-output "%MIN_BUILD_FILE%" --post-build "python %MINIFY_SCRIPT_REL% {input} {output}"
 echo.
-"%TQ_BUNDLER_PATH%" run "%GAME_FILE%" "%MAIN_FILE%"
-set "EC=%errorlevel%"
-if %EC% neq 0 (
-  popd >nul
-  exit /b %EC%
-)
-echo [INFO] Minifying bundle...
-echo        python "%MINIFY_SCRIPT%" "%BUILD_FILE%" "%MIN_BUILD_FILE%"
-echo.
-python "%MINIFY_SCRIPT%" "%BUILD_FILE%" "%MIN_BUILD_FILE%"
+"%TQ_BUNDLER_PATH%" run "%GAME_FILE%" "%MAIN_FILE%" --post-output "%MIN_BUILD_FILE%" --post-build "python %MINIFY_SCRIPT_REL% {input} {output}"
 set "EC=%errorlevel%"
 if %EC% neq 0 (
   popd >nul
@@ -151,29 +151,29 @@ exit /b %EC%
 :run_dev
 echo [INFO] Using tq-bundler: %TQ_BUNDLER_PATH%
 echo [INFO] Using tic80:     %TIC80_EXE_PATH%
-echo [INFO] Bundling + launching TIC-80 (dev, non-minified)...
-echo        "%TQ_BUNDLER_PATH%" run "%GAME_FILE%" "%MAIN_FILE%" --tic "%TIC80_EXE_PATH%"
+echo [INFO] Bundling + minifying via tq-bundler post-build (dev)...
+echo        "%TQ_BUNDLER_PATH%" run "%GAME_FILE%" "%MAIN_FILE%" --post-output "%MIN_BUILD_FILE%" --post-build "python %MINIFY_SCRIPT_REL% {input} {output}"
 echo.
-"%TQ_BUNDLER_PATH%" run "%GAME_FILE%" "%MAIN_FILE%" --tic "%TIC80_EXE_PATH%"
+"%TQ_BUNDLER_PATH%" run "%GAME_FILE%" "%MAIN_FILE%" --post-output "%MIN_BUILD_FILE%" --post-build "python %MINIFY_SCRIPT_REL% {input} {output}"
+set "EC=%errorlevel%"
+if %EC% neq 0 (
+  popd >nul
+  exit /b %EC%
+)
+echo [INFO] Launching TIC-80 with minified bundle (dev)...
+echo        "%TIC80_EXE_PATH%" --fs "%FS_ROOT%" --cmd "load tic80/python/game.py & import code tic80/python/build.min.py & run" --crt
+echo.
+"%TIC80_EXE_PATH%" --fs "%FS_ROOT%" --cmd "load tic80/python/game.py & import code tic80/python/build.min.py & run" --crt
 set "EC=%errorlevel%"
 popd >nul
 exit /b %EC%
 
 :build_only
 echo [INFO] Using tq-bundler: %TQ_BUNDLER_PATH%
-echo [INFO] Bundling only...
-echo        "%TQ_BUNDLER_PATH%" run "%GAME_FILE%" "%MAIN_FILE%"
+echo [INFO] Bundling + minifying via tq-bundler post-build (build only)...
+echo        "%TQ_BUNDLER_PATH%" run "%GAME_FILE%" "%MAIN_FILE%" --post-output "%MIN_BUILD_FILE%" --post-build "python %MINIFY_SCRIPT_REL% {input} {output}"
 echo.
-"%TQ_BUNDLER_PATH%" run "%GAME_FILE%" "%MAIN_FILE%"
-set "EC=%errorlevel%"
-if %EC% neq 0 (
-  popd >nul
-  exit /b %EC%
-)
-echo [INFO] Minifying bundle...
-echo        python "%MINIFY_SCRIPT%" "%BUILD_FILE%" "%MIN_BUILD_FILE%"
-echo.
-python "%MINIFY_SCRIPT%" "%BUILD_FILE%" "%MIN_BUILD_FILE%"
+"%TQ_BUNDLER_PATH%" run "%GAME_FILE%" "%MAIN_FILE%" --post-output "%MIN_BUILD_FILE%" --post-build "python %MINIFY_SCRIPT_REL% {input} {output}"
 set "EC=%errorlevel%"
 popd >nul
 exit /b %EC%
@@ -184,19 +184,10 @@ echo [INFO] Using tic80:     %TIC80_EXE_PATH%
 echo [INFO] Cleaning dist folder...
 if exist "%DIST_DIR%" rmdir /s /q "%DIST_DIR%"
 mkdir "%DIST_DIR%"
-echo [INFO] Bundling only...
-echo        "%TQ_BUNDLER_PATH%" run "%GAME_FILE%" "%MAIN_FILE%"
+echo [INFO] Bundling + minifying via tq-bundler post-build...
+echo        "%TQ_BUNDLER_PATH%" run "%GAME_FILE%" "%MAIN_FILE%" --post-output "%MIN_BUILD_FILE%" --post-build "python %MINIFY_SCRIPT_REL% {input} {output}"
 echo.
-"%TQ_BUNDLER_PATH%" run "%GAME_FILE%" "%MAIN_FILE%"
-if errorlevel 1 (
-  set "EC=%errorlevel%"
-  popd >nul
-  exit /b %EC%
-)
-echo [INFO] Minifying bundle...
-echo        python "%MINIFY_SCRIPT%" "%BUILD_FILE%" "%MIN_BUILD_FILE%"
-echo.
-python "%MINIFY_SCRIPT%" "%BUILD_FILE%" "%MIN_BUILD_FILE%"
+"%TQ_BUNDLER_PATH%" run "%GAME_FILE%" "%MAIN_FILE%" --post-output "%MIN_BUILD_FILE%" --post-build "python %MINIFY_SCRIPT_REL% {input} {output}"
 if errorlevel 1 (
   set "EC=%errorlevel%"
   popd >nul

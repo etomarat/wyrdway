@@ -4,4 +4,5 @@ tic80/python/build.min.py
 **/.mypy_cache
 **/__pycache__
 tic80.exe
+tq-bundler.exe
 dist/
