@@ -58,6 +58,47 @@ def ui_overlay_layout_slot_count(layout: OverlayLayout, fallback: int = 4) -> in
     return slot_count
 
 
+def ui_overlay_footer_positions(
+    layout: OverlayLayout,
+    fallback_line_y: int = 104,
+    fallback_text_y: int = 108
+) -> tuple[int, int]:
+    y = ui_overlay_layout_int(layout, "box_y", 28)
+    h = ui_overlay_layout_int(layout, "box_h", 90)
+
+    # Keep footer anchored to the modal bottom across all overlays.
+    footer_bottom_pad = ui_overlay_layout_int(layout, "footer_bottom_pad", -1)
+    if footer_bottom_pad < 0:
+        # Footer pad profile:
+        # - 0: default/black-frame (2px from bottom)
+        # - 1: inverted/non-black-frame (1px from bottom)
+        footer_pad_profile = ui_overlay_layout_int(layout, "footer_pad_profile", 0)
+        if footer_pad_profile == 1:
+            footer_bottom_pad = 1
+        else:
+            footer_bottom_pad = 2
+    footer_line_gap = ui_overlay_layout_int(layout, "footer_line_gap", 4)
+    if footer_bottom_pad < 0:
+        footer_bottom_pad = 0
+    if footer_line_gap < 1:
+        footer_line_gap = 1
+
+    footer_text_y = y + h - 8 - footer_bottom_pad
+    min_text_y = y + 20
+    if footer_text_y < min_text_y:
+        footer_text_y = min_text_y
+
+    footer_line_y = footer_text_y - footer_line_gap
+    if footer_line_y < y + 19:
+        footer_line_y = y + 19
+    if footer_line_y >= footer_text_y:
+        footer_line_y = footer_text_y - 1
+    if footer_line_y < y:
+        return int(fallback_line_y), int(fallback_text_y)
+
+    return int(footer_line_y), int(footer_text_y)
+
+
 def ui_overlay_layout_centered(
     box_w: int,
     box_h: int,

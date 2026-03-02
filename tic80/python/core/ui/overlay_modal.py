@@ -6,7 +6,11 @@ if TYPE_CHECKING:
     from tic80 import line, print, rect
 
     from .rich_text import ui_rich_has_glyph_tokens, ui_rich_print, ui_rich_text_center_x
-    from .overlay_layout import OverlayLayout, ui_overlay_layout_int
+    from .overlay_layout import (
+        OverlayLayout,
+        ui_overlay_footer_positions,
+        ui_overlay_layout_int
+    )
     from ..text_layout import text_center_x
 
 
@@ -25,8 +29,7 @@ def ui_overlay_modal_draw_chrome(
     h = ui_overlay_layout_int(layout, "box_h", 90)
     header_text_y = ui_overlay_layout_int(layout, "header_text_y", 37)
     body_top = ui_overlay_layout_int(layout, "body_top", 54)
-    footer_line_y = ui_overlay_layout_int(layout, "footer_line_y", 104)
-    footer_text_y = ui_overlay_layout_int(layout, "footer_text_y", 108)
+    footer_line_y, footer_text_y = ui_overlay_footer_positions(layout, 104, 108)
 
     rect(x, y, w, h, frame_color)
     rect(x + 1, y + 1, w - 2, h - 2, panel_color)

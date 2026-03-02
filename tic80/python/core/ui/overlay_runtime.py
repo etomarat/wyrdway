@@ -5,7 +5,10 @@ if TYPE_CHECKING:
 
     from ..controls.actions import ActionId
     from ..controls.input import Controls
-    from .overlay_layout import OverlayLayout, ui_overlay_layout_int
+    from .overlay_layout import (
+        OverlayLayout,
+        ui_overlay_footer_positions
+    )
     from .footer_mouse import (
         OverlayFooterMouseState,
         UiMouseState,
@@ -45,12 +48,17 @@ class UiOverlayRuntime:
         self.footer_mouse.reset()
 
     def poll_footer_release(self, layout: OverlayLayout, slots: list[str]) -> int:
+        footer_line_y, footer_text_y = ui_overlay_footer_positions(
+            layout,
+            104,
+            108
+        )
         return self.footer_mouse.poll_release(
             layout,
             slots,
             self.mouse,
-            ui_overlay_layout_int(layout, "footer_line_y", 104),
-            ui_overlay_layout_int(layout, "footer_text_y", 108)
+            footer_line_y,
+            footer_text_y
         )
 
     def slot_states(

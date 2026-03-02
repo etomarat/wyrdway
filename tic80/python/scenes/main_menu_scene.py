@@ -29,6 +29,7 @@ if TYPE_CHECKING:
     )
     from ..core.ui.overlay_layout import (
         OverlayLayout,
+        ui_overlay_footer_positions,
         ui_overlay_layout_int,
         ui_overlay_layout_slot_count
     )
@@ -80,8 +81,8 @@ class MainMenuScene:
         "box_h": 90,
         "header_text_y": 37,
         "body_top": 54,
-        "footer_line_y": 104,
-        "footer_text_y": 108,
+        "footer_pad_profile": 0,
+        "footer_line_gap": 4,
         "footer_bg_color": 0,
         "slot_count": 4,
         "slot_weights": (1, 1, 1, 1),
@@ -97,8 +98,8 @@ class MainMenuScene:
             "box_h": 130,
             "header_text_y": 13,
             "body_top": 25,
-            "footer_line_y": 120,
-            "footer_text_y": 124,
+            "footer_pad_profile": 1,
+            "footer_line_gap": 4,
             "footer_button_top_pad": 2,
             "footer_bg_color": 0,
             "slot_count": 3,
@@ -114,8 +115,8 @@ class MainMenuScene:
             "box_h": 90,
             "header_text_y": 37,
             "body_top": 54,
-            "footer_line_y": 104,
-            "footer_text_y": 108,
+            "footer_pad_profile": 0,
+            "footer_line_gap": 4,
             "footer_bg_color": 0,
             "slot_count": 4,
             "slot_weights": (1, 1, 1, 1),
@@ -130,8 +131,8 @@ class MainMenuScene:
             "box_h": 90,
             "header_text_y": 37,
             "body_top": 54,
-            "footer_line_y": 104,
-            "footer_text_y": 108,
+            "footer_pad_profile": 0,
+            "footer_line_gap": 4,
             "footer_bg_color": 0,
             "slot_count": 2,
             "slot_weights": (1, 1),
@@ -948,7 +949,11 @@ class MainMenuScene:
     def _overlay_visible_lines(self, layout: OverlayLayout | None = None) -> int:
         if layout is None:
             layout = self._overlay_layout()
-        footer_line_y = ui_overlay_layout_int(layout, "footer_line_y", 104)
+        footer_line_y, _footer_text_y = ui_overlay_footer_positions(
+            layout,
+            104,
+            108
+        )
         body_top = ui_overlay_layout_int(layout, "body_top", 54)
         footer_cutoff = footer_line_y - 4
         body_h = footer_cutoff - body_top
