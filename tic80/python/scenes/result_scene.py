@@ -8,7 +8,12 @@ if TYPE_CHECKING:
     from ..core.palette import Color, ColorId
     from ..core.scene_ids import SceneId
     from ..core.ui.overlay_footer import ui_overlay_footer_draw
-    from ..core.ui.overlay_layout import OverlayLayout, ui_overlay_layout_centered
+    from ..core.ui.overlay_layout import (
+        OverlayLayout,
+        ui_overlay_layout_centered,
+        ui_overlay_layout_int
+    )
+    from ..core.ui.footer_mouse import UiMouseState, OverlayFooterMouseState
     from ..core.ui.overlay_modal import (
         ui_overlay_modal_draw_centered_lines,
         ui_overlay_modal_draw_chrome
@@ -26,13 +31,15 @@ class ResultScene:
     OVERLAY_H = 104
     OVERLAY_HEADER_TEXT_OFFSET_Y = 9
     OVERLAY_BODY_TOP_OFFSET_Y = 24
-    OVERLAY_FOOTER_LINE_OFFSET_Y = 84
-    OVERLAY_FOOTER_TEXT_OFFSET_Y = 88
+    OVERLAY_FOOTER_LINE_OFFSET_Y = 90
+    OVERLAY_FOOTER_TEXT_OFFSET_Y = 94
 
     def __init__(self, nav: SceneNavigator) -> None:
         self._nav = nav
         self._state = nav.state
         self._release = UiReleaseLatch()
+        self._mouse = UiMouseState()
+        self._footer_mouse = OverlayFooterMouseState()
         self._title = "MISSION REPORT"
         self._title_color: ColorId = Color.WHITE
         self._subtitle = ""
@@ -163,6 +170,7 @@ class ResultScene:
             self._state.controls,
             [Action.CONFIRM]
         )
+        self._footer_mouse.reset()
         fallback = None
         if params is not None:
             if not isinstance(params, ResultEnterParams):
@@ -194,7 +202,19 @@ class ResultScene:
         self._build_run_report_layout(poi_action, delivered_scrap, fuel_recovered)
 
     def update(self, dt: float) -> None:
-        if self._release.poll(self._state.controls, Action.CONFIRM):
+        self._mouse.poll()
+        layout = self._overlay_layout()
+        footer_line_y = ui_overlay_layout_int(layout, "footer_line_y", 104)
+        footer_text_y = ui_overlay_layout_int(layout, "footer_text_y", 108)
+        cta = ui_prompt_with_text(ui_prompt_for_action(self._state, Action.CONFIRM), self._cta)
+        released_slot = self._footer_mouse.poll_release(
+            layout,
+            [cta],
+            self._mouse,
+            footer_line_y,
+            footer_text_y
+        )
+        if self._release.poll(self._state.controls, Action.CONFIRM) or released_slot == 0:
             self._state.apply_run_results()
             self._nav.go(SceneId.GARAGE)
 
@@ -245,11 +265,16 @@ class ResultScene:
         )
         prompt = ui_prompt_for_action(self._state, Action.CONFIRM)
         cta = ui_prompt_with_text(prompt, self._cta)
+        slot_active0 = (
+            self._state.controls.down(Action.CONFIRM)
+            or self._footer_mouse.is_slot_active(0, self._mouse)
+        )
+        slot_hover0 = (not slot_active0) and self._footer_mouse.hover_slot == 0
         ui_overlay_footer_draw(
             layout,
             [cta],
-            [self._state.controls.down(Action.CONFIRM)],
-            [False],
+            [slot_active0],
+            [slot_hover0],
             footer_line_y,
             footer_text_y,
             Color.BLACK,

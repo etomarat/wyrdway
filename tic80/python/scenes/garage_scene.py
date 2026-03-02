@@ -14,7 +14,12 @@ if TYPE_CHECKING:
         ui_meter_fill_ratio
     )
     from ..core.ui.overlay_footer import ui_overlay_footer_draw
-    from ..core.ui.overlay_layout import OverlayLayout, ui_overlay_layout_centered
+    from ..core.ui.overlay_layout import (
+        OverlayLayout,
+        ui_overlay_layout_centered,
+        ui_overlay_layout_int
+    )
+    from ..core.ui.footer_mouse import UiMouseState, OverlayFooterMouseState
     from ..core.ui.overlay_modal import (
         ui_overlay_modal_draw_centered_lines,
         ui_overlay_modal_draw_chrome
@@ -66,6 +71,8 @@ class GarageScene:
         self._nav = nav
         self._state = nav.state
         self._release = UiReleaseLatch()
+        self._mouse = UiMouseState()
+        self._footer_mouse = OverlayFooterMouseState()
         self._profile = nav.state.profile
         self._confirm_new_game = False
         self._rollback_modal_open = False
@@ -79,6 +86,7 @@ class GarageScene:
             self._state.controls,
             [Action.CONFIRM, Action.CANCEL, Action.SECONDARY, Action.HELP]
         )
+        self._footer_mouse.reset()
         self._confirm_new_game = False
         reason, gain = self._state.consume_rollback_notice()
         self._rollback_modal_open = reason is not None
@@ -288,11 +296,16 @@ class GarageScene:
             10
         )
         close_hint = ui_prompt_with_text(ui_prompt_for_action(self._state, Action.CANCEL), "CLOSE")
+        slot_active0 = (
+            self._state.controls.down(Action.CANCEL)
+            or self._footer_mouse.is_slot_active(0, self._mouse)
+        )
+        slot_hover0 = (not slot_active0) and self._footer_mouse.hover_slot == 0
         ui_overlay_footer_draw(
             layout,
             [close_hint],
-            [self._state.controls.down(Action.CANCEL)],
-            [False],
+            [slot_active0],
+            [slot_hover0],
             footer_line_y,
             footer_text_y,
             Color.BLACK,
@@ -329,14 +342,21 @@ class GarageScene:
         )
         confirm_hint = ui_prompt_with_text(ui_prompt_for_action(self._state, Action.CONFIRM), "CONFIRM RESET")
         cancel_hint = ui_prompt_with_text(ui_prompt_for_action(self._state, Action.CANCEL), "CANCEL")
+        slot_active0 = (
+            self._state.controls.down(Action.CONFIRM)
+            or self._footer_mouse.is_slot_active(0, self._mouse)
+        )
+        slot_hover0 = (not slot_active0) and self._footer_mouse.hover_slot == 0
+        slot_active1 = (
+            self._state.controls.down(Action.CANCEL)
+            or self._footer_mouse.is_slot_active(1, self._mouse)
+        )
+        slot_hover1 = (not slot_active1) and self._footer_mouse.hover_slot == 1
         ui_overlay_footer_draw(
             layout,
             [confirm_hint, cancel_hint],
-            [
-                self._state.controls.down(Action.CONFIRM),
-                self._state.controls.down(Action.CANCEL)
-            ],
-            [False, False],
+            [slot_active0, slot_active1],
+            [slot_hover0, slot_hover1],
             footer_line_y,
             footer_text_y,
             Color.BLACK,
@@ -366,25 +386,53 @@ class GarageScene:
         )
 
     def update(self, dt: float) -> None:
+        self._mouse.poll()
         confirm_released = self._release.poll(self._state.controls, Action.CONFIRM)
         cancel_released = self._release.poll(self._state.controls, Action.CANCEL)
         secondary_released = self._release.poll(self._state.controls, Action.SECONDARY)
         help_released = self._release.poll(self._state.controls, Action.HELP)
 
         if self._rollback_modal_open:
-            if cancel_released:
+            layout = self._modal_layout(1, (1,), 0, 0, 0)
+            footer_line_y = ui_overlay_layout_int(layout, "footer_line_y", 104)
+            footer_text_y = ui_overlay_layout_int(layout, "footer_text_y", 108)
+            close_hint = ui_prompt_with_text(ui_prompt_for_action(self._state, Action.CANCEL), "CLOSE")
+            released_slot = self._footer_mouse.poll_release(
+                layout,
+                [close_hint],
+                self._mouse,
+                footer_line_y,
+                footer_text_y
+            )
+            if cancel_released or released_slot == 0:
                 self._rollback_modal_open = False
+                self._footer_mouse.reset()
             return
 
         if self._confirm_new_game:
-            if confirm_released:
+            layout = self._modal_layout(2, (1, 1), 0, 0, 1)
+            footer_line_y = ui_overlay_layout_int(layout, "footer_line_y", 104)
+            footer_text_y = ui_overlay_layout_int(layout, "footer_text_y", 108)
+            confirm_hint = ui_prompt_with_text(ui_prompt_for_action(self._state, Action.CONFIRM), "CONFIRM RESET")
+            cancel_hint = ui_prompt_with_text(ui_prompt_for_action(self._state, Action.CANCEL), "CANCEL")
+            released_slot = self._footer_mouse.poll_release(
+                layout,
+                [confirm_hint, cancel_hint],
+                self._mouse,
+                footer_line_y,
+                footer_text_y
+            )
+            if confirm_released or released_slot == 0:
                 self._state.start_new_game()
                 self._confirm_new_game = False
                 self._pick_header_text()
-            elif cancel_released:
+                self._footer_mouse.reset()
+            elif cancel_released or released_slot == 1:
                 self._confirm_new_game = False
+                self._footer_mouse.reset()
             return
 
+        self._footer_mouse.reset()
         if confirm_released:
             self._state.start_run()
             self._nav.go(SceneId.REGION_MAP)

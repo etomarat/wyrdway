@@ -11,10 +11,13 @@ if TYPE_CHECKING:
     from ..core.scene_ids import SceneId
     from ..core.ui.overlay_footer import ui_overlay_footer_draw
     from ..core.ui.overlay_layout import OverlayLayout, ui_overlay_layout_centered
+    from ..core.ui.overlay_layout import ui_overlay_layout_int
+    from ..core.ui.footer_mouse import UiMouseState, OverlayFooterMouseState
     from ..core.ui.overlay_modal import (
         ui_overlay_modal_draw_chrome
     )
     from ..core.ui.prompts import ui_prompt_for_action
+    from ..core.ui.prompts import ui_prompt_for_nav_hint
     from ..core.ui.prompts import ui_prompt_with_text
     from ..core.ui.release_latch import UiReleaseLatch
     from ..data.tuning import TUNING
@@ -28,13 +31,19 @@ class RegionMapScene:
     OVERLAY_H = 124
     OVERLAY_HEADER_TEXT_OFFSET_Y = 9
     OVERLAY_BODY_TOP_OFFSET_Y = 24
-    OVERLAY_FOOTER_LINE_OFFSET_Y = 104
-    OVERLAY_FOOTER_TEXT_OFFSET_Y = 108
+    OVERLAY_FOOTER_LINE_OFFSET_Y = 110
+    OVERLAY_FOOTER_TEXT_OFFSET_Y = 114
+    COL_NODE_X = 16
+    COL_SITE_X = 56
+    COL_SCRAP_X = 148
+    COL_FUEL_X = 188
 
     def __init__(self, nav: SceneNavigator) -> None:
         self._nav = nav
         self._state = nav.state
         self._release = UiReleaseLatch()
+        self._mouse = UiMouseState()
+        self._footer_mouse = OverlayFooterMouseState()
         self.selected_node = 1
         self.node_count = 5
 
@@ -49,6 +58,7 @@ class RegionMapScene:
                 Action.CONFIRM
             ]
         )
+        self._footer_mouse.reset()
         run = self._state.run
         if run is not None and run.node_id is not None:
             self.selected_node = run.node_id
@@ -57,11 +67,26 @@ class RegionMapScene:
         return self._state.debug_enabled
 
     def update(self, dt: float) -> None:
+        self._mouse.poll()
         nav_up_released = self._release.poll(self._state.controls, Action.NAV_UP)
         nav_down_released = self._release.poll(self._state.controls, Action.NAV_DOWN)
         nav_left_released = self._release.poll(self._state.controls, Action.NAV_LEFT)
         nav_right_released = self._release.poll(self._state.controls, Action.NAV_RIGHT)
         confirm_released = self._release.poll(self._state.controls, Action.CONFIRM)
+        debug_seed = self._debug_seed_edit_enabled()
+        slot_count = 3 if debug_seed else 2
+        slot_weights = (1, 1, 1) if debug_seed else (1, 1)
+        layout = self._overlay_layout(slot_count, slot_weights)
+        footer_line_y = ui_overlay_layout_int(layout, "footer_line_y", 104)
+        footer_text_y = ui_overlay_layout_int(layout, "footer_text_y", 108)
+        slots = self._footer_slots(debug_seed)
+        released_slot = self._footer_mouse.poll_release(
+            layout,
+            slots,
+            self._mouse,
+            footer_line_y,
+            footer_text_y
+        )
 
         if nav_up_released:
             self.selected_node = max(1, self.selected_node - 1)
@@ -72,19 +97,26 @@ class RegionMapScene:
                 self._state.debug_shift_active_run_seed(-1)
             if nav_right_released:
                 self._state.debug_shift_active_run_seed(1)
-        if confirm_released:
+        if released_slot == 0:
+            self.selected_node += 1
+            if self.selected_node > self.node_count:
+                self.selected_node = 1
+        if debug_seed and released_slot == 2:
+            self._state.debug_shift_active_run_seed(1)
+        if confirm_released or released_slot == 1:
             run = self._state.require_run()
             run.ensure_outbound_segment(
                 self.selected_node,
                 float(TUNING.DRIVE.segment_total_length)
             )
             run.ensure_delta(run.node_id)
+            self._footer_mouse.reset()
             self._nav.go(SceneId.DRIVE, DriveEnterParams("travel"))
 
     def _draw_node_row(self, run: RunState | None, node_id: int, y: int) -> None:
         marker = ">" if node_id == self.selected_node else " "
         if run is None:
-            print(marker + " ID " + str(node_id), 16, y, Color.WHITE)
+            print(marker + " ID " + str(node_id), self.COL_NODE_X, y, Color.WHITE, True)
             return
         poi_type = run.preview_outbound_poi_type(node_id)
         poi_label = poi_type_label(poi_type).upper()
@@ -92,10 +124,10 @@ class RegionMapScene:
         row_text = marker + " ID " + str(node_id)
         scrap_text = "+" + str(rewards.scrap)
         fuel_text = "+" + str(rewards.fuel)
-        print(row_text, 16, y, Color.WHITE)
-        print(poi_label, 56, y, Color.WHITE)
-        print(scrap_text, 148, y, Color.LIGHT_GREEN)
-        print(fuel_text, 188, y, Color.YELLOW)
+        print(row_text, self.COL_NODE_X, y, Color.WHITE, True)
+        print(poi_label, self.COL_SITE_X, y, Color.WHITE, True)
+        print(scrap_text, self.COL_SCRAP_X, y, Color.LIGHT_GREEN, True)
+        print(fuel_text, self.COL_FUEL_X, y, Color.YELLOW, True)
 
     def _fmt_hex32(self, value: int) -> str:
         return hex(int(value) & 0xFFFFFFFF)
@@ -153,6 +185,15 @@ class RegionMapScene:
             or self._state.controls.down(Action.NAV_RIGHT)
         )
 
+    def _footer_slots(self, debug_seed: bool) -> list[str]:
+        nav_hint = ui_prompt_with_text(ui_prompt_for_nav_hint(self._state), "NAV")
+        go_hint = ui_prompt_with_text(ui_prompt_for_action(self._state, Action.CONFIRM), "GO")
+        slots = [nav_hint, go_hint]
+        if debug_seed:
+            seed_hint = ui_prompt_for_action(self._state, Action.NAV_LEFT) + "/" + ui_prompt_for_action(self._state, Action.NAV_RIGHT) + " SEED"
+            slots.append(seed_hint)
+        return slots
+
     def draw(self) -> None:
         cls(Color.BLACK)
         run = self._state.run
@@ -176,7 +217,10 @@ class RegionMapScene:
         if run is not None:
             print("RUN SEED " + str(run.seed), x, y, Color.LIGHT_GREY)
             y += 10
-        print("NODE   SITE         SCRAP  FUEL", x, y, Color.LIGHT_BLUE)
+        print("NODE", self.COL_NODE_X, y, Color.LIGHT_BLUE, True)
+        print("SITE", self.COL_SITE_X, y, Color.LIGHT_BLUE, True)
+        print("SCRAP", self.COL_SCRAP_X, y, Color.LIGHT_BLUE, True)
+        print("FUEL", self.COL_FUEL_X, y, Color.LIGHT_BLUE, True)
         y += 8
         for i in range(self.node_count):
             node_id = i + 1
@@ -185,22 +229,27 @@ class RegionMapScene:
         if self._state.debug_overlay_enabled:
             y += 2
             self._draw_debug_block(run, x, y, footer_line_y)
-        nav_hint = ui_prompt_with_text(ui_prompt_for_action(self._state, Action.NAV_UP), "NAV")
-        go_hint = ui_prompt_with_text(ui_prompt_for_action(self._state, Action.CONFIRM), "GO")
-        slots = [nav_hint, go_hint]
-        slot_active = [self._nav_down(), self._state.controls.down(Action.CONFIRM)]
+        slots = self._footer_slots(debug_seed)
+        slot_active = [
+            self._nav_down() or self._footer_mouse.is_slot_active(0, self._mouse),
+            self._state.controls.down(Action.CONFIRM) or self._footer_mouse.is_slot_active(1, self._mouse)
+        ]
         if debug_seed:
-            seed_hint = ui_prompt_for_action(self._state, Action.NAV_LEFT) + "/" + ui_prompt_for_action(self._state, Action.NAV_RIGHT) + " SEED"
-            slots.append(seed_hint)
             slot_active.append(
                 self._state.controls.down(Action.NAV_LEFT)
                 or self._state.controls.down(Action.NAV_RIGHT)
+                or self._footer_mouse.is_slot_active(2, self._mouse)
             )
+        slot_hover: list[bool] = []
+        i = 0
+        while i < len(slots):
+            slot_hover.append((not slot_active[i]) and self._footer_mouse.hover_slot == i)
+            i += 1
         ui_overlay_footer_draw(
             layout,
             slots,
             slot_active,
-            [False] * len(slots),
+            slot_hover,
             footer_line_y,
             footer_text_y,
             Color.BLACK,
