@@ -36,8 +36,8 @@ if TYPE_CHECKING:
     from ..core.ui.overlay_runtime import UiOverlayRuntime
     from ..core.ui.options_overlay_state import UiOptionsOverlayState
     from ..core.ui.options_bindings_table import ui_options_bindings_table_draw
-    from ..core.ui.overlay_modal import ui_overlay_modal_draw_chrome
-    from ..core.ui.overlay_footer import ui_overlay_footer_draw
+    from ..core.ui.overlay_screen import ui_overlay_screen_draw
+    from ..core.ui.overlay_theme import ui_overlay_theme_inverted
     from ..core.version import game_version_label
     from .drive.pursuer_text_bank import PursuerTextBank
     from .main_menu_backdrop import MainMenuBackdrop, make_main_menu_backdrop
@@ -142,7 +142,6 @@ class MainMenuScene:
             "slot_cancel": 1
         }
     }
-    _OVERLAY_FOOTER_DEBUG_SLOTS = False
     _WATCH_PULSE_SECONDS = 4.8
     _WATCH_GLITCH_SECONDS = 0.18
     _WATCH_ERROR_HOLD_SECONDS = 0.18
@@ -816,16 +815,17 @@ class MainMenuScene:
 
     def _draw_overlay_box(self, title: str, lines: list[str]) -> None:
         layout = self._overlay_layout()
-        x, _y, w, _h, body_top, _footer_line_y, _footer_text_y = ui_overlay_modal_draw_chrome(
+        slots, keyboard_active, button_bg_color = self._overlay_footer_state(layout)
+        x, _y, w, _h, body_top, _footer_line_y, _footer_text_y = ui_overlay_screen_draw(
+            self._ui,
             layout,
             title,
-            Color.WHITE,
-            Color.BLACK,
-            Color.DARK_GREY,
-            Color.BLACK,
-            Color.GREY
+            [],
+            slots,
+            keyboard_active,
+            body_line_step=self._OVERLAY_BODY_LINE_STEP,
+            button_bg_color=button_bg_color
         )
-        self._draw_overlay_footer(layout)
         wrapped = self._overlay_wrap_lines(lines, layout)
         self._clamp_overlay_scroll(lines, layout)
         visible_lines = self._overlay_visible_lines(layout)
@@ -867,9 +867,7 @@ class MainMenuScene:
             return self._OVERLAY_LAYOUT_DEFAULT
         return layout
 
-    def _draw_overlay_footer(self, layout: OverlayLayout) -> None:
-        footer_line_y = ui_overlay_layout_int(layout, "footer_line_y", 104)
-        footer_text_y = ui_overlay_layout_int(layout, "footer_text_y", 108)
+    def _overlay_footer_state(self, layout: OverlayLayout) -> tuple[list[str], list[bool], int]:
         button_bg_color = ui_overlay_layout_int(layout, "footer_bg_color", 0)
         nav_enabled = self._overlay_footer_nav_enabled(layout)
         slot_count = ui_overlay_layout_slot_count(layout)
@@ -884,25 +882,7 @@ class MainMenuScene:
             keyboard_active[slot_nav] = self._overlay_nav_any_down()
         keyboard_active[slot_confirm] = self._state.controls.down(Action.CONFIRM)
         keyboard_active[slot_cancel] = self._state.controls.down(Action.CANCEL)
-        slot_active, slot_hover = self._ui.slot_states(
-            slot_count,
-            keyboard_active
-        )
-
-        split_color = Color.GREY
-        if self._OVERLAY_FOOTER_DEBUG_SLOTS:
-            split_color = Color.LIGHT_GREY
-        ui_overlay_footer_draw(
-            layout,
-            slots,
-            slot_active,
-            slot_hover,
-            footer_line_y,
-            footer_text_y,
-            button_bg_color,
-            split_color,
-            self._OVERLAY_FOOTER_DEBUG_SLOTS
-        )
+        return slots, keyboard_active, button_bg_color
 
     def _overlay_footer_slots(self, layout: OverlayLayout, slot_count: int) -> list[str]:
         if self._overlay == self._OVERLAY_NEW_GAME_CONFIRM:
@@ -1030,16 +1010,18 @@ class MainMenuScene:
 
     def _draw_controls_overlay(self) -> None:
         layout = self._overlay_layout()
-        x, _y, w, _h, body_top, footer_line_y, _footer_text_y = ui_overlay_modal_draw_chrome(
+        slots, keyboard_active, button_bg_color = self._overlay_footer_state(layout)
+        x, _y, w, _h, body_top, footer_line_y, _footer_text_y = ui_overlay_screen_draw(
+            self._ui,
             layout,
             "OPTIONS",
-            Color.WHITE,
-            Color.DARK_GREY,
-            Color.BLACK,
-            Color.BLACK,
-            Color.GREY
+            [],
+            slots,
+            keyboard_active,
+            theme=ui_overlay_theme_inverted(),
+            body_line_step=self._OVERLAY_BODY_LINE_STEP,
+            button_bg_color=button_bg_color
         )
-        self._draw_overlay_footer(layout)
         line_step = 7
         body_x = x + self._OVERLAY_BODY_X_PAD
         self._draw_controls_overlay_settings(

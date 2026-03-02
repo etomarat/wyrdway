@@ -18,13 +18,9 @@ if TYPE_CHECKING:
         ui_footer_slots_confirm_cancel,
         ui_footer_slots_single_action
     )
-    from ..core.ui.overlay_footer import ui_overlay_footer_draw
     from ..core.ui.overlay_layout import OverlayLayout, ui_overlay_layout_centered
     from ..core.ui.overlay_runtime import UiOverlayRuntime
-    from ..core.ui.overlay_modal import (
-        ui_overlay_modal_draw_centered_lines,
-        ui_overlay_modal_draw_chrome
-    )
+    from ..core.ui.overlay_screen import ui_overlay_screen_draw
     from ..data.tuning import TUNING
     from ..systems.drive.pursuers.registry import (
         active_pursuer_name,
@@ -191,8 +187,7 @@ class PoiScene:
         title_color: int,
         lines: list[tuple[str, int]],
         slots: list[str],
-        slot_active: list[bool],
-        slot_hover: list[bool]
+        keyboard_active: list[bool]
     ) -> None:
         layout = self._overlay_layout(
             len(slots),
@@ -201,25 +196,14 @@ class PoiScene:
             0,
             len(slots) - 1
         )
-        box_x, _box_y, box_w, _box_h, body_top, footer_line_y, footer_text_y = ui_overlay_modal_draw_chrome(
+        ui_overlay_screen_draw(
+            self._ui,
             layout,
             title,
-            title_color,
-            Color.BLACK,
-            Color.DARK_GREY,
-            Color.BLACK,
-            Color.GREY
-        )
-        ui_overlay_modal_draw_centered_lines(lines, box_x, box_w, body_top, 8)
-        ui_overlay_footer_draw(
-            layout,
+            lines,
             slots,
-            slot_active,
-            slot_hover,
-            footer_line_y,
-            footer_text_y,
-            Color.BLACK,
-            Color.GREY
+            keyboard_active,
+            title_color=title_color
         )
 
     def _update_interact(self, dt: float, confirm_released: bool, cancel_released: bool) -> None:
@@ -293,10 +277,6 @@ class PoiScene:
                 Action.CONFIRM,
                 "BEGIN RETURN"
             )
-            slot_active, slot_hover = self._ui.slot_states(
-                1,
-                [self._state.controls.down(Action.CONFIRM)]
-            )
             self._draw_overlay(
                 "RETREAT CONFIRMED",
                 Color.YELLOW,
@@ -307,8 +287,7 @@ class PoiScene:
                     " IS STILL TRACKING YOU"
                 ),
                 slots,
-                slot_active,
-                slot_hover
+                [self._state.controls.down(Action.CONFIRM)]
             )
             return
         if self._mode == self.MODE_LOOT_SUMMARY:
@@ -318,10 +297,6 @@ class PoiScene:
                 self._state,
                 Action.CONFIRM,
                 "BEGIN RETURN"
-            )
-            slot_active, slot_hover = self._ui.slot_states(
-                1,
-                [self._state.controls.down(Action.CONFIRM)]
             )
             self._draw_overlay(
                 "LOOT SECURED",
@@ -333,8 +308,7 @@ class PoiScene:
                     " IS IN PURSUIT"
                 ),
                 slots,
-                slot_active,
-                slot_hover
+                [self._state.controls.down(Action.CONFIRM)]
             )
             return
         layout = self._overlay_layout(2, (1, 1), 0, 0, 1)
@@ -349,17 +323,12 @@ class PoiScene:
         keyboard_active = [False, False]
         keyboard_active[slot_confirm] = self._state.controls.down(Action.CONFIRM)
         keyboard_active[slot_cancel] = self._state.controls.down(Action.CANCEL)
-        slot_active, slot_hover = self._ui.slot_states(
-            2,
-            keyboard_active
-        )
         self._draw_overlay(
             "POI INTERACTION",
             Color.WHITE,
             self._interact_lines(),
             slots,
-            slot_active,
-            slot_hover
+            keyboard_active
         )
 
     def exit(self) -> None:

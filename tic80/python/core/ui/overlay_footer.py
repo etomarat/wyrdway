@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from tic80 import line, print, rect
+    from tic80 import line, rect
 
     from ..palette import Color
     from .overlay_layout import OverlayLayout
@@ -19,9 +19,8 @@ def ui_overlay_footer_draw(
     slot_hover: list[bool],
     footer_line_y: int,
     footer_text_y: int,
-    button_bg_color: int,
+    button_bg_color: int = -1,
     divider_color: int = -1,
-    debug_slots: bool = False,
     footer_line_color: int = -1,
     slot_text_color: int = -1,
     slot_active_bg_color: int = -1,
@@ -29,6 +28,8 @@ def ui_overlay_footer_draw(
     slot_active_text_color: int = -1,
     slot_hover_text_color: int = -1
 ) -> None:
+    if button_bg_color < 0:
+        button_bg_color = Color.BLACK
     if divider_color < 0:
         divider_color = Color.GREY
     if footer_line_color < 0:
@@ -77,24 +78,6 @@ def ui_overlay_footer_draw(
                     slot_text_colors[i] = slot_hover_text_color
                 rect(slot_x0, button_bg_y, slot_w, button_bg_h, bg)
         i += 1
-
-    if debug_slots:
-        debug_y = footer_line_y + 1
-        debug_h = 11
-        debug_colors = [
-            Color.DARK_BLUE,
-            Color.BLUE,
-            Color.DARK_GREEN,
-            Color.PURPLE
-        ]
-        j = 0
-        while j < slot_count:
-            slot_x0 = slot_starts[j]
-            slot_x1 = slot_ends[j]
-            slot_w = slot_x1 - slot_x0
-            rect(slot_x0, debug_y, slot_w, debug_h, debug_colors[j % len(debug_colors)])
-            print(str(j + 1), slot_x0 + 1, debug_y + 1, Color.YELLOW, fixed=True)
-            j += 1
 
     j = 1
     while j < slot_count:

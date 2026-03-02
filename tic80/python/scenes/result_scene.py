@@ -10,18 +10,20 @@ if TYPE_CHECKING:
     from ..core.ui.footer_slots import (
         ui_footer_slots_single_action
     )
-    from ..core.ui.overlay_footer import ui_overlay_footer_draw
     from ..core.ui.overlay_layout import (
         OverlayLayout,
         ui_overlay_layout_centered
     )
     from ..core.ui.overlay_runtime import UiOverlayRuntime
-    from ..core.ui.overlay_modal import (
-        ui_overlay_modal_draw_centered_lines,
-        ui_overlay_modal_draw_chrome
+    from ..core.ui.overlay_screen import ui_overlay_screen_draw
+    from ..core.ui.overlay_theme import (
+        OverlayTheme,
+        ui_overlay_theme_fail,
+        ui_overlay_theme_good
     )
 else:
     OverlayLayout = dict
+    OverlayTheme = dict
 
 
 class ResultScene:
@@ -44,6 +46,7 @@ class ResultScene:
         self._lines: list[tuple[str, ColorId]] = []
         self._cta = "CONTINUE TO GARAGE"
         self._cta_color: ColorId = Color.WHITE
+        self._theme: OverlayTheme | None = None
 
     def _set_layout(
         self,
@@ -53,7 +56,8 @@ class ResultScene:
         subtitle_color: ColorId,
         lines: list[tuple[str, ColorId]],
         cta: str,
-        cta_color: ColorId
+        cta_color: ColorId,
+        theme: OverlayTheme | None = None
     ) -> None:
         self._title = title
         self._title_color = title_color
@@ -62,6 +66,7 @@ class ResultScene:
         self._lines = lines
         self._cta = cta
         self._cta_color = cta_color
+        self._theme = theme
 
     def _reason_line(self, reason: str) -> str:
         if reason == "OUT OF FUEL":
@@ -90,7 +95,8 @@ class ResultScene:
             Color.LIGHT_GREY,
             lines,
             "CONTINUE TO GARAGE",
-            Color.RED
+            Color.RED,
+            ui_overlay_theme_fail()
         )
 
     def _build_no_run_layout(self, fallback: str | None) -> None:
@@ -106,7 +112,8 @@ class ResultScene:
             Color.LIGHT_GREY,
             lines,
             "CONTINUE TO GARAGE",
-            Color.WHITE
+            Color.WHITE,
+            None
         )
 
     def _build_run_report_layout(
@@ -122,6 +129,7 @@ class ResultScene:
         detail_line = "No loot collected"
         detail_color: ColorId = Color.LIGHT_GREY
         cta_color: ColorId = Color.WHITE
+        theme: OverlayTheme | None = ui_overlay_theme_good()
         if poi_action == "loot":
             title = "EXTRACTION COMPLETE"
             title_color = Color.LIGHT_GREEN
@@ -140,12 +148,13 @@ class ResultScene:
             cta_color = Color.YELLOW
         elif poi_action == "timeout":
             title = "SITE TIMEOUT"
-            title_color = Color.ORANGE
+            title_color = Color.RED
             subtitle = "Extraction was not secured"
             subtitle_color = Color.LIGHT_GREY
             detail_line = "No loot secured from the site"
             detail_color = Color.ORANGE
             cta_color = Color.ORANGE
+            theme = ui_overlay_theme_fail()
         lines: list[tuple[str, ColorId]] = [
             (detail_line, detail_color),
             ("Scrap delivered: +" + str(delivered_scrap), Color.LIGHT_GREEN),
@@ -159,7 +168,8 @@ class ResultScene:
             subtitle_color,
             lines,
             "CONTINUE TO GARAGE",
-            cta_color
+            cta_color,
+            theme
         )
 
     def enter(self, params: SceneEnterParams = None) -> None:
@@ -241,44 +251,21 @@ class ResultScene:
     def draw(self) -> None:
         cls(Color.BLACK)
         layout = self._overlay_layout()
-        box_x, _box_y, box_w, _box_h, body_top, footer_line_y, footer_text_y = ui_overlay_modal_draw_chrome(
-            layout,
-            self._title,
-            self._title_color,
-            Color.BLACK,
-            Color.DARK_GREY,
-            Color.BLACK,
-            Color.GREY
-        )
-        ui_overlay_modal_draw_centered_lines(
-            self._body_lines(),
-            box_x,
-            box_w,
-            body_top,
-            8
-        )
         slots, _slot_confirm = ui_footer_slots_single_action(
             layout,
             self._state,
             Action.CONFIRM,
             self._cta
         )
-        slot_active, slot_hover = self._ui.slot_states(
-            1,
-            [self._state.controls.down(Action.CONFIRM)]
-        )
-        ui_overlay_footer_draw(
+        ui_overlay_screen_draw(
+            self._ui,
             layout,
+            self._title,
+            self._body_lines(),
             slots,
-            slot_active,
-            slot_hover,
-            footer_line_y,
-            footer_text_y,
-            Color.BLACK,
-            Color.GREY,
-            False,
-            -1,
-            self._cta_color
+            [self._state.controls.down(Action.CONFIRM)],
+            theme=self._theme,
+            title_color=self._title_color
         )
 
     def exit(self) -> None:

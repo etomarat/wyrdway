@@ -17,16 +17,13 @@ if TYPE_CHECKING:
         ui_meter_draw_labeled,
         ui_meter_fill_ratio
     )
-    from ..core.ui.overlay_footer import ui_overlay_footer_draw
     from ..core.ui.overlay_layout import (
         OverlayLayout,
         ui_overlay_layout_centered
     )
     from ..core.ui.overlay_runtime import UiOverlayRuntime
-    from ..core.ui.overlay_modal import (
-        ui_overlay_modal_draw_centered_lines,
-        ui_overlay_modal_draw_chrome
-    )
+    from ..core.ui.overlay_screen import ui_overlay_screen_draw
+    from ..core.ui.overlay_theme import ui_overlay_theme_warning
     from ..core.ui.panel import ui_panel_draw, ui_panel_draw_split_actions
     from ..core.ui.prompts import ui_prompt_for_action
     from ..core.ui.prompts import ui_prompt_with_text
@@ -272,15 +269,6 @@ class GarageScene:
             0,
             0
         )
-        box_x, _box_y, box_w, _box_h, body_top, footer_line_y, footer_text_y = ui_overlay_modal_draw_chrome(
-            layout,
-            "ROLLBACK RECOVERED",
-            Color.ORANGE,
-            Color.ORANGE,
-            Color.BLACK,
-            Color.BLACK,
-            Color.GREY
-        )
         reason_line = self._rollback_modal_reason
         if reason_line == "":
             reason_line = "PROFILE RECOVERY APPLIED"
@@ -288,32 +276,21 @@ class GarageScene:
             (reason_line, Color.LIGHT_GREY),
             ("THESEUS +" + str(self._rollback_modal_gain), Color.RED)
         ]
-        ui_overlay_modal_draw_centered_lines(
-            body_lines,
-            box_x,
-            box_w,
-            body_top,
-            10
-        )
         slots, _slot_confirm = ui_footer_slots_single_action(
             layout,
             self._state,
             Action.CANCEL,
             "CLOSE"
         )
-        slot_active, slot_hover = self._ui.slot_states(
-            1,
-            [self._state.controls.down(Action.CANCEL)]
-        )
-        ui_overlay_footer_draw(
+        ui_overlay_screen_draw(
+            self._ui,
             layout,
+            "ROLLBACK RECOVERED",
+            body_lines,
             slots,
-            slot_active,
-            slot_hover,
-            footer_line_y,
-            footer_text_y,
-            Color.BLACK,
-            Color.GREY
+            [self._state.controls.down(Action.CANCEL)],
+            theme=ui_overlay_theme_warning(),
+            body_line_step=10
         )
 
     def _draw_new_game_confirm(self) -> None:
@@ -324,26 +301,10 @@ class GarageScene:
             0,
             1
         )
-        box_x, _box_y, box_w, _box_h, body_top, footer_line_y, footer_text_y = ui_overlay_modal_draw_chrome(
-            layout,
-            "CONFIRM RESET",
-            Color.WHITE,
-            Color.WHITE,
-            Color.BLACK,
-            Color.BLACK,
-            Color.GREY
-        )
         body_lines: list[tuple[str, int]] = [
             ("START NEW GAME?", Color.WHITE),
             ("THIS RESETS PROFILE PROGRESS", Color.LIGHT_GREY)
         ]
-        ui_overlay_modal_draw_centered_lines(
-            body_lines,
-            box_x,
-            box_w,
-            body_top,
-            10
-        )
         slots, _slot_confirm, _slot_cancel = ui_footer_slots_confirm_cancel(
             layout,
             self._state,
@@ -352,22 +313,17 @@ class GarageScene:
             "CONFIRM RESET",
             "CANCEL"
         )
-        slot_active, slot_hover = self._ui.slot_states(
-            2,
+        ui_overlay_screen_draw(
+            self._ui,
+            layout,
+            "CONFIRM RESET",
+            body_lines,
+            slots,
             [
                 self._state.controls.down(Action.CONFIRM),
                 self._state.controls.down(Action.CANCEL)
-            ]
-        )
-        ui_overlay_footer_draw(
-            layout,
-            slots,
-            slot_active,
-            slot_hover,
-            footer_line_y,
-            footer_text_y,
-            Color.BLACK,
-            Color.GREY
+            ],
+            body_line_step=10
         )
 
     def _modal_layout(
