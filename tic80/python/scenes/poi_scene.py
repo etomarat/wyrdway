@@ -14,17 +14,17 @@ if TYPE_CHECKING:
     from ..core.poi_text import poi_type_label
     from ..core.run_state import PoiAction
     from ..core.scene_ids import SceneId
+    from ..core.ui.footer_slots import (
+        ui_footer_slots_confirm_cancel,
+        ui_footer_slots_single_action
+    )
     from ..core.ui.overlay_footer import ui_overlay_footer_draw
     from ..core.ui.overlay_layout import OverlayLayout, ui_overlay_layout_centered
-    from ..core.ui.overlay_layout import ui_overlay_layout_int
-    from ..core.ui.footer_mouse import UiMouseState, OverlayFooterMouseState
+    from ..core.ui.overlay_runtime import UiOverlayRuntime
     from ..core.ui.overlay_modal import (
         ui_overlay_modal_draw_centered_lines,
         ui_overlay_modal_draw_chrome
     )
-    from ..core.ui.prompts import ui_prompt_for_action
-    from ..core.ui.prompts import ui_prompt_with_text
-    from ..core.ui.release_latch import UiReleaseLatch
     from ..data.tuning import TUNING
     from ..systems.drive.pursuers.registry import (
         active_pursuer_name,
@@ -49,9 +49,7 @@ class PoiScene:
     def __init__(self, nav: SceneNavigator) -> None:
         self._nav = nav
         self._state = nav.state
-        self._release = UiReleaseLatch()
-        self._mouse = UiMouseState()
-        self._footer_mouse = OverlayFooterMouseState()
+        self._ui = UiOverlayRuntime()
         self.timer = TUNING.POI.timer_seconds
         self._loot_scrap = 0
         self._loot_fuel = 0
@@ -60,11 +58,11 @@ class PoiScene:
         self._mode = self.MODE_INTERACT
 
     def enter(self, params: SceneEnterParams = None) -> None:
-        self._release.sync_actions_from_controls(
+        self._ui.sync_actions(
             self._state.controls,
             [Action.CONFIRM, Action.CANCEL]
         )
-        self._footer_mouse.reset()
+        self._ui.reset_footer()
         self.timer = TUNING.POI.timer_seconds
         self._loot_scrap = 0
         self._loot_fuel = 0
@@ -228,76 +226,77 @@ class PoiScene:
         self.timer = max(0.0, self.timer - dt)
         if confirm_released:
             self._start_loot_summary()
-            self._footer_mouse.reset()
+            self._ui.reset_footer()
             return
         if cancel_released:
             self._start_leave_summary()
-            self._footer_mouse.reset()
+            self._ui.reset_footer()
             return
         if self.timer <= 0.0:
-            self._footer_mouse.reset()
+            self._ui.reset_footer()
             self._leave("timeout", True, "POI TIMEOUT")
 
     def update(self, dt: float) -> None:
-        self._mouse.poll()
-        confirm_released = self._release.poll(self._state.controls, Action.CONFIRM)
-        cancel_released = self._release.poll(self._state.controls, Action.CANCEL)
+        self._ui.poll_mouse()
+        confirm_released = self._ui.poll_action(self._state.controls, Action.CONFIRM)
+        cancel_released = self._ui.poll_action(self._state.controls, Action.CANCEL)
         if self._mode == self.MODE_LOOT_SUMMARY:
             layout = self._overlay_layout(1, (1,), 0, 0, 0)
-            footer_line_y = ui_overlay_layout_int(layout, "footer_line_y", 104)
-            footer_text_y = ui_overlay_layout_int(layout, "footer_text_y", 108)
-            slots = [ui_prompt_with_text(ui_prompt_for_action(self._state, Action.CONFIRM), "BEGIN RETURN")]
-            released_slot = self._footer_mouse.poll_release(
+            slots, slot_confirm = ui_footer_slots_single_action(
                 layout,
-                slots,
-                self._mouse,
-                footer_line_y,
-                footer_text_y
+                self._state,
+                Action.CONFIRM,
+                "BEGIN RETURN"
             )
-            if confirm_released or released_slot == 0:
-                self._footer_mouse.reset()
+            released_slot = self._ui.poll_footer_release(layout, slots)
+            if confirm_released or released_slot == slot_confirm:
+                self._ui.reset_footer()
                 self._leave("loot")
             return
         if self._mode == self.MODE_LEAVE_SUMMARY:
             layout = self._overlay_layout(1, (1,), 0, 0, 0)
-            footer_line_y = ui_overlay_layout_int(layout, "footer_line_y", 104)
-            footer_text_y = ui_overlay_layout_int(layout, "footer_text_y", 108)
-            slots = [ui_prompt_with_text(ui_prompt_for_action(self._state, Action.CONFIRM), "BEGIN RETURN")]
-            released_slot = self._footer_mouse.poll_release(
+            slots, slot_confirm = ui_footer_slots_single_action(
                 layout,
-                slots,
-                self._mouse,
-                footer_line_y,
-                footer_text_y
+                self._state,
+                Action.CONFIRM,
+                "BEGIN RETURN"
             )
-            if confirm_released or released_slot == 0:
-                self._footer_mouse.reset()
+            released_slot = self._ui.poll_footer_release(layout, slots)
+            if confirm_released or released_slot == slot_confirm:
+                self._ui.reset_footer()
                 self._leave("leave")
             return
 
         layout = self._overlay_layout(2, (1, 1), 0, 0, 1)
-        footer_line_y = ui_overlay_layout_int(layout, "footer_line_y", 104)
-        footer_text_y = ui_overlay_layout_int(layout, "footer_text_y", 108)
-        slots = [
-            ui_prompt_with_text(ui_prompt_for_action(self._state, Action.CONFIRM), "LOOT"),
-            ui_prompt_with_text(ui_prompt_for_action(self._state, Action.CANCEL), "LEAVE")
-        ]
-        released_slot = self._footer_mouse.poll_release(
+        slots, slot_confirm, slot_cancel = ui_footer_slots_confirm_cancel(
             layout,
-            slots,
-            self._mouse,
-            footer_line_y,
-            footer_text_y
+            self._state,
+            Action.CONFIRM,
+            Action.CANCEL,
+            "LOOT",
+            "LEAVE"
         )
+        released_slot = self._ui.poll_footer_release(layout, slots)
         self._update_interact(
             dt,
-            confirm_released or released_slot == 0,
-            cancel_released or released_slot == 1
+            confirm_released or released_slot == slot_confirm,
+            cancel_released or released_slot == slot_cancel
         )
 
     def draw(self) -> None:
         cls(Color.BLACK)
         if self._mode == self.MODE_LEAVE_SUMMARY:
+            layout = self._overlay_layout(1, (1,), 0, 0, 0)
+            slots, _slot_confirm = ui_footer_slots_single_action(
+                layout,
+                self._state,
+                Action.CONFIRM,
+                "BEGIN RETURN"
+            )
+            slot_active, slot_hover = self._ui.slot_states(
+                1,
+                [self._state.controls.down(Action.CONFIRM)]
+            )
             self._draw_overlay(
                 "RETREAT CONFIRMED",
                 Color.YELLOW,
@@ -307,23 +306,23 @@ class PoiScene:
                     "FUEL: +" + str(self._loot_fuel),
                     " IS STILL TRACKING YOU"
                 ),
-                [
-                    ui_prompt_with_text(ui_prompt_for_action(self._state, Action.CONFIRM), "BEGIN RETURN")
-                ],
-                [
-                    self._state.controls.down(Action.CONFIRM)
-                    or self._footer_mouse.is_slot_active(0, self._mouse)
-                ],
-                [
-                    self._footer_mouse.hover_slot == 0
-                    and not (
-                        self._state.controls.down(Action.CONFIRM)
-                        or self._footer_mouse.is_slot_active(0, self._mouse)
-                    )
-                ]
+                slots,
+                slot_active,
+                slot_hover
             )
             return
         if self._mode == self.MODE_LOOT_SUMMARY:
+            layout = self._overlay_layout(1, (1,), 0, 0, 0)
+            slots, _slot_confirm = ui_footer_slots_single_action(
+                layout,
+                self._state,
+                Action.CONFIRM,
+                "BEGIN RETURN"
+            )
+            slot_active, slot_hover = self._ui.slot_states(
+                1,
+                [self._state.controls.down(Action.CONFIRM)]
+            )
             self._draw_overlay(
                 "LOOT SECURED",
                 Color.LIGHT_GREEN,
@@ -333,43 +332,34 @@ class PoiScene:
                     "STOLEN FUEL: +" + str(self._loot_fuel),
                     " IS IN PURSUIT"
                 ),
-                [
-                    ui_prompt_with_text(ui_prompt_for_action(self._state, Action.CONFIRM), "BEGIN RETURN")
-                ],
-                [
-                    self._state.controls.down(Action.CONFIRM)
-                    or self._footer_mouse.is_slot_active(0, self._mouse)
-                ],
-                [
-                    self._footer_mouse.hover_slot == 0
-                    and not (
-                        self._state.controls.down(Action.CONFIRM)
-                        or self._footer_mouse.is_slot_active(0, self._mouse)
-                    )
-                ]
+                slots,
+                slot_active,
+                slot_hover
             )
             return
-        slot0_active = (
-            self._state.controls.down(Action.CONFIRM)
-            or self._footer_mouse.is_slot_active(0, self._mouse)
+        layout = self._overlay_layout(2, (1, 1), 0, 0, 1)
+        slots, slot_confirm, slot_cancel = ui_footer_slots_confirm_cancel(
+            layout,
+            self._state,
+            Action.CONFIRM,
+            Action.CANCEL,
+            "LOOT",
+            "LEAVE"
         )
-        slot1_active = (
-            self._state.controls.down(Action.CANCEL)
-            or self._footer_mouse.is_slot_active(1, self._mouse)
+        keyboard_active = [False, False]
+        keyboard_active[slot_confirm] = self._state.controls.down(Action.CONFIRM)
+        keyboard_active[slot_cancel] = self._state.controls.down(Action.CANCEL)
+        slot_active, slot_hover = self._ui.slot_states(
+            2,
+            keyboard_active
         )
         self._draw_overlay(
             "POI INTERACTION",
             Color.WHITE,
             self._interact_lines(),
-            [
-                ui_prompt_with_text(ui_prompt_for_action(self._state, Action.CONFIRM), "LOOT"),
-                ui_prompt_with_text(ui_prompt_for_action(self._state, Action.CANCEL), "LEAVE")
-            ],
-            [slot0_active, slot1_active],
-            [
-                (not slot0_active) and self._footer_mouse.hover_slot == 0,
-                (not slot1_active) and self._footer_mouse.hover_slot == 1
-            ]
+            slots,
+            slot_active,
+            slot_hover
         )
 
     def exit(self) -> None:

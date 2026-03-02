@@ -4,6 +4,7 @@ if TYPE_CHECKING:
     from tic80 import mouse
 
     from .overlay_layout import OverlayLayout, ui_overlay_footer_slot_at
+    from typing import Sequence
 else:
     OverlayLayout = dict
 
@@ -80,3 +81,23 @@ class OverlayFooterMouseState:
             and self.down_slot == int(slot_index)
             and self.hover_slot == int(slot_index)
         )
+
+
+def ui_overlay_footer_slot_states(
+    slot_count: int,
+    keyboard_active: Sequence[bool],
+    mouse_state: UiMouseState,
+    footer_mouse: OverlayFooterMouseState
+) -> tuple[list[bool], list[bool]]:
+    active: list[bool] = []
+    hover: list[bool] = []
+    i = 0
+    while i < int(slot_count):
+        key_active = False
+        if i < len(keyboard_active):
+            key_active = bool(keyboard_active[i])
+        is_active = key_active or footer_mouse.is_slot_active(i, mouse_state)
+        active.append(is_active)
+        hover.append((not is_active) and footer_mouse.hover_slot == i)
+        i += 1
+    return active, hover

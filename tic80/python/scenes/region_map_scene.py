@@ -9,17 +9,17 @@ if TYPE_CHECKING:
     from ..core.poi_text import poi_type_label
     from ..core.run_state import RunState
     from ..core.scene_ids import SceneId
+    from ..core.ui.footer_slots import (
+        ui_footer_slot_indices,
+        ui_footer_slots_standard
+    )
     from ..core.ui.overlay_footer import ui_overlay_footer_draw
     from ..core.ui.overlay_layout import OverlayLayout, ui_overlay_layout_centered
-    from ..core.ui.overlay_layout import ui_overlay_layout_int
-    from ..core.ui.footer_mouse import UiMouseState, OverlayFooterMouseState
+    from ..core.ui.overlay_runtime import UiOverlayRuntime
     from ..core.ui.overlay_modal import (
         ui_overlay_modal_draw_chrome
     )
     from ..core.ui.prompts import ui_prompt_for_action
-    from ..core.ui.prompts import ui_prompt_for_nav_hint
-    from ..core.ui.prompts import ui_prompt_with_text
-    from ..core.ui.release_latch import UiReleaseLatch
     from ..data.tuning import TUNING
 else:
     OverlayLayout = dict
@@ -41,14 +41,12 @@ class RegionMapScene:
     def __init__(self, nav: SceneNavigator) -> None:
         self._nav = nav
         self._state = nav.state
-        self._release = UiReleaseLatch()
-        self._mouse = UiMouseState()
-        self._footer_mouse = OverlayFooterMouseState()
+        self._ui = UiOverlayRuntime()
         self.selected_node = 1
         self.node_count = 5
 
     def enter(self, params: SceneEnterParams = None) -> None:
-        self._release.sync_actions_from_controls(
+        self._ui.sync_actions(
             self._state.controls,
             [
                 Action.NAV_UP,
@@ -58,7 +56,7 @@ class RegionMapScene:
                 Action.CONFIRM
             ]
         )
-        self._footer_mouse.reset()
+        self._ui.reset_footer()
         run = self._state.run
         if run is not None and run.node_id is not None:
             self.selected_node = run.node_id
@@ -67,26 +65,19 @@ class RegionMapScene:
         return self._state.debug_enabled
 
     def update(self, dt: float) -> None:
-        self._mouse.poll()
-        nav_up_released = self._release.poll(self._state.controls, Action.NAV_UP)
-        nav_down_released = self._release.poll(self._state.controls, Action.NAV_DOWN)
-        nav_left_released = self._release.poll(self._state.controls, Action.NAV_LEFT)
-        nav_right_released = self._release.poll(self._state.controls, Action.NAV_RIGHT)
-        confirm_released = self._release.poll(self._state.controls, Action.CONFIRM)
+        self._ui.poll_mouse()
+        nav_up_released = self._ui.poll_action(self._state.controls, Action.NAV_UP)
+        nav_down_released = self._ui.poll_action(self._state.controls, Action.NAV_DOWN)
+        nav_left_released = self._ui.poll_action(self._state.controls, Action.NAV_LEFT)
+        nav_right_released = self._ui.poll_action(self._state.controls, Action.NAV_RIGHT)
+        confirm_released = self._ui.poll_action(self._state.controls, Action.CONFIRM)
         debug_seed = self._debug_seed_edit_enabled()
         slot_count = 3 if debug_seed else 2
         slot_weights = (1, 1, 1) if debug_seed else (1, 1)
         layout = self._overlay_layout(slot_count, slot_weights)
-        footer_line_y = ui_overlay_layout_int(layout, "footer_line_y", 104)
-        footer_text_y = ui_overlay_layout_int(layout, "footer_text_y", 108)
+        slot_nav, slot_confirm, slot_cancel = ui_footer_slot_indices(layout, slot_count)
         slots = self._footer_slots(debug_seed)
-        released_slot = self._footer_mouse.poll_release(
-            layout,
-            slots,
-            self._mouse,
-            footer_line_y,
-            footer_text_y
-        )
+        released_slot = self._ui.poll_footer_release(layout, slots)
 
         if nav_up_released:
             self.selected_node = max(1, self.selected_node - 1)
@@ -97,20 +88,20 @@ class RegionMapScene:
                 self._state.debug_shift_active_run_seed(-1)
             if nav_right_released:
                 self._state.debug_shift_active_run_seed(1)
-        if released_slot == 0:
+        if released_slot == slot_nav:
             self.selected_node += 1
             if self.selected_node > self.node_count:
                 self.selected_node = 1
-        if debug_seed and released_slot == 2:
+        if debug_seed and released_slot == slot_cancel:
             self._state.debug_shift_active_run_seed(1)
-        if confirm_released or released_slot == 1:
+        if confirm_released or released_slot == slot_confirm:
             run = self._state.require_run()
             run.ensure_outbound_segment(
                 self.selected_node,
                 float(TUNING.DRIVE.segment_total_length)
             )
             run.ensure_delta(run.node_id)
-            self._footer_mouse.reset()
+            self._ui.reset_footer()
             self._nav.go(SceneId.DRIVE, DriveEnterParams("travel"))
 
     def _draw_node_row(self, run: RunState | None, node_id: int, y: int) -> None:
@@ -186,12 +177,24 @@ class RegionMapScene:
         )
 
     def _footer_slots(self, debug_seed: bool) -> list[str]:
-        nav_hint = ui_prompt_with_text(ui_prompt_for_nav_hint(self._state), "NAV")
-        go_hint = ui_prompt_with_text(ui_prompt_for_action(self._state, Action.CONFIRM), "GO")
-        slots = [nav_hint, go_hint]
+        slot_count = 3 if debug_seed else 2
+        slot_weights = (1, 1, 1) if debug_seed else (1, 1)
+        layout = self._overlay_layout(slot_count, slot_weights)
+        slots = ui_footer_slots_standard(
+            layout,
+            slot_count,
+            self._state,
+            Action.CONFIRM,
+            Action.CONFIRM,
+            True,
+            "NAV",
+            "GO",
+            ""
+        )
         if debug_seed:
+            _slot_nav, _slot_confirm, slot_cancel = ui_footer_slot_indices(layout, slot_count)
             seed_hint = ui_prompt_for_action(self._state, Action.NAV_LEFT) + "/" + ui_prompt_for_action(self._state, Action.NAV_RIGHT) + " SEED"
-            slots.append(seed_hint)
+            slots[slot_cancel] = seed_hint
         return slots
 
     def draw(self) -> None:
@@ -230,21 +233,19 @@ class RegionMapScene:
             y += 2
             self._draw_debug_block(run, x, y, footer_line_y)
         slots = self._footer_slots(debug_seed)
-        slot_active = [
-            self._nav_down() or self._footer_mouse.is_slot_active(0, self._mouse),
-            self._state.controls.down(Action.CONFIRM) or self._footer_mouse.is_slot_active(1, self._mouse)
+        keyboard_active = [
+            self._nav_down(),
+            self._state.controls.down(Action.CONFIRM)
         ]
         if debug_seed:
-            slot_active.append(
+            keyboard_active.append(
                 self._state.controls.down(Action.NAV_LEFT)
                 or self._state.controls.down(Action.NAV_RIGHT)
-                or self._footer_mouse.is_slot_active(2, self._mouse)
             )
-        slot_hover: list[bool] = []
-        i = 0
-        while i < len(slots):
-            slot_hover.append((not slot_active[i]) and self._footer_mouse.hover_slot == i)
-            i += 1
+        slot_active, slot_hover = self._ui.slot_states(
+            len(slots),
+            keyboard_active
+        )
         ui_overlay_footer_draw(
             layout,
             slots,

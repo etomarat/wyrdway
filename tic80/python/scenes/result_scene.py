@@ -7,20 +7,19 @@ if TYPE_CHECKING:
     from ..core.controls.actions import Action
     from ..core.palette import Color, ColorId
     from ..core.scene_ids import SceneId
+    from ..core.ui.footer_slots import (
+        ui_footer_slots_single_action
+    )
     from ..core.ui.overlay_footer import ui_overlay_footer_draw
     from ..core.ui.overlay_layout import (
         OverlayLayout,
-        ui_overlay_layout_centered,
-        ui_overlay_layout_int
+        ui_overlay_layout_centered
     )
-    from ..core.ui.footer_mouse import UiMouseState, OverlayFooterMouseState
+    from ..core.ui.overlay_runtime import UiOverlayRuntime
     from ..core.ui.overlay_modal import (
         ui_overlay_modal_draw_centered_lines,
         ui_overlay_modal_draw_chrome
     )
-    from ..core.ui.prompts import ui_prompt_for_action
-    from ..core.ui.prompts import ui_prompt_with_text
-    from ..core.ui.release_latch import UiReleaseLatch
 else:
     OverlayLayout = dict
 
@@ -37,9 +36,7 @@ class ResultScene:
     def __init__(self, nav: SceneNavigator) -> None:
         self._nav = nav
         self._state = nav.state
-        self._release = UiReleaseLatch()
-        self._mouse = UiMouseState()
-        self._footer_mouse = OverlayFooterMouseState()
+        self._ui = UiOverlayRuntime()
         self._title = "MISSION REPORT"
         self._title_color: ColorId = Color.WHITE
         self._subtitle = ""
@@ -166,11 +163,11 @@ class ResultScene:
         )
 
     def enter(self, params: SceneEnterParams = None) -> None:
-        self._release.sync_actions_from_controls(
+        self._ui.sync_actions(
             self._state.controls,
             [Action.CONFIRM]
         )
-        self._footer_mouse.reset()
+        self._ui.reset_footer()
         fallback = None
         if params is not None:
             if not isinstance(params, ResultEnterParams):
@@ -202,19 +199,16 @@ class ResultScene:
         self._build_run_report_layout(poi_action, delivered_scrap, fuel_recovered)
 
     def update(self, dt: float) -> None:
-        self._mouse.poll()
+        self._ui.poll_mouse()
         layout = self._overlay_layout()
-        footer_line_y = ui_overlay_layout_int(layout, "footer_line_y", 104)
-        footer_text_y = ui_overlay_layout_int(layout, "footer_text_y", 108)
-        cta = ui_prompt_with_text(ui_prompt_for_action(self._state, Action.CONFIRM), self._cta)
-        released_slot = self._footer_mouse.poll_release(
+        slots, slot_confirm = ui_footer_slots_single_action(
             layout,
-            [cta],
-            self._mouse,
-            footer_line_y,
-            footer_text_y
+            self._state,
+            Action.CONFIRM,
+            self._cta
         )
-        if self._release.poll(self._state.controls, Action.CONFIRM) or released_slot == 0:
+        released_slot = self._ui.poll_footer_release(layout, slots)
+        if self._ui.poll_action(self._state.controls, Action.CONFIRM) or released_slot == slot_confirm:
             self._state.apply_run_results()
             self._nav.go(SceneId.GARAGE)
 
@@ -263,18 +257,21 @@ class ResultScene:
             body_top,
             8
         )
-        prompt = ui_prompt_for_action(self._state, Action.CONFIRM)
-        cta = ui_prompt_with_text(prompt, self._cta)
-        slot_active0 = (
-            self._state.controls.down(Action.CONFIRM)
-            or self._footer_mouse.is_slot_active(0, self._mouse)
+        slots, _slot_confirm = ui_footer_slots_single_action(
+            layout,
+            self._state,
+            Action.CONFIRM,
+            self._cta
         )
-        slot_hover0 = (not slot_active0) and self._footer_mouse.hover_slot == 0
+        slot_active, slot_hover = self._ui.slot_states(
+            1,
+            [self._state.controls.down(Action.CONFIRM)]
+        )
         ui_overlay_footer_draw(
             layout,
-            [cta],
-            [slot_active0],
-            [slot_hover0],
+            slots,
+            slot_active,
+            slot_hover,
             footer_line_y,
             footer_text_y,
             Color.BLACK,

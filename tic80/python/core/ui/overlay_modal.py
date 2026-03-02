@@ -10,17 +10,6 @@ if TYPE_CHECKING:
     from ..text_layout import text_center_x
 
 
-def ui_overlay_modal_centered_box(
-    box_w: int,
-    box_h: int,
-    screen_w: int = 240,
-    screen_h: int = 136
-) -> tuple[int, int]:
-    x = int((int(screen_w) - int(box_w)) * 0.5)
-    y = int((int(screen_h) - int(box_h)) * 0.5)
-    return x, y
-
-
 def ui_overlay_modal_draw_chrome(
     layout: OverlayLayout,
     title: str,
