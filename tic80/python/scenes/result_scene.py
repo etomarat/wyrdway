@@ -8,14 +8,14 @@ if TYPE_CHECKING:
     from ..core.palette import Color, ColorId
     from ..core.scene_ids import SceneId
     from ..core.ui.overlay_footer import ui_overlay_footer_draw
-    from ..core.ui.overlay_layout import OverlayLayout
+    from ..core.ui.overlay_layout import OverlayLayout, ui_overlay_layout_centered
     from ..core.ui.overlay_modal import (
-        ui_overlay_modal_centered_box,
         ui_overlay_modal_draw_centered_lines,
         ui_overlay_modal_draw_chrome
     )
     from ..core.ui.prompts import ui_prompt_for_action
     from ..core.ui.prompts import ui_prompt_with_text
+    from ..core.ui.release_latch import UiReleaseLatch
 else:
     OverlayLayout = dict
 
@@ -32,6 +32,7 @@ class ResultScene:
     def __init__(self, nav: SceneNavigator) -> None:
         self._nav = nav
         self._state = nav.state
+        self._release = UiReleaseLatch()
         self._title = "MISSION REPORT"
         self._title_color: ColorId = Color.WHITE
         self._subtitle = ""
@@ -158,6 +159,10 @@ class ResultScene:
         )
 
     def enter(self, params: SceneEnterParams = None) -> None:
+        self._release.sync_actions_from_controls(
+            self._state.controls,
+            [Action.CONFIRM]
+        )
         fallback = None
         if params is not None:
             if not isinstance(params, ResultEnterParams):
@@ -189,27 +194,24 @@ class ResultScene:
         self._build_run_report_layout(poi_action, delivered_scrap, fuel_recovered)
 
     def update(self, dt: float) -> None:
-        if self._state.controls.pressed(Action.CONFIRM):
+        if self._release.poll(self._state.controls, Action.CONFIRM):
             self._state.apply_run_results()
             self._nav.go(SceneId.GARAGE)
 
     def _overlay_layout(self) -> OverlayLayout:
-        box_x, box_y = ui_overlay_modal_centered_box(self.OVERLAY_W, self.OVERLAY_H)
-        return {
-            "box_x": box_x,
-            "box_y": box_y,
-            "box_w": self.OVERLAY_W,
-            "box_h": self.OVERLAY_H,
-            "header_text_y": box_y + self.OVERLAY_HEADER_TEXT_OFFSET_Y,
-            "body_top": box_y + self.OVERLAY_BODY_TOP_OFFSET_Y,
-            "footer_line_y": box_y + self.OVERLAY_FOOTER_LINE_OFFSET_Y,
-            "footer_text_y": box_y + self.OVERLAY_FOOTER_TEXT_OFFSET_Y,
-            "slot_count": 1,
-            "slot_weights": (1,),
-            "slot_nav": 0,
-            "slot_confirm": 0,
-            "slot_cancel": 0
-        }
+        return ui_overlay_layout_centered(
+            self.OVERLAY_W,
+            self.OVERLAY_H,
+            self.OVERLAY_HEADER_TEXT_OFFSET_Y,
+            self.OVERLAY_BODY_TOP_OFFSET_Y,
+            self.OVERLAY_FOOTER_LINE_OFFSET_Y,
+            self.OVERLAY_FOOTER_TEXT_OFFSET_Y,
+            1,
+            (1,),
+            0,
+            0,
+            0
+        )
 
     def _body_lines(self) -> list[tuple[str, ColorId]]:
         body: list[tuple[str, ColorId]] = []

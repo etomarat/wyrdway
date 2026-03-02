@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from tic80 import cls, print
+    from tic80 import cls
 
     from ..contracts import (
         DriveEnterParams,
@@ -14,16 +14,22 @@ if TYPE_CHECKING:
     from ..core.poi_text import poi_type_label
     from ..core.run_state import PoiAction
     from ..core.scene_ids import SceneId
-    from ..core.text_layout import text_center_x, text_width
-    from ..core.ui.panel import ui_panel_draw, ui_panel_draw_split_actions
+    from ..core.ui.overlay_footer import ui_overlay_footer_draw
+    from ..core.ui.overlay_layout import OverlayLayout, ui_overlay_layout_centered
+    from ..core.ui.overlay_modal import (
+        ui_overlay_modal_draw_centered_lines,
+        ui_overlay_modal_draw_chrome
+    )
     from ..core.ui.prompts import ui_prompt_for_action
     from ..core.ui.prompts import ui_prompt_with_text
-    from ..core.ui.text import ui_text_center
+    from ..core.ui.release_latch import UiReleaseLatch
     from ..data.tuning import TUNING
     from ..systems.drive.pursuers.registry import (
         active_pursuer_name,
         active_pursuer_name_color
     )
+else:
+    OverlayLayout = dict
 
 
 class PoiScene:
@@ -31,18 +37,17 @@ class PoiScene:
     MODE_INTERACT = "interact"
     MODE_LOOT_SUMMARY = "loot_summary"
     MODE_LEAVE_SUMMARY = "leave_summary"
-    INFO_PANEL_X = 8
-    INFO_PANEL_Y = 18
-    INFO_PANEL_W = 224
-    INFO_PANEL_H = 86
-    ACTION_PANEL_X = 8
-    ACTION_PANEL_Y = 108
-    ACTION_PANEL_W = 224
-    ACTION_PANEL_H = 20
+    OVERLAY_W = 220
+    OVERLAY_H = 112
+    OVERLAY_HEADER_TEXT_OFFSET_Y = 9
+    OVERLAY_BODY_TOP_OFFSET_Y = 24
+    OVERLAY_FOOTER_LINE_OFFSET_Y = 92
+    OVERLAY_FOOTER_TEXT_OFFSET_Y = 96
 
     def __init__(self, nav: SceneNavigator) -> None:
         self._nav = nav
         self._state = nav.state
+        self._release = UiReleaseLatch()
         self.timer = TUNING.POI.timer_seconds
         self._loot_scrap = 0
         self._loot_fuel = 0
@@ -51,6 +56,10 @@ class PoiScene:
         self._mode = self.MODE_INTERACT
 
     def enter(self, params: SceneEnterParams = None) -> None:
+        self._release.sync_actions_from_controls(
+            self._state.controls,
+            [Action.CONFIRM, Action.CANCEL]
+        )
         self.timer = TUNING.POI.timer_seconds
         self._loot_scrap = 0
         self._loot_fuel = 0
@@ -105,50 +114,10 @@ class PoiScene:
 
         self._mode = self.MODE_LOOT_SUMMARY
 
-    def _draw_summary(
-        self,
-        title: str,
-        subtitle: str,
-        scrap_line: str,
-        fuel_line: str,
-        pursuit_suffix: str
-    ) -> None:
-        ui_text_center(title, 24, Color.WHITE, margin_x=2)
-        ui_text_center(subtitle, 40, Color.LIGHT_GREY, margin_x=2)
-        ui_text_center(scrap_line, 56, Color.LIGHT_GREEN, margin_x=2)
-        ui_text_center(fuel_line, 64, Color.YELLOW, margin_x=2)
-        self._draw_pursuit_line(82, pursuit_suffix)
-        ui_text_center("return to base immediately", 90, Color.WHITE, margin_x=2)
-        prompt = ui_prompt_for_action(self._state, Action.CONFIRM)
-        ui_text_center(ui_prompt_with_text(prompt, "BEGIN RETURN"), 112, Color.WHITE, margin_x=2)
-
-    def _draw_pursuit_line(self, y: int, suffix: str) -> None:
-        name = str(self._pursuer_name)
-        line = name + suffix
-        x = text_center_x(line, margin_x=2)
-        print(name, x, y, self._pursuer_name_color, True)
-        print(suffix, x + text_width(name), y, Color.RED, True)
-
-    def _draw_interact(self) -> None:
-        ui_panel_draw(
-            self.INFO_PANEL_X,
-            self.INFO_PANEL_Y,
-            self.INFO_PANEL_W,
-            self.INFO_PANEL_H,
-            Color.GREY,
-            Color.BLACK,
-            Color.DARK_GREY
-        )
-
-        ui_text_center("ROADSIDE STOP // POI TEMP SCENE", 30, Color.WHITE, margin_x=2)
-        ui_text_center("THIS IS A TEMP PLACEHOLDER", 42, Color.LIGHT_GREY, margin_x=2)
-        ui_text_center("FINAL POI GAMEPLAY COMING LATER", 50, Color.LIGHT_GREY, margin_x=2)
-
+    def _interact_lines(self) -> list[tuple[str, int]]:
         timer_line = "TIME LEFT: " + f"{self.timer:.1f}" + "s"
-        ui_text_center(timer_line, 60, Color.YELLOW, margin_x=2)
-
         poi_line = "SITE: UNKNOWN"
-        reward_line = "+0 SCRAP / +0 FUEL"
+        reward_line = "LOOT: +0 SCRAP / +0 FUEL"
         run = self._state.run
         if run is not None:
             segment = run.active_segment
@@ -156,35 +125,107 @@ class PoiScene:
                 rewards = segment.rewards
                 poi_line = "SITE: " + poi_type_label(segment.poi_type).upper()
                 reward_line = (
-                    "+"
+                    "LOOT: +"
                     + str(rewards.scrap)
                     + " SCRAP / +"
                     + str(rewards.fuel)
                     + " FUEL"
                 )
-        ui_text_center(poi_line, 72, Color.WHITE, margin_x=2)
-        ui_text_center("POTENTIAL LOOT", 82, Color.LIGHT_GREY, margin_x=2)
-        ui_text_center(reward_line, 90, Color.LIGHT_GREY, margin_x=2)
+        pursuer_line = "PURSUER: " + str(self._pursuer_name)
+        return [
+            ("ROADSIDE STOP // TEMP", Color.WHITE),
+            ("FINAL POI GAMEPLAY COMING LATER", Color.LIGHT_GREY),
+            ("", Color.WHITE),
+            (timer_line, Color.YELLOW),
+            (poi_line, Color.WHITE),
+            (reward_line, Color.LIGHT_GREY),
+            (pursuer_line, self._pursuer_name_color),
+            ("TIMER EXPIRY FAILS THE RUN", Color.ORANGE)
+        ]
 
-        ui_panel_draw_split_actions(
-            self.ACTION_PANEL_X,
-            self.ACTION_PANEL_Y,
-            self.ACTION_PANEL_W,
-            self.ACTION_PANEL_H,
-            ui_prompt_with_text(ui_prompt_for_action(self._state, Action.CONFIRM), "LOOT (TEMP)"),
-            ui_prompt_with_text(ui_prompt_for_action(self._state, Action.CANCEL), "LEAVE"),
-            Color.GREY,
-            Color.WHITE,
+    def _summary_lines(
+        self,
+        subtitle: str,
+        scrap_line: str,
+        fuel_line: str,
+        pursuit_suffix: str
+    ) -> list[tuple[str, int]]:
+        pursuit_line = str(self._pursuer_name) + pursuit_suffix
+        return [
+            (subtitle, Color.LIGHT_GREY),
+            ("", Color.WHITE),
+            (scrap_line, Color.LIGHT_GREEN),
+            (fuel_line, Color.YELLOW),
+            (pursuit_line, Color.RED),
+            ("RETURN TO BASE IMMEDIATELY", Color.WHITE)
+        ]
+
+    def _overlay_layout(
+        self,
+        slot_count: int,
+        slot_weights: tuple[int, ...],
+        slot_nav: int,
+        slot_confirm: int,
+        slot_cancel: int
+    ) -> OverlayLayout:
+        return ui_overlay_layout_centered(
+            self.OVERLAY_W,
+            self.OVERLAY_H,
+            self.OVERLAY_HEADER_TEXT_OFFSET_Y,
+            self.OVERLAY_BODY_TOP_OFFSET_Y,
+            self.OVERLAY_FOOTER_LINE_OFFSET_Y,
+            self.OVERLAY_FOOTER_TEXT_OFFSET_Y,
+            slot_count,
+            slot_weights,
+            slot_nav,
+            slot_confirm,
+            slot_cancel
+        )
+
+    def _draw_overlay(
+        self,
+        title: str,
+        title_color: int,
+        lines: list[tuple[str, int]],
+        slots: list[str],
+        slot_active: list[bool]
+    ) -> None:
+        layout = self._overlay_layout(
+            len(slots),
+            tuple([1] * len(slots)),
+            0,
+            0,
+            len(slots) - 1
+        )
+        box_x, _box_y, box_w, _box_h, body_top, footer_line_y, footer_text_y = ui_overlay_modal_draw_chrome(
+            layout,
+            title,
+            title_color,
             Color.BLACK,
-            Color.BLACK
+            Color.DARK_GREY,
+            Color.BLACK,
+            Color.GREY
+        )
+        ui_overlay_modal_draw_centered_lines(lines, box_x, box_w, body_top, 8)
+        ui_overlay_footer_draw(
+            layout,
+            slots,
+            slot_active,
+            [False] * len(slots),
+            footer_line_y,
+            footer_text_y,
+            Color.BLACK,
+            Color.GREY
         )
 
     def _update_interact(self, dt: float) -> None:
+        confirm_released = self._release.poll(self._state.controls, Action.CONFIRM)
+        cancel_released = self._release.poll(self._state.controls, Action.CANCEL)
         self.timer = max(0.0, self.timer - dt)
-        if self._state.controls.pressed(Action.CONFIRM):
+        if confirm_released:
             self._start_loot_summary()
             return
-        if self._state.controls.pressed(Action.CANCEL):
+        if cancel_released:
             self._start_leave_summary()
             return
         if self.timer <= 0.0:
@@ -192,11 +233,11 @@ class PoiScene:
 
     def update(self, dt: float) -> None:
         if self._mode == self.MODE_LOOT_SUMMARY:
-            if self._state.controls.pressed(Action.CONFIRM):
+            if self._release.poll(self._state.controls, Action.CONFIRM):
                 self._leave("loot")
             return
         if self._mode == self.MODE_LEAVE_SUMMARY:
-            if self._state.controls.pressed(Action.CONFIRM):
+            if self._release.poll(self._state.controls, Action.CONFIRM):
                 self._leave("leave")
             return
 
@@ -205,24 +246,50 @@ class PoiScene:
     def draw(self) -> None:
         cls(Color.BLACK)
         if self._mode == self.MODE_LEAVE_SUMMARY:
-            self._draw_summary(
+            self._draw_overlay(
                 "RETREAT CONFIRMED",
-                "no loot collected",
-                "scrap: +" + str(self._loot_scrap),
-                "fuel: +" + str(self._loot_fuel),
-                " is still tracking you"
+                Color.YELLOW,
+                self._summary_lines(
+                    "NO LOOT COLLECTED",
+                    "SCRAP: +" + str(self._loot_scrap),
+                    "FUEL: +" + str(self._loot_fuel),
+                    " IS STILL TRACKING YOU"
+                ),
+                [
+                    ui_prompt_with_text(ui_prompt_for_action(self._state, Action.CONFIRM), "BEGIN RETURN")
+                ],
+                [self._state.controls.down(Action.CONFIRM)]
             )
             return
         if self._mode == self.MODE_LOOT_SUMMARY:
-            self._draw_summary(
+            self._draw_overlay(
                 "LOOT SECURED",
-                "you took what wasn't yours",
-                "stolen scrap: +" + str(self._loot_scrap),
-                "stolen fuel: +" + str(self._loot_fuel),
-                " is in pursuit"
+                Color.LIGHT_GREEN,
+                self._summary_lines(
+                    "YOU TOOK WHAT WASN'T YOURS",
+                    "STOLEN SCRAP: +" + str(self._loot_scrap),
+                    "STOLEN FUEL: +" + str(self._loot_fuel),
+                    " IS IN PURSUIT"
+                ),
+                [
+                    ui_prompt_with_text(ui_prompt_for_action(self._state, Action.CONFIRM), "BEGIN RETURN")
+                ],
+                [self._state.controls.down(Action.CONFIRM)]
             )
             return
-        self._draw_interact()
+        self._draw_overlay(
+            "POI INTERACTION",
+            Color.WHITE,
+            self._interact_lines(),
+            [
+                ui_prompt_with_text(ui_prompt_for_action(self._state, Action.CONFIRM), "LOOT"),
+                ui_prompt_with_text(ui_prompt_for_action(self._state, Action.CANCEL), "LEAVE")
+            ],
+            [
+                self._state.controls.down(Action.CONFIRM),
+                self._state.controls.down(Action.CANCEL)
+            ]
+        )
 
     def exit(self) -> None:
         pass

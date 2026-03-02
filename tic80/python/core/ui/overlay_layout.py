@@ -58,6 +58,40 @@ def ui_overlay_layout_slot_count(layout: OverlayLayout, fallback: int = 4) -> in
     return slot_count
 
 
+def ui_overlay_layout_centered(
+    box_w: int,
+    box_h: int,
+    header_text_offset_y: int,
+    body_top_offset_y: int,
+    footer_line_offset_y: int,
+    footer_text_offset_y: int,
+    slot_count: int,
+    slot_weights: tuple[int, ...],
+    slot_nav: int,
+    slot_confirm: int,
+    slot_cancel: int,
+    screen_w: int = 240,
+    screen_h: int = 136
+) -> OverlayLayout:
+    x = int((int(screen_w) - int(box_w)) * 0.5)
+    y = int((int(screen_h) - int(box_h)) * 0.5)
+    return {
+        "box_x": x,
+        "box_y": y,
+        "box_w": int(box_w),
+        "box_h": int(box_h),
+        "header_text_y": y + int(header_text_offset_y),
+        "body_top": y + int(body_top_offset_y),
+        "footer_line_y": y + int(footer_line_offset_y),
+        "footer_text_y": y + int(footer_text_offset_y),
+        "slot_count": int(slot_count),
+        "slot_weights": slot_weights,
+        "slot_nav": int(slot_nav),
+        "slot_confirm": int(slot_confirm),
+        "slot_cancel": int(slot_cancel)
+    }
+
+
 def ui_overlay_footer_slot_geometry(
     layout: OverlayLayout,
     slot_count: int,

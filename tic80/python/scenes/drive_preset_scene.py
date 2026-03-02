@@ -19,6 +19,7 @@ if TYPE_CHECKING:
         ui_prompt_for_nav_hint,
         ui_prompt_with_text
     )
+    from ..core.ui.release_latch import UiReleaseLatch
     from ..core.ui.rich_text import ui_rich_print
     from ..core.version import GAME_VERSION
     from ..data.tuning import TUNING
@@ -205,6 +206,7 @@ class DrivePresetScene:
     def __init__(self, nav: SceneNavigator) -> None:
         self._nav = nav
         self._state = nav.state
+        self._release = UiReleaseLatch()
         self._selected = 0
         self._engine = DrivePresetEngine()
         self._presets = [
@@ -261,6 +263,17 @@ class DrivePresetScene:
         ]
 
     def enter(self, params: SceneEnterParams = None) -> None:
+        self._release.sync_actions_from_controls(
+            self._state.controls,
+            [
+                Action.NAV_LEFT,
+                Action.NAV_UP,
+                Action.NAV_RIGHT,
+                Action.NAV_DOWN,
+                Action.CONFIRM,
+                Action.SECONDARY
+            ]
+        )
         self._state.end_run()
         self._engine.capture_baseline()
         self._selected = 0
@@ -295,21 +308,28 @@ class DrivePresetScene:
         )
 
     def update(self, dt: float) -> None:
+        nav_left_released = self._release.poll(self._state.controls, Action.NAV_LEFT)
+        nav_up_released = self._release.poll(self._state.controls, Action.NAV_UP)
+        nav_right_released = self._release.poll(self._state.controls, Action.NAV_RIGHT)
+        nav_down_released = self._release.poll(self._state.controls, Action.NAV_DOWN)
+        confirm_released = self._release.poll(self._state.controls, Action.CONFIRM)
+        secondary_released = self._release.poll(self._state.controls, Action.SECONDARY)
+
         if (
-            self._state.controls.pressed(Action.NAV_LEFT)
-            or self._state.controls.pressed(Action.NAV_UP)
+            nav_left_released
+            or nav_up_released
         ):
             self._selected = (self._selected - 1) % len(self._presets)
         if (
-            self._state.controls.pressed(Action.NAV_RIGHT)
-            or self._state.controls.pressed(Action.NAV_DOWN)
+            nav_right_released
+            or nav_down_released
         ):
             self._selected = (self._selected + 1) % len(self._presets)
-        if self._state.controls.pressed(Action.CONFIRM):
+        if confirm_released:
             if not self._apply_selected_preset():
                 return
             self._nav.go(SceneId.GARAGE)
-        elif self._state.controls.pressed(Action.SECONDARY):
+        elif secondary_released:
             if not self._chase_test_allowed():
                 return
             if not self._apply_selected_preset():

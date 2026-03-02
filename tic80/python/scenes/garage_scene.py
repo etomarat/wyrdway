@@ -14,15 +14,15 @@ if TYPE_CHECKING:
         ui_meter_fill_ratio
     )
     from ..core.ui.overlay_footer import ui_overlay_footer_draw
-    from ..core.ui.overlay_layout import OverlayLayout
+    from ..core.ui.overlay_layout import OverlayLayout, ui_overlay_layout_centered
     from ..core.ui.overlay_modal import (
-        ui_overlay_modal_centered_box,
         ui_overlay_modal_draw_centered_lines,
         ui_overlay_modal_draw_chrome
     )
     from ..core.ui.panel import ui_panel_draw, ui_panel_draw_split_actions
     from ..core.ui.prompts import ui_prompt_for_action
     from ..core.ui.prompts import ui_prompt_with_text
+    from ..core.ui.release_latch import UiReleaseLatch
     from ..core.ui.rich_text import ui_rich_print, ui_rich_text_center_x
     from ..data.tuning import TUNING
 else:
@@ -65,6 +65,7 @@ class GarageScene:
     def __init__(self, nav: SceneNavigator) -> None:
         self._nav = nav
         self._state = nav.state
+        self._release = UiReleaseLatch()
         self._profile = nav.state.profile
         self._confirm_new_game = False
         self._rollback_modal_open = False
@@ -74,6 +75,10 @@ class GarageScene:
         self._header_roll = 0
 
     def enter(self, params: SceneEnterParams = None) -> None:
+        self._release.sync_actions_from_controls(
+            self._state.controls,
+            [Action.CONFIRM, Action.CANCEL, Action.SECONDARY, Action.HELP]
+        )
         self._confirm_new_game = False
         reason, gain = self._state.consume_rollback_notice()
         self._rollback_modal_open = reason is not None
@@ -346,44 +351,44 @@ class GarageScene:
         slot_confirm: int,
         slot_cancel: int
     ) -> OverlayLayout:
-        box_w = self.MODAL_W
-        box_h = self.MODAL_H
-        box_x, box_y = ui_overlay_modal_centered_box(box_w, box_h)
-        return {
-            "box_x": box_x,
-            "box_y": box_y,
-            "box_w": box_w,
-            "box_h": box_h,
-            "header_text_y": box_y + self.MODAL_HEADER_TEXT_OFFSET_Y,
-            "body_top": box_y + self.MODAL_BODY_TOP_OFFSET_Y,
-            "footer_line_y": box_y + self.MODAL_FOOTER_LINE_OFFSET_Y,
-            "footer_text_y": box_y + self.MODAL_FOOTER_TEXT_OFFSET_Y,
-            "slot_count": int(slot_count),
-            "slot_weights": slot_weights,
-            "slot_nav": int(slot_nav),
-            "slot_confirm": int(slot_confirm),
-            "slot_cancel": int(slot_cancel)
-        }
+        return ui_overlay_layout_centered(
+            self.MODAL_W,
+            self.MODAL_H,
+            self.MODAL_HEADER_TEXT_OFFSET_Y,
+            self.MODAL_BODY_TOP_OFFSET_Y,
+            self.MODAL_FOOTER_LINE_OFFSET_Y,
+            self.MODAL_FOOTER_TEXT_OFFSET_Y,
+            slot_count,
+            slot_weights,
+            slot_nav,
+            slot_confirm,
+            slot_cancel
+        )
 
     def update(self, dt: float) -> None:
+        confirm_released = self._release.poll(self._state.controls, Action.CONFIRM)
+        cancel_released = self._release.poll(self._state.controls, Action.CANCEL)
+        secondary_released = self._release.poll(self._state.controls, Action.SECONDARY)
+        help_released = self._release.poll(self._state.controls, Action.HELP)
+
         if self._rollback_modal_open:
-            if self._state.controls.pressed(Action.CANCEL):
+            if cancel_released:
                 self._rollback_modal_open = False
             return
 
         if self._confirm_new_game:
-            if self._state.controls.pressed(Action.CONFIRM):
+            if confirm_released:
                 self._state.start_new_game()
                 self._confirm_new_game = False
                 self._pick_header_text()
-            elif self._state.controls.pressed(Action.CANCEL):
+            elif cancel_released:
                 self._confirm_new_game = False
             return
 
-        if self._state.controls.pressed(Action.CONFIRM):
+        if confirm_released:
             self._state.start_run()
             self._nav.go(SceneId.REGION_MAP)
-        elif self._state.controls.pressed(Action.SECONDARY):
+        elif secondary_released:
             repaired = self._profile.repair(
                 TUNING.PROFILE.repair_cost,
                 TUNING.PROFILE.repair_hp,
@@ -391,7 +396,7 @@ class GarageScene:
             )
             if repaired:
                 self._state.save_profile()
-        elif self._state.controls.pressed(Action.HELP):
+        elif help_released:
             self._confirm_new_game = True
 
     def draw(self) -> None:

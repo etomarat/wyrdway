@@ -174,6 +174,10 @@ class MainMenuScene:
         self._overlay_mouse_down_slot = -1
         self._menu_confirm_was_down = False
         self._menu_confirm_armed = True
+        self._menu_nav_up_was_down = False
+        self._menu_nav_up_armed = True
+        self._menu_nav_down_was_down = False
+        self._menu_nav_down_armed = True
         self._overlay_nav_up_was_down = False
         self._overlay_nav_down_was_down = False
         self._overlay_nav_left_was_down = False
@@ -203,8 +207,7 @@ class MainMenuScene:
         self._menu_mouse_down_index = -1
         self._overlay_mouse_hover_slot = -1
         self._overlay_mouse_down_slot = -1
-        self._menu_confirm_was_down = False
-        self._menu_confirm_armed = True
+        self._reset_menu_input_latches()
         self._init_controls_overlay_draft()
         self._reset_controls_overlay_mouse_state()
         self._reset_overlay_input_latches()
@@ -227,9 +230,10 @@ class MainMenuScene:
             self._update_overlay_input()
             return
 
-        if self._state.controls.pressed(Action.NAV_UP):
+        nav_up_released, nav_down_released = self._poll_menu_nav_release_events()
+        if nav_up_released:
             self._selected -= 1
-        elif self._state.controls.pressed(Action.NAV_DOWN):
+        elif nav_down_released:
             self._selected += 1
 
         item_count = len(self._MENU_ITEMS)
@@ -350,6 +354,7 @@ class MainMenuScene:
         self._reset_controls_overlay_mouse_state()
         if self._overlay == self._OVERLAY_CONTROLS:
             self._init_controls_overlay_draft()
+        self._reset_menu_input_latches()
         self._reset_overlay_input_latches()
 
     def _close_overlay(self) -> None:
@@ -358,6 +363,7 @@ class MainMenuScene:
         self._overlay_mouse_hover_slot = -1
         self._overlay_mouse_down_slot = -1
         self._reset_controls_overlay_mouse_state()
+        self._reset_menu_input_latches()
         self._reset_overlay_input_latches()
 
     def _poll_mouse_state(self) -> None:
@@ -384,6 +390,23 @@ class MainMenuScene:
         )
         self._menu_confirm_was_down = confirm_down
         return confirm_released
+
+    def _poll_menu_nav_release_events(self) -> tuple[bool, bool]:
+        nav_up_down = self._state.controls.down(Action.NAV_UP)
+        nav_down_down = self._state.controls.down(Action.NAV_DOWN)
+        nav_up_released, self._menu_nav_up_armed = self._released_from_hold(
+            self._menu_nav_up_was_down,
+            nav_up_down,
+            self._menu_nav_up_armed
+        )
+        nav_down_released, self._menu_nav_down_armed = self._released_from_hold(
+            self._menu_nav_down_was_down,
+            nav_down_down,
+            self._menu_nav_down_armed
+        )
+        self._menu_nav_up_was_down = nav_up_down
+        self._menu_nav_down_was_down = nav_down_down
+        return nav_up_released, nav_down_released
 
     def _poll_menu_mouse_confirm_release(self) -> bool:
         hover_idx = self._menu_mouse_hover_index
@@ -470,6 +493,17 @@ class MainMenuScene:
         self._overlay_nav_right_armed = not nav_right_down
         self._overlay_confirm_armed = not confirm_down
         self._overlay_cancel_armed = not cancel_down
+
+    def _reset_menu_input_latches(self) -> None:
+        nav_up_down = self._state.controls.down(Action.NAV_UP)
+        nav_down_down = self._state.controls.down(Action.NAV_DOWN)
+        confirm_down = self._state.controls.down(Action.CONFIRM)
+        self._menu_nav_up_was_down = nav_up_down
+        self._menu_nav_down_was_down = nav_down_down
+        self._menu_confirm_was_down = confirm_down
+        self._menu_nav_up_armed = not nav_up_down
+        self._menu_nav_down_armed = not nav_down_down
+        self._menu_confirm_armed = not confirm_down
 
     @staticmethod
     def _released_from_hold(was_down: bool, is_down: bool, armed: bool) -> tuple[bool, bool]:
