@@ -7,6 +7,7 @@ if TYPE_CHECKING:
     from ..core.controls.actions import Action
     from ..core.controls.modes import InputDeviceMode
     from ..core.controls.prompts import (
+        PromptGlyph,
         filter_prompt_glyphs,
         format_prompt,
         prompt_glyphs_for_action,
@@ -15,18 +16,16 @@ if TYPE_CHECKING:
     from ..core.palette import Color
     from ..core.scene_ids import SceneId
     from ..core.text_layout import text_right_x, text_width
-    from ..core.ui.prompts import (
-        ui_prompt_gap_join,
-        ui_prompt_with_text
-    )
-    from ..core.ui.options_settings import (
-        ui_options_settings_draw,
-        ui_options_settings_row_at,
-        ui_options_settings_dir_at
-    )
     from ..core.ui.footer_slots import (
         ui_footer_slot_indices,
         ui_footer_slots_standard
+    )
+    from ..core.ui.options_bindings_table import ui_options_bindings_table_draw
+    from ..core.ui.options_overlay_state import UiOptionsOverlayState
+    from ..core.ui.options_settings import (
+        ui_options_settings_dir_at,
+        ui_options_settings_draw,
+        ui_options_settings_row_at
     )
     from ..core.ui.overlay_layout import (
         OverlayLayout,
@@ -34,10 +33,9 @@ if TYPE_CHECKING:
         ui_overlay_layout_slot_count
     )
     from ..core.ui.overlay_runtime import UiOverlayRuntime
-    from ..core.ui.options_overlay_state import UiOptionsOverlayState
-    from ..core.ui.options_bindings_table import ui_options_bindings_table_draw
     from ..core.ui.overlay_screen import ui_overlay_screen_draw
     from ..core.ui.overlay_theme import ui_overlay_theme_inverted
+    from ..core.ui.prompts import ui_prompt_gap_join, ui_prompt_with_text
     from ..core.version import game_version_label
     from .drive.pursuer_text_bank import PursuerTextBank
     from .main_menu_backdrop import MainMenuBackdrop, make_main_menu_backdrop
@@ -93,14 +91,14 @@ class MainMenuScene:
     }
     _OVERLAY_LAYOUTS: dict[int, OverlayLayout] = {
         _OVERLAY_CONTROLS: {
-            "box_x": 6,
-            "box_y": 6,
-            "box_w": 228,
-            "box_h": 126,
-            "header_text_y": 15,
-            "body_top": 27,
-            "footer_line_y": 119,
-            "footer_text_y": 123,
+            "box_x": 4,
+            "box_y": 4,
+            "box_w": 232,
+            "box_h": 130,
+            "header_text_y": 13,
+            "body_top": 25,
+            "footer_line_y": 120,
+            "footer_text_y": 124,
             "footer_button_top_pad": 2,
             "footer_bg_color": 0,
             "slot_count": 3,
@@ -392,7 +390,8 @@ class MainMenuScene:
         slot_count = ui_overlay_layout_slot_count(layout)
         slots = self._overlay_footer_slots(layout, slot_count)
         released_slot = self._ui.poll_footer_release(layout, slots)
-        slot_nav, slot_confirm, slot_cancel = ui_footer_slot_indices(layout, slot_count)
+        slot_nav, slot_confirm, slot_cancel = ui_footer_slot_indices(
+            layout, slot_count)
         return (
             nav_enabled and released_slot == slot_nav,
             released_slot == slot_confirm,
@@ -445,6 +444,7 @@ class MainMenuScene:
     def _init_controls_overlay_draft(self) -> None:
         self._options.reset_draft(
             self._state.input_device_mode,
+            self._state.drive_preset_id,
             bool(self._state.prompt_show_shoulders),
             bool(self._state.vibration_enabled)
         )
@@ -546,10 +546,12 @@ class MainMenuScene:
 
     def _apply_controls_overlay_settings(self) -> None:
         self._state.set_input_device_mode(self._options.mode_draft)
+        self._state.set_drive_preset_id(self._options.drive_preset_draft)
         show_shoulders = self._options.shoulders_draft and self._controls_shoulders_enabled()
         self._state.set_prompt_show_shoulders(show_shoulders)
         vibration_enabled = self._options.vibration_draft and self._controls_vibration_enabled()
         self._state.set_vibration_enabled(vibration_enabled)
+        self._state.save_options()
 
     def _draw_title(self) -> None:
         rect(0, 0, 240, 18, Color.BLACK)
@@ -815,7 +817,8 @@ class MainMenuScene:
 
     def _draw_overlay_box(self, title: str, lines: list[str]) -> None:
         layout = self._overlay_layout()
-        slots, keyboard_active, button_bg_color = self._overlay_footer_state(layout)
+        slots, keyboard_active, button_bg_color = self._overlay_footer_state(
+            layout)
         x, _y, w, _h, body_top, _footer_line_y, _footer_text_y = ui_overlay_screen_draw(
             self._ui,
             layout,
@@ -871,7 +874,8 @@ class MainMenuScene:
         button_bg_color = ui_overlay_layout_int(layout, "footer_bg_color", 0)
         nav_enabled = self._overlay_footer_nav_enabled(layout)
         slot_count = ui_overlay_layout_slot_count(layout)
-        slot_nav, slot_confirm, slot_cancel = ui_footer_slot_indices(layout, slot_count)
+        slot_nav, slot_confirm, slot_cancel = ui_footer_slot_indices(
+            layout, slot_count)
         slots = self._overlay_footer_slots(layout, slot_count)
         keyboard_active: list[bool] = []
         i = 0
@@ -880,7 +884,8 @@ class MainMenuScene:
             i += 1
         if nav_enabled:
             keyboard_active[slot_nav] = self._overlay_nav_any_down()
-        keyboard_active[slot_confirm] = self._state.controls.down(Action.CONFIRM)
+        keyboard_active[slot_confirm] = self._state.controls.down(
+            Action.CONFIRM)
         keyboard_active[slot_cancel] = self._state.controls.down(Action.CANCEL)
         return slots, keyboard_active, button_bg_color
 
@@ -909,7 +914,8 @@ class MainMenuScene:
                 "SAVE",
                 "CANCEL"
             )
-        nav_enabled = self._overlay_max_scroll(self._overlay_body_lines_for(self._overlay), layout) > 0
+        nav_enabled = self._overlay_max_scroll(
+            self._overlay_body_lines_for(self._overlay), layout) > 0
         return ui_footer_slots_standard(
             layout,
             slot_count,
@@ -1010,7 +1016,8 @@ class MainMenuScene:
 
     def _draw_controls_overlay(self) -> None:
         layout = self._overlay_layout()
-        slots, keyboard_active, button_bg_color = self._overlay_footer_state(layout)
+        slots, keyboard_active, button_bg_color = self._overlay_footer_state(
+            layout)
         x, _y, w, _h, body_top, footer_line_y, _footer_text_y = ui_overlay_screen_draw(
             self._ui,
             layout,
@@ -1026,7 +1033,7 @@ class MainMenuScene:
         body_x = x + self._OVERLAY_BODY_X_PAD
         self._draw_controls_overlay_settings(
             layout, body_x, body_top, line_step)
-        info_top = body_top + line_step * 4
+        info_top = body_top + line_step * self._options.row_count() + 5
         line(body_x, info_top - 2, x + w - 9, info_top - 2, Color.DARK_GREY)
         self._draw_controls_overlay_bindings_table(
             layout, body_x, info_top, footer_line_y
@@ -1040,7 +1047,8 @@ class MainMenuScene:
         line_step: int
     ) -> None:
         selected_row = self._options.focus_row
-        if selected_row < 0 or selected_row > 2:
+        row_count = self._options.row_count()
+        if selected_row < 0 or selected_row >= row_count:
             selected_row = 0
         left_arrow = self._controls_keyboard_nav_arrow(Action.NAV_LEFT)
         right_arrow = self._controls_keyboard_nav_arrow(Action.NAV_RIGHT)
@@ -1050,7 +1058,7 @@ class MainMenuScene:
         enabled_rows: list[bool] = []
         active_rows: list[bool] = []
         row = 0
-        while row < 3:
+        while row < row_count:
             enabled = self._controls_setting_enabled(row)
             selected = row == selected_row
             labels.append(self._controls_setting_label(row))
@@ -1121,7 +1129,7 @@ class MainMenuScene:
             layout,
             self._OVERLAY_BODY_X_PAD,
             7,
-            3,
+            self._options.row_count(),
             mx,
             my
         )
@@ -1162,20 +1170,30 @@ class MainMenuScene:
             ("CONFIRM", self._controls_prompt_for_action(Action.CONFIRM)),
             ("CANCEL", self._controls_prompt_for_action(Action.CANCEL))
         ]
+        system_rows: list[tuple[str, str]] = [
+            ("CRT TOGGLE", self._controls_prompt_for_crt_filter())
+        ]
         right_rows: list[tuple[str, str]] = [
-            ("STEER", self._controls_prompt_nav()),
+            ("STEER", self._controls_prompt_for_steer()),
             ("THROTTLE", self._controls_prompt_for_action(Action.THROTTLE)),
             ("BRAKE", self._controls_prompt_for_action(Action.BRAKE)),
             ("HANDBRAKE", self._controls_prompt_for_action(Action.HANDBRAKE)),
             ("SKILL", self._controls_prompt_for_action(Action.SKILL))
+        ]
+        left_sections: list[tuple[str, list[tuple[str, str]]]] = []
+        if len(system_rows) > 0:
+            left_sections.append(("SYSTEM", system_rows))
+        left_sections.append(("MENU", left_rows))
+        right_sections: list[tuple[str, list[tuple[str, str]]]] = [
+            ("DRIVING", right_rows)
         ]
         ui_options_bindings_table_draw(
             layout,
             body_x,
             area_top,
             footer_line_y,
-            left_rows,
-            right_rows,
+            left_sections,
+            right_sections,
             Color.WHITE,
             Color.LIGHT_GREY,
             Color.DARK_GREY
@@ -1195,7 +1213,8 @@ class MainMenuScene:
         menu_back = ui_prompt_with_text(
             self._controls_prompt_for_action(Action.CANCEL), "CANCEL")
 
-        drive_steer = ui_prompt_with_text(self._controls_prompt_nav(), "STEER")
+        drive_steer = ui_prompt_with_text(
+            self._controls_prompt_for_steer(), "STEER")
         drive_gas = ui_prompt_with_text(
             self._controls_prompt_for_action(Action.THROTTLE), "THROTTLE")
         drive_brk = ui_prompt_with_text(
@@ -1241,11 +1260,22 @@ class MainMenuScene:
         glyphs = prompt_glyphs_for_nav_hint(self._options.mode_draft)
         return format_prompt(glyphs, self._state.prompt_glyph_detail)
 
+    def _controls_prompt_for_steer(self) -> str:
+        left = self._controls_prompt_for_action(Action.NAV_LEFT)
+        right = self._controls_prompt_for_action(Action.NAV_RIGHT)
+        return ui_prompt_gap_join([left, right])
+
     def _controls_keyboard_nav_arrow(self, action_id: int) -> str:
         glyphs = prompt_glyphs_for_action(action_id, InputDeviceMode.KEYBOARD)
         if len(glyphs) <= 0:
             return ""
         return format_prompt([glyphs[0]], self._state.prompt_glyph_detail)
+
+    def _controls_prompt_for_crt_filter(self) -> str:
+        return format_prompt(
+            [PromptGlyph.KEY_F6],
+            self._state.prompt_glyph_detail
+        )
 
     @staticmethod
     def _credits_overlay_lines() -> list[str]:

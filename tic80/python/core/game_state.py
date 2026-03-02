@@ -13,6 +13,11 @@ if TYPE_CHECKING:
         PromptGlyphDetail,
         PromptGlyphDetailId
     )
+    from .drive_presets import (
+        DrivePresetId,
+        DrivePresetIdValues,
+        drive_preset_clamp
+    )
     from .profile import Profile
     from .run_state import RunState
     from .save_system import SaveSystem
@@ -25,7 +30,7 @@ class GameState:
                  '_debug_overlay_enabled', '_last_rollback_reason',
                  '_last_rollback_theseus_gain', '_input_device_mode',
                  '_prompt_glyph_detail', '_prompt_show_shoulders',
-                 '_vibration_enabled', '_controls')
+                 '_vibration_enabled', '_drive_preset_id', '_controls')
 
     def __init__(self) -> None:
         self._profile = Profile(
@@ -49,6 +54,7 @@ class GameState:
         self._prompt_glyph_detail: PromptGlyphDetailId = PromptGlyphDetail.ALL
         self._prompt_show_shoulders = False
         self._vibration_enabled = True
+        self._drive_preset_id: DrivePresetId = DrivePresetIdValues.HARD
         self._controls = Controls(make_default_bindings())
 
     @property
@@ -102,6 +108,13 @@ class GameState:
 
     def set_vibration_enabled(self, enabled: bool) -> None:
         self._vibration_enabled = bool(enabled)
+
+    @property
+    def drive_preset_id(self) -> DrivePresetId:
+        return self._drive_preset_id
+
+    def set_drive_preset_id(self, preset_id: DrivePresetId) -> None:
+        self._drive_preset_id = drive_preset_clamp(int(preset_id))
 
     @property
     def controls(self) -> Controls:
@@ -269,6 +282,23 @@ class GameState:
             self._profile.garage_fuel,
             self._profile.theseus,
             self._seed_counter
+        )
+
+    def load_options(self) -> None:
+        data = self._save.load_options()
+        if data is None:
+            return
+        self._input_device_mode = data.input_device_mode
+        self._prompt_show_shoulders = bool(data.show_shoulders)
+        self._vibration_enabled = bool(data.vibration_enabled)
+        self._drive_preset_id = drive_preset_clamp(int(data.drive_preset_id))
+
+    def save_options(self) -> None:
+        self._save.save_options(
+            self._input_device_mode,
+            self._prompt_show_shoulders,
+            self._vibration_enabled,
+            self._drive_preset_id
         )
 
     def start_new_game(self) -> None:

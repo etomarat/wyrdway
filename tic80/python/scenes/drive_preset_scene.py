@@ -12,6 +12,11 @@ if TYPE_CHECKING:
         SceneNavigator
     )
     from ..core.controls.actions import Action
+    from ..core.drive_presets import (
+        DrivePresetId,
+        DrivePresetIdValues,
+        drive_preset_clamp
+    )
     from ..core.palette import Color
     from ..core.scene_ids import SceneId
     from ..core.ui.prompts import (
@@ -89,11 +94,13 @@ class DrivePhysicsSnapshot:
 class DrivePhysicsPreset:
     def __init__(
         self,
+        option_id: DrivePresetId,
         name: str,
         label: str,
         drive_overrides: list[tuple[str, float]],
         pursuer_overrides: list[tuple[str, float]] | None = None
     ) -> None:
+        self.option_id = drive_preset_clamp(int(option_id))
         self.name = name
         self.label = label
         self.drive_overrides = drive_overrides
@@ -211,13 +218,15 @@ class DrivePresetScene:
         self._engine = DrivePresetEngine()
         self._presets = [
             DrivePhysicsPreset(
+                DrivePresetIdValues.HARD,
                 "etomarat",
-                "normal (recommended)",
+                "hard",
                 []
             ),
             DrivePhysicsPreset(
+                DrivePresetIdValues.NORMAL,
                 "Skellybob56",
-                "easy (slippy drift)",
+                "normal (slippy drift)",
                 [
                     ("grip", 2.9),
                     ("side_friction", 4.1),
@@ -232,22 +241,25 @@ class DrivePresetScene:
                 ],
                 # [("base_speed", 108.0)]
             ),
+            # НЕ УДАЛЯТЬ: временно отключенный пресет easy accel.
+            # DrivePhysicsPreset(
+            #     DrivePresetIdValues.NORMAL,
+            #     "bfeen",
+            #     "easy accel (mid-speed steer+accel)",
+            #     [
+            #         ("accel", 65.0),
+            #         ("steer_rate", 1.45),
+            #         ("steer_scale_min", 0.65),
+            #         ("steer_scale_max", 1.05),
+            #         ("side_slip_speed_mult", 3.0),
+            #         ("drag_quad", 0.005)
+            #     ],
+            #     # [("base_speed", 107.0)]
+            # ),
             DrivePhysicsPreset(
-                "bfeen",
-                "easy (mid-speed steer+accel)",
-                [
-                    ("accel", 65.0),
-                    ("steer_rate", 1.45),
-                    ("steer_scale_min", 0.65),
-                    ("steer_scale_max", 1.05),
-                    ("side_slip_speed_mult", 3.0),
-                    ("drag_quad", 0.005)
-                ],
-                # [("base_speed", 107.0)]
-            ),
-            DrivePhysicsPreset(
+                DrivePresetIdValues.EASY,
                 "Masha",
-                "very easy",
+                "easy",
                 [
                     ("grip", 4.0),
                     ("side_friction", 7.0),
@@ -276,13 +288,24 @@ class DrivePresetScene:
         )
         self._state.end_run()
         self._engine.capture_baseline()
-        self._selected = 0
+        self._selected = self._selected_index_for_state()
+
+    def _selected_index_for_state(self) -> int:
+        i = 0
+        selected_id = drive_preset_clamp(int(self._state.drive_preset_id))
+        while i < len(self._presets):
+            if int(self._presets[i].option_id) == int(selected_id):
+                return i
+            i += 1
+        return 0
 
     def _apply_selected_preset(self) -> bool:
         preset = self._presets[self._selected]
         diffs = self._engine.apply_preset(preset)
         if diffs is None:
             return False
+        self._state.set_drive_preset_id(preset.option_id)
+        self._state.save_options()
         trace("drive preset: " + preset.name)
         if len(diffs) == 0:
             trace("drive preset: no changes")

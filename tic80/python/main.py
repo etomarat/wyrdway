@@ -99,6 +99,7 @@ def _draw_debug_overlay(dt: float) -> None:
 def BOOT() -> None:
     _boot_debug_state()
 
+    SCENE_MANAGER.state.load_options()
     SCENE_MANAGER.state.load_profile()
     SCENE_MANAGER.state.recover_interrupted_session()
     SCENE_MANAGER.register(SceneId.MAIN_MENU, make_main_menu_scene)

@@ -14,8 +14,8 @@ def ui_options_bindings_table_draw(
     body_x: int,
     area_top: int,
     footer_line_y: int,
-    left_rows: list[tuple[str, str]],
-    right_rows: list[tuple[str, str]],
+    left_sections: list[tuple[str, list[tuple[str, str]]]],
+    right_sections: list[tuple[str, list[tuple[str, str]]]],
     title_color: int,
     row_color: int,
     line_color: int
@@ -29,17 +29,87 @@ def ui_options_bindings_table_draw(
     split_x = table_x0 + int((table_x1 - table_x0) * 0.5)
     line(split_x, table_y0 + 1, split_x, table_y1, line_color)
 
-    left_title_x = table_x0 + 2
-    right_title_x = split_x + 3
-    right_text_x = right_title_x + 2
+    left_section_x0 = table_x0
+    left_section_x1 = split_x - 2
+    right_section_x0 = split_x + 3
+    right_section_x1 = table_x1
+    left_text_x = left_section_x0 + 2
+    right_text_x = right_section_x0 + 2
     title_y = table_y0 + 2
-    print("MENU", left_title_x, title_y, title_color)
-    print("DRIVING", right_text_x, title_y, title_color)
-    line(left_title_x - 2, title_y + 7, split_x - 2, title_y + 7, line_color)
-    line(right_title_x, title_y + 7, table_x1, title_y + 7, line_color)
+    row_step = 8
+    left_bind_dx = 64
+    right_bind_dx = 58
+    ui_options_bindings_sections_column_draw(
+        left_section_x0,
+        left_section_x1,
+        left_text_x,
+        title_y,
+        table_y1,
+        left_sections,
+        left_bind_dx,
+        row_step,
+        title_color,
+        row_color,
+        line_color
+    )
+    ui_options_bindings_sections_column_draw(
+        right_section_x0,
+        right_section_x1,
+        right_text_x,
+        title_y,
+        table_y1,
+        right_sections,
+        right_bind_dx,
+        row_step,
+        title_color,
+        row_color,
+        line_color
+    )
 
-    ui_options_bindings_column_draw(left_title_x, title_y + 11, 66, 8, left_rows, row_color)
-    ui_options_bindings_column_draw(right_text_x, title_y + 11, 66, 8, right_rows, row_color)
+
+def ui_options_bindings_sections_column_draw(
+    section_x0: int,
+    section_x1: int,
+    text_x: int,
+    title_y: int,
+    table_y1: int,
+    sections: list[tuple[str, list[tuple[str, str]]]],
+    bind_dx: int,
+    row_step: int,
+    title_color: int,
+    row_color: int,
+    line_color: int
+) -> None:
+    if len(sections) <= 0:
+        return
+    section_gap = 4
+    section_title_y = int(title_y)
+    section_i = 0
+    while section_i < len(sections):
+        title, rows = sections[section_i]
+        if section_title_y + 7 >= table_y1:
+            return
+        print(title, text_x, section_title_y, title_color)
+        line(section_x0, section_title_y + 7,
+             section_x1, section_title_y + 7, line_color)
+
+        rows_top = section_title_y + 11
+        max_rows = int((table_y1 - rows_top) / row_step) + 1
+        if max_rows < 1:
+            return
+        draw_rows = rows
+        if len(draw_rows) > max_rows:
+            draw_rows = rows[:max_rows]
+        ui_options_bindings_column_draw(
+            text_x,
+            rows_top,
+            bind_dx,
+            row_step,
+            draw_rows,
+            row_color
+        )
+        section_title_y = rows_top + len(draw_rows) * row_step + section_gap
+        section_i += 1
 
 
 def ui_options_bindings_column_draw(

@@ -2,17 +2,31 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ..controls.modes import InputDeviceModeId
+    from ..drive_presets import (
+        DrivePresetId,
+        DrivePresetIdValues,
+        drive_preset_clamp,
+        drive_preset_cycle,
+        drive_preset_label
+    )
 else:
     InputDeviceModeId = int
+    DrivePresetId = int
 
 
 class UiOptionsOverlayState:
+    _ROW_DIFFICULTY = 0
+    _ROW_MODE = 1
+    _ROW_SHOULDERS = 2
+    _ROW_VIBRATION = 3
+
     _MODE_GAMEPAD: InputDeviceModeId = 0
     _MODE_KEYBOARD: InputDeviceModeId = 1
     _MODE_BOTH: InputDeviceModeId = 2
 
     def __init__(self) -> None:
         self.mode_draft: InputDeviceModeId = self._MODE_BOTH
+        self.drive_preset_draft: DrivePresetId = DrivePresetIdValues.HARD
         self.shoulders_draft = False
         self.vibration_draft = True
         self.focus_row = 0
@@ -20,14 +34,19 @@ class UiOptionsOverlayState:
     def reset_draft(
         self,
         mode: InputDeviceModeId,
+        drive_preset: DrivePresetId,
         shoulders_enabled: bool,
         vibration_enabled: bool
     ) -> None:
         self.mode_draft = mode
+        self.drive_preset_draft = drive_preset_clamp(int(drive_preset))
         self.shoulders_draft = bool(shoulders_enabled)
         self.vibration_draft = bool(vibration_enabled)
         self.focus_row = 0
         self._normalize_state()
+
+    def row_count(self) -> int:
+        return 4
 
     def shoulders_enabled(self) -> bool:
         return self.mode_draft == self._MODE_GAMEPAD
@@ -43,16 +62,20 @@ class UiOptionsOverlayState:
         return "KEYBOARD|GAMEPAD"
 
     def setting_label(self, row: int) -> str:
-        if row == 0:
+        if row == self._ROW_MODE:
             return "CONTROL MODE:"
-        if row == 1:
+        if row == self._ROW_DIFFICULTY:
+            return "DIFFICULTY:"
+        if row == self._ROW_SHOULDERS:
             return "SHOULDERS:"
         return "VIBRATION:"
 
     def setting_value(self, row: int) -> str:
-        if row == 0:
+        if row == self._ROW_MODE:
             return self.input_mode_label()
-        if row == 1:
+        if row == self._ROW_DIFFICULTY:
+            return drive_preset_label(self.drive_preset_draft)
+        if row == self._ROW_SHOULDERS:
             if self.shoulders_draft:
                 return "ON"
             return "OFF"
@@ -61,11 +84,13 @@ class UiOptionsOverlayState:
         return "OFF"
 
     def setting_enabled(self, row: int) -> bool:
-        if row == 0:
+        if row == self._ROW_MODE:
             return True
-        if row == 1:
+        if row == self._ROW_DIFFICULTY:
+            return True
+        if row == self._ROW_SHOULDERS:
             return self.shoulders_enabled()
-        if row == 2:
+        if row == self._ROW_VIBRATION:
             return self.vibration_enabled()
         return False
 
@@ -77,28 +102,32 @@ class UiOptionsOverlayState:
         nav_right_released: bool
     ) -> None:
         self._clamp_focus()
+        row_count = self.row_count()
         if nav_up_released or nav_down_released:
             if nav_down_released:
                 self.focus_row += 1
-                if self.focus_row > 2:
+                if self.focus_row >= row_count:
                     self.focus_row = 0
             else:
                 self.focus_row -= 1
                 if self.focus_row < 0:
-                    self.focus_row = 2
+                    self.focus_row = row_count - 1
         if nav_left_released:
             self.apply_setting_change(self.focus_row, True)
         if nav_right_released:
             self.apply_setting_change(self.focus_row, False)
 
     def apply_setting_change(self, row: int, forward: bool) -> None:
-        if row == 0:
+        if row == self._ROW_MODE:
             self._cycle_mode(forward)
             return
-        if row == 1 and self.shoulders_enabled():
+        if row == self._ROW_DIFFICULTY:
+            self._cycle_difficulty(forward)
+            return
+        if row == self._ROW_SHOULDERS and self.shoulders_enabled():
             self.shoulders_draft = not self.shoulders_draft
             return
-        if row == 2 and self.vibration_enabled():
+        if row == self._ROW_VIBRATION and self.vibration_enabled():
             self.vibration_draft = not self.vibration_draft
 
     def _cycle_mode(self, forward: bool) -> None:
@@ -125,11 +154,18 @@ class UiOptionsOverlayState:
         self.mode_draft = modes[idx]
         self._normalize_state()
 
+    def _cycle_difficulty(self, forward: bool) -> None:
+        self.drive_preset_draft = drive_preset_cycle(
+            self.drive_preset_draft,
+            forward
+        )
+
     def _clamp_focus(self) -> None:
-        if self.focus_row < 0 or self.focus_row > 2:
+        if self.focus_row < 0 or self.focus_row >= self.row_count():
             self.focus_row = 0
 
     def _normalize_state(self) -> None:
+        self.drive_preset_draft = drive_preset_clamp(int(self.drive_preset_draft))
         if not self.shoulders_enabled():
             self.shoulders_draft = False
         if not self.vibration_enabled():

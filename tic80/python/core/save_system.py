@@ -4,6 +4,8 @@ if TYPE_CHECKING:
     from tic80 import pmem, trace
 
     from ..data.tuning import TUNING
+    from .controls.modes import InputDeviceMode, InputDeviceModeId
+    from .drive_presets import DrivePresetId, drive_preset_clamp
 
 
 # Версия схемы сохранения профиля (менять при несовместимых изменениях).
@@ -14,8 +16,10 @@ if TYPE_CHECKING:
 SAVE_SCHEMA_VERSION = 6
 # Магическая сигнатура, чтобы отличать наш сейв от "мусора".
 SAVE_MAGIC = 0x57595244  # "WYRD"
+OPTIONS_SCHEMA_VERSION = 1
+OPTIONS_MAGIC = 0x4F505453  # "OPTS"
 
-# Индексы pmem-слотов (0..255). Храним только профиль (без run).
+# Индексы pmem-слотов (0..255). Профиль, runtime-флаги и отдельный блок опций.
 PMEM_MAGIC_SLOT = 0               # сигнатура сейва
 PMEM_SCHEMA_SLOT = 1              # версия схемы
 # Это именно индекс слота, а не значение версии. Саму версию берём из TUNING.
@@ -27,9 +31,24 @@ PMEM_PROFILE_GARAGE_FUEL_X100_SLOT = 12  # fuel * 100 (int), т.к. pmem = int
 PMEM_PROFILE_THESEUS_SLOT = 13  # индекс "переписывания" героя (int)
 PMEM_RUN_ACTIVE_SLOT = 20  # флаг "ран в процессе" (1/0)
 PMEM_CHASE_ACTIVE_SLOT = 21  # флаг "контакт с сущностью в процессе" (1/0)
+PMEM_OPTIONS_MAGIC_SLOT = 30
+PMEM_OPTIONS_SCHEMA_SLOT = 31
+PMEM_OPTIONS_INPUT_MODE_SLOT = 32
+PMEM_OPTIONS_SHOW_SHOULDERS_SLOT = 33
+PMEM_OPTIONS_VIBRATION_SLOT = 34
+PMEM_OPTIONS_DRIVE_PRESET_SLOT = 35
 
 # Единый коэффициент масштаба для float-полей (храним float как int).
 FLOAT_SCALE = 100.0
+
+
+def normalize_input_device_mode(mode: int) -> InputDeviceModeId:
+    mode_i = int(mode)
+    if mode_i == int(InputDeviceMode.GAMEPAD):
+        return InputDeviceMode.GAMEPAD
+    if mode_i == int(InputDeviceMode.KEYBOARD):
+        return InputDeviceMode.KEYBOARD
+    return InputDeviceMode.BOTH
 
 
 class SaveProfileData:
@@ -50,6 +69,23 @@ class SaveProfileData:
         self.theseus = max(0, int(theseus))
         self.tuning_version = tuning_version
         self.seed_counter = max(0, int(seed_counter))
+
+
+class SaveOptionsData:
+    __slots__ = ("input_device_mode", "show_shoulders", "vibration_enabled", "drive_preset_id")
+
+    def __init__(
+        self,
+        input_device_mode: InputDeviceModeId,
+        show_shoulders: bool,
+        vibration_enabled: bool,
+        drive_preset_id: DrivePresetId
+    ) -> None:
+        mode = normalize_input_device_mode(int(input_device_mode))
+        self.input_device_mode = mode
+        self.show_shoulders = bool(show_shoulders)
+        self.vibration_enabled = bool(vibration_enabled)
+        self.drive_preset_id = drive_preset_clamp(int(drive_preset_id))
 
 
 class SaveSystem:
@@ -101,6 +137,53 @@ class SaveSystem:
         fuel_raw = int(round(garage_fuel * FLOAT_SCALE))
         pmem(PMEM_PROFILE_GARAGE_FUEL_X100_SLOT, max(0, fuel_raw))
         pmem(PMEM_PROFILE_THESEUS_SLOT, max(0, int(theseus)))
+
+    def load_options(self) -> SaveOptionsData | None:
+        if pmem(PMEM_OPTIONS_MAGIC_SLOT) != OPTIONS_MAGIC:
+            return None
+        if pmem(PMEM_OPTIONS_SCHEMA_SLOT) != OPTIONS_SCHEMA_VERSION:
+            return None
+
+        mode = normalize_input_device_mode(int(pmem(PMEM_OPTIONS_INPUT_MODE_SLOT)))
+        show_shoulders = int(pmem(PMEM_OPTIONS_SHOW_SHOULDERS_SLOT)) != 0
+        vibration_enabled = int(pmem(PMEM_OPTIONS_VIBRATION_SLOT)) != 0
+        drive_preset_id = drive_preset_clamp(int(pmem(PMEM_OPTIONS_DRIVE_PRESET_SLOT)))
+
+        if mode != int(InputDeviceMode.GAMEPAD):
+            show_shoulders = False
+        if mode == int(InputDeviceMode.KEYBOARD):
+            vibration_enabled = False
+
+        return SaveOptionsData(
+            mode,
+            show_shoulders,
+            vibration_enabled,
+            drive_preset_id
+        )
+
+    def save_options(
+        self,
+        input_device_mode: InputDeviceModeId,
+        show_shoulders: bool,
+        vibration_enabled: bool,
+        drive_preset_id: DrivePresetId
+    ) -> None:
+        mode = normalize_input_device_mode(int(input_device_mode))
+
+        shoulders_int = 1 if bool(show_shoulders) else 0
+        if mode != int(InputDeviceMode.GAMEPAD):
+            shoulders_int = 0
+
+        vibration_int = 1 if bool(vibration_enabled) else 0
+        if mode == int(InputDeviceMode.KEYBOARD):
+            vibration_int = 0
+
+        pmem(PMEM_OPTIONS_MAGIC_SLOT, OPTIONS_MAGIC)
+        pmem(PMEM_OPTIONS_SCHEMA_SLOT, OPTIONS_SCHEMA_VERSION)
+        pmem(PMEM_OPTIONS_INPUT_MODE_SLOT, mode)
+        pmem(PMEM_OPTIONS_SHOW_SHOULDERS_SLOT, shoulders_int)
+        pmem(PMEM_OPTIONS_VIBRATION_SLOT, vibration_int)
+        pmem(PMEM_OPTIONS_DRIVE_PRESET_SLOT, int(drive_preset_clamp(int(drive_preset_id))))
 
     def load_runtime_flags(self) -> tuple[bool, bool]:
         run_active = int(pmem(PMEM_RUN_ACTIVE_SLOT)) != 0
