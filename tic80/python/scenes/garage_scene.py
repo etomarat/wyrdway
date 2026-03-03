@@ -63,8 +63,6 @@ class GarageScene:
     MODAL_H = 64
     MODAL_HEADER_TEXT_OFFSET_Y = 9
     MODAL_BODY_TOP_OFFSET_Y = 24
-    MODAL_FOOTER_LINE_OFFSET_Y = 50
-    MODAL_FOOTER_TEXT_OFFSET_Y = 54
 
     def __init__(self, nav: SceneNavigator) -> None:
         self._nav = nav
@@ -339,8 +337,6 @@ class GarageScene:
             self.MODAL_H,
             self.MODAL_HEADER_TEXT_OFFSET_Y,
             self.MODAL_BODY_TOP_OFFSET_Y,
-            self.MODAL_FOOTER_LINE_OFFSET_Y,
-            self.MODAL_FOOTER_TEXT_OFFSET_Y,
             slot_count,
             slot_weights,
             slot_nav,

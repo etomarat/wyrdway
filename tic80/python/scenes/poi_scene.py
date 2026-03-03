@@ -39,8 +39,6 @@ class PoiScene:
     OVERLAY_H = 112
     OVERLAY_HEADER_TEXT_OFFSET_Y = 9
     OVERLAY_BODY_TOP_OFFSET_Y = 24
-    OVERLAY_FOOTER_LINE_OFFSET_Y = 98
-    OVERLAY_FOOTER_TEXT_OFFSET_Y = 102
 
     def __init__(self, nav: SceneNavigator) -> None:
         self._nav = nav
@@ -172,8 +170,6 @@ class PoiScene:
             self.OVERLAY_H,
             self.OVERLAY_HEADER_TEXT_OFFSET_Y,
             self.OVERLAY_BODY_TOP_OFFSET_Y,
-            self.OVERLAY_FOOTER_LINE_OFFSET_Y,
-            self.OVERLAY_FOOTER_TEXT_OFFSET_Y,
             slot_count,
             slot_weights,
             slot_nav,

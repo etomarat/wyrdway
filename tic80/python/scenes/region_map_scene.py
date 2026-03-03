@@ -27,8 +27,6 @@ class RegionMapScene:
     OVERLAY_H = 124
     OVERLAY_HEADER_TEXT_OFFSET_Y = 9
     OVERLAY_BODY_TOP_OFFSET_Y = 24
-    OVERLAY_FOOTER_LINE_OFFSET_Y = 110
-    OVERLAY_FOOTER_TEXT_OFFSET_Y = 114
     COL_NODE_X = 16
     COL_SITE_X = 56
     COL_SCRAP_X = 148
@@ -119,8 +117,6 @@ class RegionMapScene:
             self.OVERLAY_H,
             self.OVERLAY_HEADER_TEXT_OFFSET_Y,
             self.OVERLAY_BODY_TOP_OFFSET_Y,
-            self.OVERLAY_FOOTER_LINE_OFFSET_Y,
-            self.OVERLAY_FOOTER_TEXT_OFFSET_Y,
             slot_count,
             slot_weights,
             0,

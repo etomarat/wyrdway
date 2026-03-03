@@ -32,8 +32,6 @@ class ResultScene:
     OVERLAY_H = 104
     OVERLAY_HEADER_TEXT_OFFSET_Y = 9
     OVERLAY_BODY_TOP_OFFSET_Y = 24
-    OVERLAY_FOOTER_LINE_OFFSET_Y = 90
-    OVERLAY_FOOTER_TEXT_OFFSET_Y = 94
 
     def __init__(self, nav: SceneNavigator) -> None:
         self._nav = nav
@@ -228,8 +226,6 @@ class ResultScene:
             self.OVERLAY_H,
             self.OVERLAY_HEADER_TEXT_OFFSET_Y,
             self.OVERLAY_BODY_TOP_OFFSET_Y,
-            self.OVERLAY_FOOTER_LINE_OFFSET_Y,
-            self.OVERLAY_FOOTER_TEXT_OFFSET_Y,
             1,
             (1,),
             0,

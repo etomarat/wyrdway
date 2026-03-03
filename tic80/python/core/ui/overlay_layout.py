@@ -10,6 +10,10 @@ else:
     OverlayLayout = dict
 
 
+FOOTER_PAD_PROFILE_DEFAULT = 0
+FOOTER_PAD_PROFILE_INVERTED = 1
+
+
 def ui_overlay_layout_int(layout: OverlayLayout, key: str, fallback: int) -> int:
     value = layout.get(key)
     if value is None:
@@ -70,10 +74,14 @@ def ui_overlay_footer_positions(
     footer_bottom_pad = ui_overlay_layout_int(layout, "footer_bottom_pad", -1)
     if footer_bottom_pad < 0:
         # Footer pad profile:
-        # - 0: default/black-frame (2px from bottom)
-        # - 1: inverted/non-black-frame (1px from bottom)
-        footer_pad_profile = ui_overlay_layout_int(layout, "footer_pad_profile", 0)
-        if footer_pad_profile == 1:
+        # - default/black-frame: 2px from bottom
+        # - inverted/non-black-frame: 1px from bottom
+        footer_pad_profile = ui_overlay_layout_int(
+            layout,
+            "footer_pad_profile",
+            FOOTER_PAD_PROFILE_DEFAULT
+        )
+        if footer_pad_profile == FOOTER_PAD_PROFILE_INVERTED:
             footer_bottom_pad = 1
         else:
             footer_bottom_pad = 2
@@ -104,13 +112,13 @@ def ui_overlay_layout_centered(
     box_h: int,
     header_text_offset_y: int,
     body_top_offset_y: int,
-    footer_line_offset_y: int,
-    footer_text_offset_y: int,
     slot_count: int,
     slot_weights: tuple[int, ...],
     slot_nav: int,
     slot_confirm: int,
     slot_cancel: int,
+    footer_pad_profile: int = 0,
+    footer_line_gap: int = 4,
     screen_w: int = 240,
     screen_h: int = 136
 ) -> OverlayLayout:
@@ -123,8 +131,8 @@ def ui_overlay_layout_centered(
         "box_h": int(box_h),
         "header_text_y": y + int(header_text_offset_y),
         "body_top": y + int(body_top_offset_y),
-        "footer_line_y": y + int(footer_line_offset_y),
-        "footer_text_y": y + int(footer_text_offset_y),
+        "footer_pad_profile": int(footer_pad_profile),
+        "footer_line_gap": int(footer_line_gap),
         "slot_count": int(slot_count),
         "slot_weights": slot_weights,
         "slot_nav": int(slot_nav),
