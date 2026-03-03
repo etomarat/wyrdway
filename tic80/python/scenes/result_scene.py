@@ -7,12 +7,7 @@ if TYPE_CHECKING:
     from ..core.controls.actions import Action
     from ..core.palette import Color, ColorId
     from ..core.scene_ids import SceneId
-    from ..core.ui.footer_slots import (
-        ui_footer_slots_single_action
-    )
-    from ..core.ui.overlay_layout import (
-        ui_overlay_layout_centered_by_spec
-    )
+    from ..core.ui.overlay_flow import ui_overlay_flow_single_action
     from ..core.ui.overlay_runtime import UiOverlayRuntime
     from ..core.ui.overlay_screen import ui_overlay_screen_draw
     from ..core.ui.overlay_theme import (
@@ -212,16 +207,8 @@ class ResultScene:
 
     def update(self, dt: float) -> None:
         self._ui.poll_mouse()
-        layout = ui_overlay_layout_centered_by_spec(
+        layout, slots, slot_confirm = ui_overlay_flow_single_action(
             self.OVERLAY_LAYOUT_SPEC,
-            1,
-            (1,),
-            0,
-            0,
-            0
-        )
-        slots, slot_confirm = ui_footer_slots_single_action(
-            layout,
             self._state,
             Action.CONFIRM,
             self._cta
@@ -244,16 +231,8 @@ class ResultScene:
 
     def draw(self) -> None:
         cls(Color.BLACK)
-        layout = ui_overlay_layout_centered_by_spec(
+        layout, slots, _slot_confirm = ui_overlay_flow_single_action(
             self.OVERLAY_LAYOUT_SPEC,
-            1,
-            (1,),
-            0,
-            0,
-            0
-        )
-        slots, _slot_confirm = ui_footer_slots_single_action(
-            layout,
             self._state,
             Action.CONFIRM,
             self._cta

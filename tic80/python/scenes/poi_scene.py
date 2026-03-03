@@ -14,9 +14,9 @@ if TYPE_CHECKING:
     from ..core.poi_text import poi_type_label
     from ..core.run_state import PoiAction
     from ..core.scene_ids import SceneId
-    from ..core.ui.footer_slots import (
-        ui_footer_slots_confirm_cancel,
-        ui_footer_slots_single_action
+    from ..core.ui.overlay_flow import (
+        ui_overlay_flow_confirm_cancel,
+        ui_overlay_flow_single_action
     )
     from ..core.ui.overlay_layout import ui_overlay_layout_centered_by_spec
     from ..core.ui.overlay_runtime import UiOverlayRuntime
@@ -204,16 +204,8 @@ class PoiScene:
         confirm_released = self._ui.poll_action(self._state.controls, Action.CONFIRM)
         cancel_released = self._ui.poll_action(self._state.controls, Action.CANCEL)
         if self._mode == self.MODE_LOOT_SUMMARY:
-            layout = ui_overlay_layout_centered_by_spec(
+            layout, slots, slot_confirm = ui_overlay_flow_single_action(
                 self.OVERLAY_LAYOUT_SPEC,
-                1,
-                (1,),
-                0,
-                0,
-                0
-            )
-            slots, slot_confirm = ui_footer_slots_single_action(
-                layout,
                 self._state,
                 Action.CONFIRM,
                 "BEGIN RETURN"
@@ -224,16 +216,8 @@ class PoiScene:
                 self._leave("loot")
             return
         if self._mode == self.MODE_LEAVE_SUMMARY:
-            layout = ui_overlay_layout_centered_by_spec(
+            layout, slots, slot_confirm = ui_overlay_flow_single_action(
                 self.OVERLAY_LAYOUT_SPEC,
-                1,
-                (1,),
-                0,
-                0,
-                0
-            )
-            slots, slot_confirm = ui_footer_slots_single_action(
-                layout,
                 self._state,
                 Action.CONFIRM,
                 "BEGIN RETURN"
@@ -244,16 +228,8 @@ class PoiScene:
                 self._leave("leave")
             return
 
-        layout = ui_overlay_layout_centered_by_spec(
+        layout, slots, slot_confirm, slot_cancel = ui_overlay_flow_confirm_cancel(
             self.OVERLAY_LAYOUT_SPEC,
-            2,
-            (1, 1),
-            0,
-            0,
-            1
-        )
-        slots, slot_confirm, slot_cancel = ui_footer_slots_confirm_cancel(
-            layout,
             self._state,
             Action.CONFIRM,
             Action.CANCEL,
@@ -270,16 +246,8 @@ class PoiScene:
     def draw(self) -> None:
         cls(Color.BLACK)
         if self._mode == self.MODE_LEAVE_SUMMARY:
-            layout = ui_overlay_layout_centered_by_spec(
+            _layout, slots, _slot_confirm = ui_overlay_flow_single_action(
                 self.OVERLAY_LAYOUT_SPEC,
-                1,
-                (1,),
-                0,
-                0,
-                0
-            )
-            slots, _slot_confirm = ui_footer_slots_single_action(
-                layout,
                 self._state,
                 Action.CONFIRM,
                 "BEGIN RETURN"
@@ -298,16 +266,8 @@ class PoiScene:
             )
             return
         if self._mode == self.MODE_LOOT_SUMMARY:
-            layout = ui_overlay_layout_centered_by_spec(
+            _layout, slots, _slot_confirm = ui_overlay_flow_single_action(
                 self.OVERLAY_LAYOUT_SPEC,
-                1,
-                (1,),
-                0,
-                0,
-                0
-            )
-            slots, _slot_confirm = ui_footer_slots_single_action(
-                layout,
                 self._state,
                 Action.CONFIRM,
                 "BEGIN RETURN"
@@ -325,16 +285,8 @@ class PoiScene:
                 [self._state.controls.down(Action.CONFIRM)]
             )
             return
-        layout = ui_overlay_layout_centered_by_spec(
+        _layout, slots, slot_confirm, slot_cancel = ui_overlay_flow_confirm_cancel(
             self.OVERLAY_LAYOUT_SPEC,
-            2,
-            (1, 1),
-            0,
-            0,
-            1
-        )
-        slots, slot_confirm, slot_cancel = ui_footer_slots_confirm_cancel(
-            layout,
             self._state,
             Action.CONFIRM,
             Action.CANCEL,

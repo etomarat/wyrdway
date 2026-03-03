@@ -7,18 +7,15 @@ if TYPE_CHECKING:
     from ..core.controls.actions import Action
     from ..core.palette import Color
     from ..core.scene_ids import SceneId
-    from ..core.ui.footer_slots import (
-        ui_footer_slots_confirm_cancel,
-        ui_footer_slots_single_action
+    from ..core.ui.overlay_flow import (
+        ui_overlay_flow_confirm_cancel,
+        ui_overlay_flow_single_action
     )
     from ..core.text_layout import text_center_x, text_width
     from ..core.ui.meter import (
         ui_meter_draw_bar,
         ui_meter_draw_labeled,
         ui_meter_fill_ratio
-    )
-    from ..core.ui.overlay_layout import (
-        ui_overlay_layout_centered_by_spec
     )
     from ..core.ui.overlay_runtime import UiOverlayRuntime
     from ..core.ui.overlay_screen import ui_overlay_screen_draw
@@ -261,13 +258,11 @@ class GarageScene:
     def _draw_rollback_popup(self) -> None:
         if not self._rollback_modal_open:
             return
-        layout = ui_overlay_layout_centered_by_spec(
+        layout, slots, _slot_confirm = ui_overlay_flow_single_action(
             self.MODAL_LAYOUT_SPEC,
-            1,
-            (1,),
-            0,
-            0,
-            0
+            self._state,
+            Action.CANCEL,
+            "CLOSE"
         )
         reason_line = self._rollback_modal_reason
         if reason_line == "":
@@ -276,12 +271,6 @@ class GarageScene:
             (reason_line, Color.LIGHT_GREY),
             ("THESEUS +" + str(self._rollback_modal_gain), Color.RED)
         ]
-        slots, _slot_confirm = ui_footer_slots_single_action(
-            layout,
-            self._state,
-            Action.CANCEL,
-            "CLOSE"
-        )
         ui_overlay_screen_draw(
             self._ui,
             layout,
@@ -294,26 +283,18 @@ class GarageScene:
         )
 
     def _draw_new_game_confirm(self) -> None:
-        layout = ui_overlay_layout_centered_by_spec(
+        layout, slots, _slot_confirm, _slot_cancel = ui_overlay_flow_confirm_cancel(
             self.MODAL_LAYOUT_SPEC,
-            2,
-            (1, 1),
-            0,
-            0,
-            1
-        )
-        body_lines: list[tuple[str, int]] = [
-            ("START NEW GAME?", Color.WHITE),
-            ("THIS RESETS PROFILE PROGRESS", Color.LIGHT_GREY)
-        ]
-        slots, _slot_confirm, _slot_cancel = ui_footer_slots_confirm_cancel(
-            layout,
             self._state,
             Action.CONFIRM,
             Action.CANCEL,
             "CONFIRM RESET",
             "CANCEL"
         )
+        body_lines: list[tuple[str, int]] = [
+            ("START NEW GAME?", Color.WHITE),
+            ("THIS RESETS PROFILE PROGRESS", Color.LIGHT_GREY)
+        ]
         ui_overlay_screen_draw(
             self._ui,
             layout,
@@ -335,16 +316,8 @@ class GarageScene:
         help_released = self._ui.poll_action(self._state.controls, Action.HELP)
 
         if self._rollback_modal_open:
-            layout = ui_overlay_layout_centered_by_spec(
+            layout, slots, slot_confirm = ui_overlay_flow_single_action(
                 self.MODAL_LAYOUT_SPEC,
-                1,
-                (1,),
-                0,
-                0,
-                0
-            )
-            slots, slot_confirm = ui_footer_slots_single_action(
-                layout,
                 self._state,
                 Action.CANCEL,
                 "CLOSE"
@@ -356,16 +329,8 @@ class GarageScene:
             return
 
         if self._confirm_new_game:
-            layout = ui_overlay_layout_centered_by_spec(
+            layout, slots, slot_confirm, slot_cancel = ui_overlay_flow_confirm_cancel(
                 self.MODAL_LAYOUT_SPEC,
-                2,
-                (1, 1),
-                0,
-                0,
-                1
-            )
-            slots, slot_confirm, slot_cancel = ui_footer_slots_confirm_cancel(
-                layout,
                 self._state,
                 Action.CONFIRM,
                 Action.CANCEL,
