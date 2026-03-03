@@ -1,17 +1,21 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing import TypeAlias
+    from typing import Literal, TypeAlias
 
+    FooterPadProfileId: TypeAlias = Literal[0, 1]
+    OverlayCenteredSpec: TypeAlias = tuple[int, int, int, int]
     OverlayLayoutValue: TypeAlias = int | tuple[int, ...]
     OverlayLayout: TypeAlias = dict[str, OverlayLayoutValue]
 else:
+    FooterPadProfileId = int
+    OverlayCenteredSpec = tuple
     OverlayLayoutValue = int
     OverlayLayout = dict
 
 
-FOOTER_PAD_PROFILE_DEFAULT = 0
-FOOTER_PAD_PROFILE_INVERTED = 1
+FOOTER_PAD_PROFILE_DEFAULT: FooterPadProfileId = 0
+FOOTER_PAD_PROFILE_INVERTED: FooterPadProfileId = 1
 
 
 def ui_overlay_layout_int(layout: OverlayLayout, key: str, fallback: int) -> int:
@@ -117,7 +121,7 @@ def ui_overlay_layout_centered(
     slot_nav: int,
     slot_confirm: int,
     slot_cancel: int,
-    footer_pad_profile: int = 0,
+    footer_pad_profile: FooterPadProfileId = 0,
     footer_line_gap: int = 4,
     screen_w: int = 240,
     screen_h: int = 136
@@ -139,6 +143,35 @@ def ui_overlay_layout_centered(
         "slot_confirm": int(slot_confirm),
         "slot_cancel": int(slot_cancel)
     }
+
+
+def ui_overlay_layout_centered_by_spec(
+    layout_spec: OverlayCenteredSpec,
+    slot_count: int,
+    slot_weights: tuple[int, ...],
+    slot_nav: int,
+    slot_confirm: int,
+    slot_cancel: int,
+    footer_pad_profile: FooterPadProfileId = 0,
+    footer_line_gap: int = 4,
+    screen_w: int = 240,
+    screen_h: int = 136
+) -> OverlayLayout:
+    return ui_overlay_layout_centered(
+        int(layout_spec[0]),
+        int(layout_spec[1]),
+        int(layout_spec[2]),
+        int(layout_spec[3]),
+        slot_count,
+        slot_weights,
+        slot_nav,
+        slot_confirm,
+        slot_cancel,
+        footer_pad_profile,
+        footer_line_gap,
+        screen_w,
+        screen_h
+    )
 
 
 def ui_overlay_footer_slot_geometry(

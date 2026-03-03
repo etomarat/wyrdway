@@ -11,8 +11,7 @@ if TYPE_CHECKING:
         ui_footer_slots_single_action
     )
     from ..core.ui.overlay_layout import (
-        OverlayLayout,
-        ui_overlay_layout_centered
+        ui_overlay_layout_centered_by_spec
     )
     from ..core.ui.overlay_runtime import UiOverlayRuntime
     from ..core.ui.overlay_screen import ui_overlay_screen_draw
@@ -22,7 +21,6 @@ if TYPE_CHECKING:
         ui_overlay_theme_good
     )
 else:
-    OverlayLayout = dict
     OverlayTheme = dict
 
 
@@ -32,6 +30,12 @@ class ResultScene:
     OVERLAY_H = 104
     OVERLAY_HEADER_TEXT_OFFSET_Y = 9
     OVERLAY_BODY_TOP_OFFSET_Y = 24
+    OVERLAY_LAYOUT_SPEC = (
+        OVERLAY_W,
+        OVERLAY_H,
+        OVERLAY_HEADER_TEXT_OFFSET_Y,
+        OVERLAY_BODY_TOP_OFFSET_Y
+    )
 
     def __init__(self, nav: SceneNavigator) -> None:
         self._nav = nav
@@ -208,7 +212,14 @@ class ResultScene:
 
     def update(self, dt: float) -> None:
         self._ui.poll_mouse()
-        layout = self._overlay_layout()
+        layout = ui_overlay_layout_centered_by_spec(
+            self.OVERLAY_LAYOUT_SPEC,
+            1,
+            (1,),
+            0,
+            0,
+            0
+        )
         slots, slot_confirm = ui_footer_slots_single_action(
             layout,
             self._state,
@@ -219,19 +230,6 @@ class ResultScene:
         if self._ui.poll_action(self._state.controls, Action.CONFIRM) or released_slot == slot_confirm:
             self._state.apply_run_results()
             self._nav.go(SceneId.GARAGE)
-
-    def _overlay_layout(self) -> OverlayLayout:
-        return ui_overlay_layout_centered(
-            self.OVERLAY_W,
-            self.OVERLAY_H,
-            self.OVERLAY_HEADER_TEXT_OFFSET_Y,
-            self.OVERLAY_BODY_TOP_OFFSET_Y,
-            1,
-            (1,),
-            0,
-            0,
-            0
-        )
 
     def _body_lines(self) -> list[tuple[str, ColorId]]:
         body: list[tuple[str, ColorId]] = []
@@ -246,7 +244,14 @@ class ResultScene:
 
     def draw(self) -> None:
         cls(Color.BLACK)
-        layout = self._overlay_layout()
+        layout = ui_overlay_layout_centered_by_spec(
+            self.OVERLAY_LAYOUT_SPEC,
+            1,
+            (1,),
+            0,
+            0,
+            0
+        )
         slots, _slot_confirm = ui_footer_slots_single_action(
             layout,
             self._state,

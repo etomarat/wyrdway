@@ -46,6 +46,44 @@ else:
     OverlayLayout = dict
 
 
+def _menu_overlay_layout(
+    box_x: int,
+    box_y: int,
+    box_w: int,
+    box_h: int,
+    header_text_y: int,
+    body_top: int,
+    slot_count: int,
+    slot_weights: tuple[int, ...],
+    slot_nav: int,
+    slot_confirm: int,
+    slot_cancel: int,
+    footer_pad_profile: int,
+    footer_line_gap: int = 4,
+    footer_bg_color: int = 0,
+    footer_button_top_pad: int = -1
+) -> OverlayLayout:
+    layout: OverlayLayout = {
+        "box_x": int(box_x),
+        "box_y": int(box_y),
+        "box_w": int(box_w),
+        "box_h": int(box_h),
+        "header_text_y": int(header_text_y),
+        "body_top": int(body_top),
+        "footer_pad_profile": int(footer_pad_profile),
+        "footer_line_gap": int(footer_line_gap),
+        "footer_bg_color": int(footer_bg_color),
+        "slot_count": int(slot_count),
+        "slot_weights": slot_weights,
+        "slot_nav": int(slot_nav),
+        "slot_confirm": int(slot_confirm),
+        "slot_cancel": int(slot_cancel)
+    }
+    if footer_button_top_pad >= 0:
+        layout["footer_button_top_pad"] = int(footer_button_top_pad)
+    return layout
+
+
 class MainMenuScene:
     SCENE_ID = SceneId.MAIN_MENU
     _LEFT_X = 4
@@ -76,72 +114,64 @@ class MainMenuScene:
     _OVERLAY_NEW_GAME_CONFIRM = 3
     _OVERLAY_BODY_X_PAD = 8
     _OVERLAY_BODY_LINE_STEP = 8
-    _OVERLAY_LAYOUT_DEFAULT: OverlayLayout = {
-        "box_x": 20,
-        "box_y": 28,
-        "box_w": 200,
-        "box_h": 90,
-        "header_text_y": 37,
-        "body_top": 54,
-        "footer_pad_profile": FOOTER_PAD_PROFILE_DEFAULT,
-        "footer_line_gap": 4,
-        "footer_bg_color": 0,
-        "slot_count": 4,
-        "slot_weights": (1, 1, 1, 1),
-        "slot_nav": 0,
-        "slot_confirm": 2,
-        "slot_cancel": 3
-    }
+    _OVERLAY_LAYOUT_DEFAULT: OverlayLayout = _menu_overlay_layout(
+        20,
+        28,
+        200,
+        90,
+        37,
+        54,
+        4,
+        (1, 1, 1, 1),
+        0,
+        2,
+        3,
+        FOOTER_PAD_PROFILE_DEFAULT
+    )
     _OVERLAY_LAYOUTS: dict[int, OverlayLayout] = {
-        _OVERLAY_CONTROLS: {
-            "box_x": 4,
-            "box_y": 4,
-            "box_w": 232,
-            "box_h": 130,
-            "header_text_y": 13,
-            "body_top": 25,
-            "footer_pad_profile": FOOTER_PAD_PROFILE_INVERTED,
-            "footer_line_gap": 4,
-            "footer_button_top_pad": 2,
-            "footer_bg_color": 0,
-            "slot_count": 3,
-            "slot_weights": (1, 1, 1),
-            "slot_nav": 0,
-            "slot_confirm": 1,
-            "slot_cancel": 2
-        },
-        _OVERLAY_CREDITS: {
-            "box_x": 20,
-            "box_y": 28,
-            "box_w": 200,
-            "box_h": 90,
-            "header_text_y": 37,
-            "body_top": 54,
-            "footer_pad_profile": FOOTER_PAD_PROFILE_DEFAULT,
-            "footer_line_gap": 4,
-            "footer_bg_color": 0,
-            "slot_count": 4,
-            "slot_weights": (1, 1, 1, 1),
-            "slot_nav": 0,
-            "slot_confirm": 2,
-            "slot_cancel": 3
-        },
-        _OVERLAY_NEW_GAME_CONFIRM: {
-            "box_x": 20,
-            "box_y": 28,
-            "box_w": 200,
-            "box_h": 90,
-            "header_text_y": 37,
-            "body_top": 54,
-            "footer_pad_profile": FOOTER_PAD_PROFILE_DEFAULT,
-            "footer_line_gap": 4,
-            "footer_bg_color": 0,
-            "slot_count": 2,
-            "slot_weights": (1, 1),
-            "slot_nav": 0,
-            "slot_confirm": 0,
-            "slot_cancel": 1
-        }
+        _OVERLAY_CONTROLS: _menu_overlay_layout(
+            4,
+            4,
+            232,
+            130,
+            13,
+            25,
+            3,
+            (1, 1, 1),
+            0,
+            1,
+            2,
+            FOOTER_PAD_PROFILE_INVERTED,
+            footer_button_top_pad=2
+        ),
+        _OVERLAY_CREDITS: _menu_overlay_layout(
+            20,
+            28,
+            200,
+            90,
+            37,
+            54,
+            4,
+            (1, 1, 1, 1),
+            0,
+            2,
+            3,
+            FOOTER_PAD_PROFILE_DEFAULT
+        ),
+        _OVERLAY_NEW_GAME_CONFIRM: _menu_overlay_layout(
+            20,
+            28,
+            200,
+            90,
+            37,
+            54,
+            2,
+            (1, 1),
+            0,
+            0,
+            1,
+            FOOTER_PAD_PROFILE_DEFAULT
+        )
     }
     _WATCH_PULSE_SECONDS = 4.8
     _WATCH_GLITCH_SECONDS = 0.18

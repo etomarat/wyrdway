@@ -18,7 +18,7 @@ if TYPE_CHECKING:
         ui_footer_slots_confirm_cancel,
         ui_footer_slots_single_action
     )
-    from ..core.ui.overlay_layout import OverlayLayout, ui_overlay_layout_centered
+    from ..core.ui.overlay_layout import ui_overlay_layout_centered_by_spec
     from ..core.ui.overlay_runtime import UiOverlayRuntime
     from ..core.ui.overlay_screen import ui_overlay_screen_draw
     from ..data.tuning import TUNING
@@ -26,10 +26,6 @@ if TYPE_CHECKING:
         active_pursuer_name,
         active_pursuer_name_color
     )
-else:
-    OverlayLayout = dict
-
-
 class PoiScene:
     SCENE_ID = SceneId.POI
     MODE_INTERACT = "interact"
@@ -39,6 +35,12 @@ class PoiScene:
     OVERLAY_H = 112
     OVERLAY_HEADER_TEXT_OFFSET_Y = 9
     OVERLAY_BODY_TOP_OFFSET_Y = 24
+    OVERLAY_LAYOUT_SPEC = (
+        OVERLAY_W,
+        OVERLAY_H,
+        OVERLAY_HEADER_TEXT_OFFSET_Y,
+        OVERLAY_BODY_TOP_OFFSET_Y
+    )
 
     def __init__(self, nav: SceneNavigator) -> None:
         self._nav = nav
@@ -157,26 +159,6 @@ class PoiScene:
             ("RETURN TO BASE IMMEDIATELY", Color.WHITE)
         ]
 
-    def _overlay_layout(
-        self,
-        slot_count: int,
-        slot_weights: tuple[int, ...],
-        slot_nav: int,
-        slot_confirm: int,
-        slot_cancel: int
-    ) -> OverlayLayout:
-        return ui_overlay_layout_centered(
-            self.OVERLAY_W,
-            self.OVERLAY_H,
-            self.OVERLAY_HEADER_TEXT_OFFSET_Y,
-            self.OVERLAY_BODY_TOP_OFFSET_Y,
-            slot_count,
-            slot_weights,
-            slot_nav,
-            slot_confirm,
-            slot_cancel
-        )
-
     def _draw_overlay(
         self,
         title: str,
@@ -185,7 +167,8 @@ class PoiScene:
         slots: list[str],
         keyboard_active: list[bool]
     ) -> None:
-        layout = self._overlay_layout(
+        layout = ui_overlay_layout_centered_by_spec(
+            self.OVERLAY_LAYOUT_SPEC,
             len(slots),
             tuple([1] * len(slots)),
             0,
@@ -221,7 +204,14 @@ class PoiScene:
         confirm_released = self._ui.poll_action(self._state.controls, Action.CONFIRM)
         cancel_released = self._ui.poll_action(self._state.controls, Action.CANCEL)
         if self._mode == self.MODE_LOOT_SUMMARY:
-            layout = self._overlay_layout(1, (1,), 0, 0, 0)
+            layout = ui_overlay_layout_centered_by_spec(
+                self.OVERLAY_LAYOUT_SPEC,
+                1,
+                (1,),
+                0,
+                0,
+                0
+            )
             slots, slot_confirm = ui_footer_slots_single_action(
                 layout,
                 self._state,
@@ -234,7 +224,14 @@ class PoiScene:
                 self._leave("loot")
             return
         if self._mode == self.MODE_LEAVE_SUMMARY:
-            layout = self._overlay_layout(1, (1,), 0, 0, 0)
+            layout = ui_overlay_layout_centered_by_spec(
+                self.OVERLAY_LAYOUT_SPEC,
+                1,
+                (1,),
+                0,
+                0,
+                0
+            )
             slots, slot_confirm = ui_footer_slots_single_action(
                 layout,
                 self._state,
@@ -247,7 +244,14 @@ class PoiScene:
                 self._leave("leave")
             return
 
-        layout = self._overlay_layout(2, (1, 1), 0, 0, 1)
+        layout = ui_overlay_layout_centered_by_spec(
+            self.OVERLAY_LAYOUT_SPEC,
+            2,
+            (1, 1),
+            0,
+            0,
+            1
+        )
         slots, slot_confirm, slot_cancel = ui_footer_slots_confirm_cancel(
             layout,
             self._state,
@@ -266,7 +270,14 @@ class PoiScene:
     def draw(self) -> None:
         cls(Color.BLACK)
         if self._mode == self.MODE_LEAVE_SUMMARY:
-            layout = self._overlay_layout(1, (1,), 0, 0, 0)
+            layout = ui_overlay_layout_centered_by_spec(
+                self.OVERLAY_LAYOUT_SPEC,
+                1,
+                (1,),
+                0,
+                0,
+                0
+            )
             slots, _slot_confirm = ui_footer_slots_single_action(
                 layout,
                 self._state,
@@ -287,7 +298,14 @@ class PoiScene:
             )
             return
         if self._mode == self.MODE_LOOT_SUMMARY:
-            layout = self._overlay_layout(1, (1,), 0, 0, 0)
+            layout = ui_overlay_layout_centered_by_spec(
+                self.OVERLAY_LAYOUT_SPEC,
+                1,
+                (1,),
+                0,
+                0,
+                0
+            )
             slots, _slot_confirm = ui_footer_slots_single_action(
                 layout,
                 self._state,
@@ -307,7 +325,14 @@ class PoiScene:
                 [self._state.controls.down(Action.CONFIRM)]
             )
             return
-        layout = self._overlay_layout(2, (1, 1), 0, 0, 1)
+        layout = ui_overlay_layout_centered_by_spec(
+            self.OVERLAY_LAYOUT_SPEC,
+            2,
+            (1, 1),
+            0,
+            0,
+            1
+        )
         slots, slot_confirm, slot_cancel = ui_footer_slots_confirm_cancel(
             layout,
             self._state,

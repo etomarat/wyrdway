@@ -18,8 +18,7 @@ if TYPE_CHECKING:
         ui_meter_fill_ratio
     )
     from ..core.ui.overlay_layout import (
-        OverlayLayout,
-        ui_overlay_layout_centered
+        ui_overlay_layout_centered_by_spec
     )
     from ..core.ui.overlay_runtime import UiOverlayRuntime
     from ..core.ui.overlay_screen import ui_overlay_screen_draw
@@ -29,10 +28,6 @@ if TYPE_CHECKING:
     from ..core.ui.prompts import ui_prompt_with_text
     from ..core.ui.rich_text import ui_rich_print, ui_rich_text_center_x
     from ..data.tuning import TUNING
-else:
-    OverlayLayout = dict
-
-
 class GarageScene:
     SCENE_ID = SceneId.GARAGE
     RETURN_HEADER_OPTIONS = [
@@ -63,6 +58,12 @@ class GarageScene:
     MODAL_H = 64
     MODAL_HEADER_TEXT_OFFSET_Y = 9
     MODAL_BODY_TOP_OFFSET_Y = 24
+    MODAL_LAYOUT_SPEC = (
+        MODAL_W,
+        MODAL_H,
+        MODAL_HEADER_TEXT_OFFSET_Y,
+        MODAL_BODY_TOP_OFFSET_Y
+    )
 
     def __init__(self, nav: SceneNavigator) -> None:
         self._nav = nav
@@ -260,7 +261,8 @@ class GarageScene:
     def _draw_rollback_popup(self) -> None:
         if not self._rollback_modal_open:
             return
-        layout = self._modal_layout(
+        layout = ui_overlay_layout_centered_by_spec(
+            self.MODAL_LAYOUT_SPEC,
             1,
             (1,),
             0,
@@ -292,7 +294,8 @@ class GarageScene:
         )
 
     def _draw_new_game_confirm(self) -> None:
-        layout = self._modal_layout(
+        layout = ui_overlay_layout_centered_by_spec(
+            self.MODAL_LAYOUT_SPEC,
             2,
             (1, 1),
             0,
@@ -324,26 +327,6 @@ class GarageScene:
             body_line_step=10
         )
 
-    def _modal_layout(
-        self,
-        slot_count: int,
-        slot_weights: tuple[int, ...],
-        slot_nav: int,
-        slot_confirm: int,
-        slot_cancel: int
-    ) -> OverlayLayout:
-        return ui_overlay_layout_centered(
-            self.MODAL_W,
-            self.MODAL_H,
-            self.MODAL_HEADER_TEXT_OFFSET_Y,
-            self.MODAL_BODY_TOP_OFFSET_Y,
-            slot_count,
-            slot_weights,
-            slot_nav,
-            slot_confirm,
-            slot_cancel
-        )
-
     def update(self, dt: float) -> None:
         self._ui.poll_mouse()
         confirm_released = self._ui.poll_action(self._state.controls, Action.CONFIRM)
@@ -352,7 +335,14 @@ class GarageScene:
         help_released = self._ui.poll_action(self._state.controls, Action.HELP)
 
         if self._rollback_modal_open:
-            layout = self._modal_layout(1, (1,), 0, 0, 0)
+            layout = ui_overlay_layout_centered_by_spec(
+                self.MODAL_LAYOUT_SPEC,
+                1,
+                (1,),
+                0,
+                0,
+                0
+            )
             slots, slot_confirm = ui_footer_slots_single_action(
                 layout,
                 self._state,
@@ -366,7 +356,14 @@ class GarageScene:
             return
 
         if self._confirm_new_game:
-            layout = self._modal_layout(2, (1, 1), 0, 0, 1)
+            layout = ui_overlay_layout_centered_by_spec(
+                self.MODAL_LAYOUT_SPEC,
+                2,
+                (1, 1),
+                0,
+                0,
+                1
+            )
             slots, slot_confirm, slot_cancel = ui_footer_slots_confirm_cancel(
                 layout,
                 self._state,

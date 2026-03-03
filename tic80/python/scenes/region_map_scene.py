@@ -13,20 +13,22 @@ if TYPE_CHECKING:
         ui_footer_slot_indices,
         ui_footer_slots_standard
     )
-    from ..core.ui.overlay_layout import OverlayLayout, ui_overlay_layout_centered
+    from ..core.ui.overlay_layout import ui_overlay_layout_centered_by_spec
     from ..core.ui.overlay_runtime import UiOverlayRuntime
     from ..core.ui.overlay_screen import ui_overlay_screen_draw
     from ..data.tuning import TUNING
-else:
-    OverlayLayout = dict
-
-
 class RegionMapScene:
     SCENE_ID = SceneId.REGION_MAP
     OVERLAY_W = 228
     OVERLAY_H = 124
     OVERLAY_HEADER_TEXT_OFFSET_Y = 9
     OVERLAY_BODY_TOP_OFFSET_Y = 24
+    OVERLAY_LAYOUT_SPEC = (
+        OVERLAY_W,
+        OVERLAY_H,
+        OVERLAY_HEADER_TEXT_OFFSET_Y,
+        OVERLAY_BODY_TOP_OFFSET_Y
+    )
     COL_NODE_X = 16
     COL_SITE_X = 56
     COL_SCRAP_X = 148
@@ -62,7 +64,14 @@ class RegionMapScene:
         confirm_released = self._ui.poll_action(self._state.controls, Action.CONFIRM)
         slot_count = 2
         slot_weights = (1, 1)
-        layout = self._overlay_layout(slot_count, slot_weights)
+        layout = ui_overlay_layout_centered_by_spec(
+            self.OVERLAY_LAYOUT_SPEC,
+            slot_count,
+            slot_weights,
+            0,
+            1,
+            slot_count - 1
+        )
         slot_nav, slot_confirm, _slot_cancel = ui_footer_slot_indices(layout, slot_count)
         slots = self._footer_slots()
         released_slot = self._ui.poll_footer_release(layout, slots)
@@ -111,19 +120,6 @@ class RegionMapScene:
         scrap = "SCRAP " + str(self._state.profile.scrap)
         return hp + "   " + fuel + "   " + scrap
 
-    def _overlay_layout(self, slot_count: int, slot_weights: tuple[int, ...]) -> OverlayLayout:
-        return ui_overlay_layout_centered(
-            self.OVERLAY_W,
-            self.OVERLAY_H,
-            self.OVERLAY_HEADER_TEXT_OFFSET_Y,
-            self.OVERLAY_BODY_TOP_OFFSET_Y,
-            slot_count,
-            slot_weights,
-            0,
-            1,
-            slot_count - 1
-        )
-
     def _nav_down(self) -> bool:
         return (
             self._state.controls.down(Action.NAV_UP)
@@ -135,7 +131,14 @@ class RegionMapScene:
     def _footer_slots(self) -> list[str]:
         slot_count = 2
         slot_weights = (1, 1)
-        layout = self._overlay_layout(slot_count, slot_weights)
+        layout = ui_overlay_layout_centered_by_spec(
+            self.OVERLAY_LAYOUT_SPEC,
+            slot_count,
+            slot_weights,
+            0,
+            1,
+            slot_count - 1
+        )
         return ui_footer_slots_standard(
             layout,
             slot_count,
@@ -153,7 +156,14 @@ class RegionMapScene:
         run = self._state.run
         slot_count = 2
         slot_weights = (1, 1)
-        layout = self._overlay_layout(slot_count, slot_weights)
+        layout = ui_overlay_layout_centered_by_spec(
+            self.OVERLAY_LAYOUT_SPEC,
+            slot_count,
+            slot_weights,
+            0,
+            1,
+            slot_count - 1
+        )
         slots = self._footer_slots()
         keyboard_active = [
             self._nav_down(),
