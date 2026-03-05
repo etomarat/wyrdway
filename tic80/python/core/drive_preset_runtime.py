@@ -61,10 +61,6 @@ _PURSUER_FIELDS: list[str] = [
     "base_speed"
 ]
 
-_DRIVE_BASELINE: list[tuple[str, float]] | None = None
-_ENTITY_BASELINE: list[tuple[str, float]] | None = None
-_PRIME_BASELINE: list[tuple[str, float]] | None = None
-
 _DRIVE_OVERRIDES_NORMAL: list[tuple[str, float]] = [
     ("grip", 2.9),
     ("side_friction", 4.1),
@@ -94,38 +90,43 @@ _PURSUER_OVERRIDES_EASY: list[tuple[str, float]] = [
 ]
 
 
-def drive_preset_capture_baseline_once() -> None:
-    global _DRIVE_BASELINE
-    global _ENTITY_BASELINE
-    global _PRIME_BASELINE
-    if _DRIVE_BASELINE is not None:
-        return
-    _DRIVE_BASELINE = _capture_drive(TUNING.DRIVE)
-    _ENTITY_BASELINE = _capture_pursuer(ENTITY_PURSUER_PROFILE)
-    _PRIME_BASELINE = _capture_pursuer(PRIME_ENTITY_PURSUER_PROFILE)
+class DrivePresetRuntime:
+    def __init__(self) -> None:
+        self._drive_baseline: list[tuple[str, float]] | None = None
+        self._entity_baseline: list[tuple[str, float]] | None = None
+        self._prime_baseline: list[tuple[str, float]] | None = None
 
+    def capture_baseline_once(self) -> None:
+        if self._drive_baseline is not None:
+            return
+        self._drive_baseline = _capture_drive(TUNING.DRIVE)
+        self._entity_baseline = _capture_pursuer(ENTITY_PURSUER_PROFILE)
+        self._prime_baseline = _capture_pursuer(PRIME_ENTITY_PURSUER_PROFILE)
 
-def drive_preset_apply_by_id(preset_id: DrivePresetId) -> None:
-    drive_preset_capture_baseline_once()
-    pid = drive_preset_clamp(int(preset_id))
-    if _DRIVE_BASELINE is None:
-        return
-    if _ENTITY_BASELINE is None:
-        return
-    if _PRIME_BASELINE is None:
-        return
+    def apply_by_id(self, preset_id: DrivePresetId) -> None:
+        self.capture_baseline_once()
+        pid = drive_preset_clamp(int(preset_id))
+        drive_baseline = self._drive_baseline
+        entity_baseline = self._entity_baseline
+        prime_baseline = self._prime_baseline
+        if drive_baseline is None:
+            return
+        if entity_baseline is None:
+            return
+        if prime_baseline is None:
+            return
 
-    _apply_drive_baseline(TUNING.DRIVE, _DRIVE_BASELINE)
-    _apply_pursuer_baseline(ENTITY_PURSUER_PROFILE, _ENTITY_BASELINE)
-    _apply_pursuer_baseline(PRIME_ENTITY_PURSUER_PROFILE, _PRIME_BASELINE)
+        _apply_drive_baseline(TUNING.DRIVE, drive_baseline)
+        _apply_pursuer_baseline(ENTITY_PURSUER_PROFILE, entity_baseline)
+        _apply_pursuer_baseline(PRIME_ENTITY_PURSUER_PROFILE, prime_baseline)
 
-    if pid == int(DrivePresetIdValues.NORMAL):
-        _apply_overrides(TUNING.DRIVE, _DRIVE_OVERRIDES_NORMAL)
-        return
-    if pid == int(DrivePresetIdValues.EASY):
-        _apply_overrides(TUNING.DRIVE, _DRIVE_OVERRIDES_EASY)
-        active = _resolve_active_pursuer_profile()
-        _apply_overrides(active, _PURSUER_OVERRIDES_EASY)
+        if pid == int(DrivePresetIdValues.NORMAL):
+            _apply_overrides(TUNING.DRIVE, _DRIVE_OVERRIDES_NORMAL)
+            return
+        if pid == int(DrivePresetIdValues.EASY):
+            _apply_overrides(TUNING.DRIVE, _DRIVE_OVERRIDES_EASY)
+            active = _resolve_active_pursuer_profile()
+            _apply_overrides(active, _PURSUER_OVERRIDES_EASY)
 
 
 def _resolve_active_pursuer_profile() -> PursuerVariantTuning:

@@ -24,6 +24,7 @@ if TYPE_CHECKING:
         DrivePresetIdValues,
         drive_preset_clamp
     )
+    from .drive_preset_runtime import DrivePresetRuntime
     from .profile import Profile
     from .run_state import RunState
     from .save_system import SaveSystem
@@ -49,6 +50,7 @@ class GameState:
         "_prompt_show_shoulders",
         "_vibration_enabled",
         "_drive_preset_id",
+        "_drive_preset_runtime",
         "_controls"
     )
 
@@ -77,6 +79,7 @@ class GameState:
         self._prompt_show_shoulders = False
         self._vibration_enabled = True
         self._drive_preset_id: DrivePresetId = DrivePresetIdValues.HARD
+        self._drive_preset_runtime = DrivePresetRuntime()
         self._controls = Controls(make_default_bindings())
 
     @property
@@ -145,6 +148,10 @@ class GameState:
 
     def set_drive_preset_id(self, preset_id: DrivePresetId) -> None:
         self._drive_preset_id = drive_preset_clamp(int(preset_id))
+
+    @property
+    def drive_preset_runtime(self) -> DrivePresetRuntime:
+        return self._drive_preset_runtime
 
     @property
     def controls(self) -> Controls:
