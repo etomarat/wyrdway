@@ -283,6 +283,9 @@ class GameState:
             self._profile.theseus,
             self._seed_counter
         )
+        self._profile_loaded = True
+        self._profile_tuning_version = int(TUNING.tuning_version)
+        self._profile_tuning_mismatch = False
 
     def load_options(self) -> None:
         data = self._save.load_options()

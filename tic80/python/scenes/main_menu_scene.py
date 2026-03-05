@@ -343,7 +343,10 @@ class MainMenuScene:
         if item_id == self._ITEM_CONTINUE:
             if not self._has_continue():
                 return
-            self._nav.go(SceneId.DRIVE_PRESET)
+            self._state.load_profile()
+            if not self._has_continue():
+                return
+            self._nav.go(SceneId.GARAGE)
             return
         if item_id == self._ITEM_NEW_GAME:
             if self._has_continue():

@@ -11,12 +11,13 @@ if TYPE_CHECKING:
     from ..core.ui.action_bar import (
         ui_action_bar_build_standard,
         ui_action_bar_make_mouse_states,
+        ui_action_bar_panel_height,
         ui_action_bar_reset_mouse_states,
         ui_action_bar_rows_draw_with_style,
         ui_action_bar_rows_poll_release_with_style,
         ui_action_bar_style_merge,
-        ui_action_bar_style_with_panel,
-        ui_action_bar_style_with_border
+        ui_action_bar_style_with_border,
+        ui_action_bar_style_with_panel
     )
     from ..core.ui.meter import (
         ui_meter_draw_bar,
@@ -24,7 +25,6 @@ if TYPE_CHECKING:
         ui_meter_fill_ratio
     )
     from ..core.ui.overlay_flow import (
-        ui_overlay_flow_confirm_cancel,
         ui_overlay_flow_single_action
     )
     from ..core.ui.overlay_runtime import UiOverlayRuntime
@@ -72,13 +72,23 @@ class GarageScene:
         MODAL_BODY_TOP_OFFSET_Y
     )
     ACTION_BAR_PANEL_X = 8
-    ACTION_BAR_PANEL_Y = 94
+    ACTION_BAR_SCREEN_H = 136
+    ACTION_BAR_BOTTOM_PAD = 2
     ACTION_BAR_PANEL_W = 224
     ACTION_BAR_ROW_GAP = 1
     ACTION_BAR_PANEL_PAD_Y = 1
     ACTION_BAR_ROW_SPECS = (
         (2, (1, 1)),
         (1, (1,))
+    )
+    ACTION_BAR_PANEL_Y = (
+        ACTION_BAR_SCREEN_H
+        - ui_action_bar_panel_height(
+            len(ACTION_BAR_ROW_SPECS),
+            row_gap=ACTION_BAR_ROW_GAP,
+            pad_y=ACTION_BAR_PANEL_PAD_Y
+        )
+        - ACTION_BAR_BOTTOM_PAD
     )
     ACTION_BAR_PANEL_H, ACTION_BAR_LAYOUTS = ui_action_bar_build_standard(
         ACTION_BAR_PANEL_X,
@@ -91,8 +101,8 @@ class GarageScene:
     ACTION_BAR_STYLE_BASE = ui_action_bar_style_merge(
         {
             "button_bg_color": Color.BLACK,
-            "divider_color": Color.GREY,
-            "footer_line_color": Color.GREY,
+            "divider_color": Color.LIGHT_GREY,
+            "footer_line_color": Color.LIGHT_GREY,
             "slot_text_color": Color.LIGHT_GREY,
             "slot_active_bg_color": Color.DARK_BLUE,
             "slot_hover_bg_color": Color.DARK_GREY,
@@ -112,11 +122,11 @@ class GarageScene:
     )
     ACTION_BAR_STYLE_HOME = ui_action_bar_style_with_border(
         ACTION_BAR_STYLE_BASE,
-        Color.GREY
+        Color.LIGHT_GREY
     )
     ACTION_BAR_STYLE_SERVICE = ui_action_bar_style_with_border(
         ACTION_BAR_STYLE_BASE,
-        Color.LIGHT_BLUE
+        Color.LIGHT_GREY
     )
 
     def __init__(self, nav: SceneNavigator) -> None:
@@ -127,7 +137,6 @@ class GarageScene:
         self._action_row_mouse = ui_action_bar_make_mouse_states(
             len(self.ACTION_BAR_LAYOUTS)
         )
-        self._confirm_main_menu = False
         self._service_open = False
         self._upgrades_modal_open = False
         self._rollback_modal_open = False
@@ -148,7 +157,6 @@ class GarageScene:
         )
         self._ui.reset_footer()
         self._reset_action_bar_mouse()
-        self._confirm_main_menu = False
         self._service_open = False
         self._upgrades_modal_open = False
         reason, gain = self._state.consume_rollback_notice()
@@ -197,17 +205,19 @@ class GarageScene:
         print(text, text_center_x(text, margin_x=4), y, color, True)
 
     def _draw_background(self) -> None:
-        rect(0, 0, 240, 88, Color.DARK_GREY)
-        rect(0, 88, 240, 48, Color.DARK_GREEN)
+        divider_h = 96
+        rect(0, 0, 240, divider_h, Color.DARK_GREY)
+        rect(0, divider_h, 240, 90, Color.DARK_GREEN)
         y = 20
-        while y < 89:
+        while y < divider_h+1:
             line(0, y, 239, y, Color.BLACK)
-            y += 12
-        line(0, 88, 239, 88, Color.GREY)
+            y += 11
+        line(0, divider_h, 239, divider_h, Color.LIGHT_GREY)
+        line(0, divider_h+1, 239, divider_h+1, Color.GREY)
 
     def _draw_header(self) -> None:
         rect(0, 0, 240, 15, Color.BLACK)
-        line(0, 15, 239, 15, Color.GREY)
+        line(0, 15, 239, 15, Color.LIGHT_GREY)
         self._draw_header_text(self._header_text, 5, Color.WHITE)
 
     def _draw_vehicle_panel(self) -> None:
@@ -280,9 +290,9 @@ class GarageScene:
         cap = 12.0
         ratio = ui_meter_fill_ratio(float(theseus), cap)
 
-        ui_panel_draw(8, 77, 224, 14, Color.LIGHT_BLUE,
+        ui_panel_draw(8, 77, 224, 14, Color.GREY,
                       Color.BLACK, Color.DARK_GREY)
-        print("THESEUS", 16, 81, Color.LIGHT_BLUE)
+        print("THESEUS", 16, 81, Color.LIGHT_GREY)
 
         bar_x = 144
         bar_y = 80
@@ -397,32 +407,6 @@ class GarageScene:
             body_line_step=10
         )
 
-    def _draw_main_menu_confirm(self) -> None:
-        layout, slots, _slot_confirm, _slot_cancel = ui_overlay_flow_confirm_cancel(
-            self.MODAL_LAYOUT_SPEC,
-            self._state,
-            Action.CONFIRM,
-            Action.CANCEL,
-            "EXIT MENU",
-            "CANCEL"
-        )
-        body_lines: list[tuple[str, int]] = [
-            ("RETURN TO MAIN MENU?", Color.WHITE),
-            ("CURRENT RUN SESSION WILL END", Color.LIGHT_GREY)
-        ]
-        ui_overlay_screen_draw(
-            self._ui,
-            layout,
-            "EXIT GARAGE",
-            body_lines,
-            slots,
-            [
-                self._state.controls.down(Action.CONFIRM),
-                self._state.controls.down(Action.CANCEL)
-            ],
-            body_line_step=10
-        )
-
     def _draw_upgrades_modal(self) -> None:
         if not self._upgrades_modal_open:
             return
@@ -483,27 +467,6 @@ class GarageScene:
                 self._reset_action_bar_mouse()
             return
 
-        if self._confirm_main_menu:
-            layout, slots, slot_confirm, slot_cancel = ui_overlay_flow_confirm_cancel(
-                self.MODAL_LAYOUT_SPEC,
-                self._state,
-                Action.CONFIRM,
-                Action.CANCEL,
-                "EXIT MENU",
-                "CANCEL"
-            )
-            released_slot = self._ui.poll_footer_release(layout, slots)
-            if confirm_released or released_slot == slot_confirm:
-                self._confirm_main_menu = False
-                self._ui.reset_footer()
-                self._reset_action_bar_mouse()
-                self._nav.go(SceneId.MAIN_MENU)
-            elif cancel_released or released_slot == slot_cancel:
-                self._confirm_main_menu = False
-                self._ui.reset_footer()
-                self._reset_action_bar_mouse()
-            return
-
         slot_rows = self._active_action_slots_rows()
         released_rows = ui_action_bar_rows_poll_release_with_style(
             self.ACTION_BAR_LAYOUTS,
@@ -548,9 +511,10 @@ class GarageScene:
             self._ui.reset_footer()
             self._reset_action_bar_mouse()
         elif help_released or released_top == 1:
-            self._confirm_main_menu = True
+            self._state.save_profile()
             self._ui.reset_footer()
             self._reset_action_bar_mouse()
+            self._nav.go(SceneId.MAIN_MENU)
 
     def draw(self) -> None:
         cls(Color.BLACK)
@@ -560,8 +524,6 @@ class GarageScene:
         self._draw_theseus_panel()
         self._draw_action_bar()
         self._draw_rollback_popup()
-        if self._confirm_main_menu:
-            self._draw_main_menu_confirm()
         self._draw_upgrades_modal()
 
     def exit(self) -> None:
