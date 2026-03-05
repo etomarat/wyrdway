@@ -16,7 +16,6 @@ if TYPE_CHECKING:
     from .core.scene_ids import SceneId
     from .core.scene_manager import SceneManager
     from .data.tuning import TUNING
-    from .scenes.drive_preset_scene import make_drive_preset_scene
     from .scenes.drive_scene import make_drive_scene
     from .scenes.garage_scene import make_garage_scene
     from .scenes.main_menu_scene import make_main_menu_scene
@@ -32,7 +31,6 @@ include("systems.fx.__init__")
 include("systems.drive.__init__")
 include("scenes.drive.__init__")
 include("scenes.drive_scene")
-include("scenes.drive_preset_scene")
 include("scenes.garage_scene")
 include("scenes.main_menu_backdrop")
 include("scenes.main_menu_scene")
@@ -103,7 +101,6 @@ def BOOT() -> None:
     SCENE_MANAGER.state.load_profile()
     SCENE_MANAGER.state.recover_interrupted_session()
     SCENE_MANAGER.register(SceneId.MAIN_MENU, make_main_menu_scene)
-    SCENE_MANAGER.register(SceneId.DRIVE_PRESET, make_drive_preset_scene)
     SCENE_MANAGER.register(SceneId.GARAGE, make_garage_scene)
     SCENE_MANAGER.register(SceneId.REGION_MAP, make_region_map_scene)
     SCENE_MANAGER.register(SceneId.DRIVE, make_drive_scene)

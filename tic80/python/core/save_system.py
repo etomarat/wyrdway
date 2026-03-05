@@ -4,6 +4,7 @@ if TYPE_CHECKING:
     from tic80 import pmem, trace
 
     from ..data.tuning import TUNING
+    from .campaign_seed import hash_seed_text_u32, normalize_seed_text
     from .controls.modes import InputDeviceMode, InputDeviceModeId
     from .drive_presets import DrivePresetId, drive_preset_clamp
 
@@ -13,7 +14,7 @@ if TYPE_CHECKING:
 # - добавили/удалили/переименовали поля
 # - изменили масштаб/единицы хранения
 # - поменяли смысл значения
-SAVE_SCHEMA_VERSION = 6
+SAVE_SCHEMA_VERSION = 7
 # Магическая сигнатура, чтобы отличать наш сейв от "мусора".
 SAVE_MAGIC = 0x57595244  # "WYRD"
 OPTIONS_SCHEMA_VERSION = 1
@@ -24,11 +25,15 @@ PMEM_MAGIC_SLOT = 0               # сигнатура сейва
 PMEM_SCHEMA_SLOT = 1              # версия схемы
 # Это именно индекс слота, а не значение версии. Саму версию берём из TUNING.
 PMEM_TUNING_VERSION_SLOT = 2
-PMEM_PROFILE_SEED_COUNTER_SLOT = 3  # последний seed_counter для новых run
+PMEM_PROFILE_RUN_INDEX_SLOT = 3  # количество запущенных run в кампании
+PMEM_PROFILE_CAMPAIGN_SEED_U32_SLOT = 4
+PMEM_PROFILE_CAMPAIGN_SEED_LEN_SLOT = 5
 PMEM_PROFILE_SCRAP_SLOT = 10      # scrap (int)
 PMEM_PROFILE_GARAGE_HP_X100_SLOT = 11  # hp гаражной машины * 100 (int)
 PMEM_PROFILE_GARAGE_FUEL_X100_SLOT = 12  # fuel * 100 (int), т.к. pmem = int
 PMEM_PROFILE_THESEUS_SLOT = 13  # индекс "переписывания" героя (int)
+PMEM_PROFILE_SEED_TEXT_BASE_SLOT = 40
+PMEM_PROFILE_SEED_TEXT_MAX_CHARS = 16
 PMEM_RUN_ACTIVE_SLOT = 20  # флаг "ран в процессе" (1/0)
 PMEM_CHASE_ACTIVE_SLOT = 21  # флаг "контакт с сущностью в процессе" (1/0)
 PMEM_OPTIONS_MAGIC_SLOT = 30
@@ -52,7 +57,16 @@ def normalize_input_device_mode(mode: int) -> InputDeviceModeId:
 
 
 class SaveProfileData:
-    __slots__ = ("scrap", "garage_hp", "garage_fuel", "theseus", "tuning_version", "seed_counter")
+    __slots__ = (
+        "scrap",
+        "garage_hp",
+        "garage_fuel",
+        "theseus",
+        "tuning_version",
+        "run_index",
+        "campaign_seed_text",
+        "campaign_seed_u32"
+    )
 
     def __init__(
         self,
@@ -61,14 +75,21 @@ class SaveProfileData:
         garage_fuel: float,
         theseus: int,
         tuning_version: int,
-        seed_counter: int
+        run_index: int,
+        campaign_seed_text: str,
+        campaign_seed_u32: int
     ) -> None:
         self.scrap = scrap
         self.garage_hp = garage_hp
         self.garage_fuel = garage_fuel
         self.theseus = max(0, int(theseus))
         self.tuning_version = tuning_version
-        self.seed_counter = max(0, int(seed_counter))
+        self.run_index = max(0, int(run_index))
+        self.campaign_seed_text = normalize_seed_text(campaign_seed_text)
+        h = int(campaign_seed_u32) & 0xFFFFFFFF
+        if h == 0:
+            h = hash_seed_text_u32(self.campaign_seed_text)
+        self.campaign_seed_u32 = int(h)
 
 
 class SaveOptionsData:
@@ -115,18 +136,67 @@ class SaveSystem:
         if theseus < 0:
             theseus = 0
         tuning_version = int(pmem(PMEM_TUNING_VERSION_SLOT))
-        seed_counter = int(pmem(PMEM_PROFILE_SEED_COUNTER_SLOT))
-        if seed_counter < 0:
-            seed_counter = 0
+        run_index = int(pmem(PMEM_PROFILE_RUN_INDEX_SLOT))
+        if run_index < 0:
+            run_index = 0
 
-        return SaveProfileData(scrap, garage_hp, garage_fuel, theseus, tuning_version, seed_counter)
+        campaign_seed_u32 = int(pmem(PMEM_PROFILE_CAMPAIGN_SEED_U32_SLOT)) & 0xFFFFFFFF
+        seed_len = int(pmem(PMEM_PROFILE_CAMPAIGN_SEED_LEN_SLOT))
+        if seed_len < 0:
+            seed_len = 0
+        if seed_len > PMEM_PROFILE_SEED_TEXT_MAX_CHARS:
+            seed_len = PMEM_PROFILE_SEED_TEXT_MAX_CHARS
+        campaign_seed_text = ""
+        i = 0
+        while i < seed_len:
+            code = int(pmem(PMEM_PROFILE_SEED_TEXT_BASE_SLOT + i)) & 0xFF
+            if code != 0:
+                campaign_seed_text += chr(code)
+            i += 1
+        campaign_seed_text = normalize_seed_text(campaign_seed_text)
+        if campaign_seed_u32 == 0:
+            campaign_seed_u32 = hash_seed_text_u32(campaign_seed_text)
 
-    def save_profile(self, scrap: int, garage_hp: float, garage_fuel: float, theseus: int, seed_counter: int) -> None:
+        return SaveProfileData(
+            scrap,
+            garage_hp,
+            garage_fuel,
+            theseus,
+            tuning_version,
+            run_index,
+            campaign_seed_text,
+            campaign_seed_u32
+        )
+
+    def save_profile(
+        self,
+        scrap: int,
+        garage_hp: float,
+        garage_fuel: float,
+        theseus: int,
+        run_index: int,
+        campaign_seed_text: str,
+        campaign_seed_u32: int
+    ) -> None:
         # Заголовок сейва.
+        normalized_seed = normalize_seed_text(campaign_seed_text)
+        seed_u32 = int(campaign_seed_u32) & 0xFFFFFFFF
+        if seed_u32 == 0:
+            seed_u32 = hash_seed_text_u32(normalized_seed)
+
         pmem(PMEM_MAGIC_SLOT, SAVE_MAGIC)
         pmem(PMEM_SCHEMA_SLOT, SAVE_SCHEMA_VERSION)
         pmem(PMEM_TUNING_VERSION_SLOT, int(TUNING.tuning_version))
-        pmem(PMEM_PROFILE_SEED_COUNTER_SLOT, max(0, int(seed_counter)))
+        pmem(PMEM_PROFILE_RUN_INDEX_SLOT, max(0, int(run_index)))
+        pmem(PMEM_PROFILE_CAMPAIGN_SEED_U32_SLOT, int(seed_u32))
+        pmem(PMEM_PROFILE_CAMPAIGN_SEED_LEN_SLOT, len(normalized_seed))
+        i = 0
+        while i < PMEM_PROFILE_SEED_TEXT_MAX_CHARS:
+            code = 0
+            if i < len(normalized_seed):
+                code = ord(normalized_seed[i]) & 0xFF
+            pmem(PMEM_PROFILE_SEED_TEXT_BASE_SLOT + i, code)
+            i += 1
 
         # Поля профиля.
         pmem(PMEM_PROFILE_SCRAP_SLOT, max(0, int(scrap)))

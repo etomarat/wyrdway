@@ -5,6 +5,7 @@ if TYPE_CHECKING:
 
     from ..contracts import SceneEnterParams, SceneNavigator
     from ..core.controls.actions import Action
+    from ..core.drive_preset_runtime import drive_preset_apply_by_id
     from ..core.palette import Color
     from ..core.scene_ids import SceneId
     from ..core.text_layout import text_center_x, text_width
@@ -146,6 +147,7 @@ class GarageScene:
         self._header_roll = 0
 
     def enter(self, params: SceneEnterParams = None) -> None:
+        drive_preset_apply_by_id(self._state.drive_preset_id)
         self._ui.sync_actions(
             self._state.controls,
             [
@@ -169,7 +171,7 @@ class GarageScene:
         ui_action_bar_reset_mouse_states(self._action_row_mouse)
 
     def _pick_header_text(self) -> None:
-        if self._state.seed_counter <= 0:
+        if self._state.run_index <= 0:
             self._header_text = self.HOME_HEADER_TEXT
             return
         options = self.RETURN_HEADER_OPTIONS

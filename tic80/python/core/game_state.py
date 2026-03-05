@@ -5,6 +5,12 @@ if TYPE_CHECKING:
 
     from ..contracts import PursuerVariantId
     from ..data.tuning import TUNING
+    from .campaign_seed import (
+        generate_seed_text_default,
+        hash_seed_text_u32,
+        mix_run_seed,
+        normalize_seed_text
+    )
     from .controls.bindings import make_default_bindings
     from .controls.input import Controls
     from .controls.modes import (
@@ -24,13 +30,27 @@ if TYPE_CHECKING:
 
 
 class GameState:
-    __slots__ = ('_profile', '_run', '_seed_counter', '_save',
-                 '_profile_loaded', '_profile_tuning_mismatch',
-                 '_profile_tuning_version', '_debug_lines',
-                 '_debug_overlay_enabled', '_last_rollback_reason',
-                 '_last_rollback_theseus_gain', '_input_device_mode',
-                 '_prompt_glyph_detail', '_prompt_show_shoulders',
-                 '_vibration_enabled', '_drive_preset_id', '_controls')
+    __slots__ = (
+        "_profile",
+        "_run",
+        "_run_index",
+        "_campaign_seed_text",
+        "_campaign_seed_u32",
+        "_save",
+        "_profile_loaded",
+        "_profile_tuning_mismatch",
+        "_profile_tuning_version",
+        "_debug_lines",
+        "_debug_overlay_enabled",
+        "_last_rollback_reason",
+        "_last_rollback_theseus_gain",
+        "_input_device_mode",
+        "_prompt_glyph_detail",
+        "_prompt_show_shoulders",
+        "_vibration_enabled",
+        "_drive_preset_id",
+        "_controls"
+    )
 
     def __init__(self) -> None:
         self._profile = Profile(
@@ -40,7 +60,9 @@ class GameState:
         )
         self._save = SaveSystem()
         self._run: RunState | None = None
-        self._seed_counter = 0
+        self._run_index = 0
+        self._campaign_seed_text = normalize_seed_text(generate_seed_text_default())
+        self._campaign_seed_u32 = hash_seed_text_u32(self._campaign_seed_text)
         self._profile_loaded = False
         self._profile_tuning_mismatch = False
         self._profile_tuning_version: int | None = None
@@ -70,8 +92,16 @@ class GameState:
         return self._profile_loaded
 
     @property
-    def seed_counter(self) -> int:
-        return int(self._seed_counter)
+    def run_index(self) -> int:
+        return int(self._run_index)
+
+    @property
+    def campaign_seed_text(self) -> str:
+        return str(self._campaign_seed_text)
+
+    @property
+    def campaign_seed_u32(self) -> int:
+        return int(self._campaign_seed_u32)
 
     @property
     def debug_overlay_enabled(self) -> bool:
@@ -135,47 +165,43 @@ class GameState:
         return self._profile_tuning_version
 
     def clear_debug_lines(self) -> None:
-        """Очищает debug-линии кадра.
-
-        Вызов происходит один раз за кадр (в `main.TIC()`), чтобы сцены могли
-        безопасно добавлять свои строки и не “залипать” между кадрами.
-        """
         self._debug_lines = []
 
     def set_debug_lines(self, lines: list[str]) -> None:
-        """Задаёт список строк, которые сцена хочет видеть в DebugOverlay."""
         self._debug_lines = list(lines)
 
     def debug_lines(self) -> list[str]:
-        """Возвращает копию debug-линий текущего кадра."""
         return list(self._debug_lines)
 
-    def _is_prime_entity_run_seed(self, run_seed: int) -> bool:
+    def _is_prime_entity_run_index(self, run_index: int) -> bool:
         period = int(TUNING.PURSUER.prime_entity_every_runs)
         if period <= 1:
             return True
-        seed = int(run_seed)
-        if seed <= 0:
+        idx = int(run_index)
+        if idx <= 0:
             return False
-        return (seed % period) == 0
+        return (idx % period) == 0
 
-    def _set_pursuer_variant_for_run_seed(self, run_seed: int) -> None:
-        if self._is_prime_entity_run_seed(run_seed):
+    def _set_pursuer_variant_for_run_index(self, run_index: int) -> None:
+        if self._is_prime_entity_run_index(run_index):
             TUNING.PURSUER.active_variant = PursuerVariantId.PRIME_ENTITY
             return
         TUNING.PURSUER.active_variant = PursuerVariantId.ENTITY
 
     def _set_pursuer_variant_for_next_run(self) -> None:
-        self._set_pursuer_variant_for_run_seed(int(self._seed_counter) + 1)
+        self._set_pursuer_variant_for_run_index(int(self._run_index) + 1)
 
     def start_run(self) -> RunState:
-        self._seed_counter += 1
-        self._set_pursuer_variant_for_run_seed(self._seed_counter)
+        self._run_index += 1
+        self._set_pursuer_variant_for_run_index(self._run_index)
         self._last_rollback_reason = None
         self._last_rollback_theseus_gain = 0
-        self._run = RunState(self._seed_counter,
-                             self._profile.garage_hp,
-                             self._profile.garage_fuel)
+        run_seed = mix_run_seed(self._campaign_seed_u32, self._run_index)
+        self._run = RunState(
+            run_seed,
+            self._profile.garage_hp,
+            self._profile.garage_fuel
+        )
         return self._run
 
     def end_run(self) -> None:
@@ -216,13 +242,22 @@ class GameState:
         data = self._save.load_profile()
         if data is None:
             self._profile.reset()
-            self._seed_counter = 0
+            self._run_index = 0
+            self._campaign_seed_text = normalize_seed_text(generate_seed_text_default())
+            self._campaign_seed_u32 = hash_seed_text_u32(self._campaign_seed_text)
             self._profile_loaded = False
             self._profile_tuning_mismatch = False
             self._profile_tuning_version = None
         else:
-            self._profile.apply_save(data.scrap, data.garage_hp, data.garage_fuel, data.theseus)
-            self._seed_counter = data.seed_counter
+            self._profile.apply_save(
+                data.scrap,
+                data.garage_hp,
+                data.garage_fuel,
+                data.theseus
+            )
+            self._run_index = data.run_index
+            self._campaign_seed_text = data.campaign_seed_text
+            self._campaign_seed_u32 = data.campaign_seed_u32
             self._profile_loaded = True
             self._profile_tuning_version = data.tuning_version
             self._profile_tuning_mismatch = (
@@ -241,14 +276,23 @@ class GameState:
     def load_profile(self) -> None:
         data = self._save.load_profile()
         if data is None:
-            self._seed_counter = 0
+            self._run_index = 0
+            self._campaign_seed_text = normalize_seed_text(generate_seed_text_default())
+            self._campaign_seed_u32 = hash_seed_text_u32(self._campaign_seed_text)
             self._set_pursuer_variant_for_next_run()
             self._profile_loaded = False
             self._profile_tuning_mismatch = False
             self._profile_tuning_version = None
             return
-        self._profile.apply_save(data.scrap, data.garage_hp, data.garage_fuel, data.theseus)
-        self._seed_counter = data.seed_counter
+        self._profile.apply_save(
+            data.scrap,
+            data.garage_hp,
+            data.garage_fuel,
+            data.theseus
+        )
+        self._run_index = data.run_index
+        self._campaign_seed_text = data.campaign_seed_text
+        self._campaign_seed_u32 = data.campaign_seed_u32
         self._set_pursuer_variant_for_next_run()
         self._profile_loaded = True
         self._profile_tuning_version = data.tuning_version
@@ -264,6 +308,10 @@ class GameState:
             + str(round(data.garage_fuel, 2))
             + " theseus="
             + str(data.theseus)
+            + " run_index="
+            + str(data.run_index)
+            + " seed="
+            + data.campaign_seed_text
             + " tuning="
             + str(data.tuning_version)
         )
@@ -281,7 +329,9 @@ class GameState:
             self._profile.garage_hp,
             self._profile.garage_fuel,
             self._profile.theseus,
-            self._seed_counter
+            self._run_index,
+            self._campaign_seed_text,
+            self._campaign_seed_u32
         )
         self._profile_loaded = True
         self._profile_tuning_version = int(TUNING.tuning_version)
@@ -310,9 +360,11 @@ class GameState:
             self._drive_preset_id
         )
 
-    def start_new_game(self) -> None:
+    def start_new_campaign(self, seed_text: str) -> None:
         self._profile.reset()
-        self._seed_counter = 0
+        self._run_index = 0
+        self._campaign_seed_text = normalize_seed_text(seed_text)
+        self._campaign_seed_u32 = hash_seed_text_u32(self._campaign_seed_text)
         self._set_pursuer_variant_for_next_run()
         self._last_rollback_reason = None
         self._last_rollback_theseus_gain = 0
@@ -337,16 +389,17 @@ class GameState:
         if run is None:
             car_hp = self._profile.garage_hp
             car_fuel = self._profile.garage_fuel
+            if self._run_index <= 0:
+                self._run_index = 1
         else:
             car_hp = run.car_hp
             car_fuel = run.car_fuel
         self._run = RunState(next_seed, car_hp, car_fuel)
-        self._seed_counter = next_seed
-        self._set_pursuer_variant_for_run_seed(next_seed)
+        self._set_pursuer_variant_for_run_index(self._run_index)
 
     def debug_shift_active_run_seed(self, delta: int) -> None:
         run = self._run
-        current = self._seed_counter
+        current = 1
         if run is not None:
             current = run.seed
         self.debug_set_active_run_seed(current + int(delta))

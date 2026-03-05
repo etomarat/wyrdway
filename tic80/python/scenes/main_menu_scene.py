@@ -4,8 +4,14 @@ if TYPE_CHECKING:
     from tic80 import circ, cls, line, pix, print, rect
 
     from ..contracts import SceneEnterParams, SceneNavigator
+    from ..core.campaign_seed import (
+        generate_seed_text_default,
+        normalize_seed_text,
+        seed_cycle_char,
+        seed_text_max_len
+    )
     from ..core.controls.actions import Action
-    from ..core.controls.modes import InputDeviceMode
+    from ..core.controls.modes import InputDeviceMode, InputDeviceModeId
     from ..core.controls.prompts import (
         PromptGlyph,
         filter_prompt_glyphs,
@@ -13,6 +19,7 @@ if TYPE_CHECKING:
         prompt_glyphs_for_action,
         prompt_glyphs_for_nav_hint
     )
+    from ..core.drive_presets import drive_preset_cycle, drive_preset_label
     from ..core.palette import Color
     from ..core.scene_ids import SceneId
     from ..core.text_layout import text_right_x, text_width
@@ -38,7 +45,12 @@ if TYPE_CHECKING:
     from ..core.ui.overlay_runtime import UiOverlayRuntime
     from ..core.ui.overlay_screen import ui_overlay_screen_draw
     from ..core.ui.overlay_theme import ui_overlay_theme_inverted
-    from ..core.ui.prompts import ui_prompt_gap_join, ui_prompt_with_text
+    from ..core.ui.prompts import (
+        ui_prompt_for_action,
+        ui_prompt_gap_join,
+        ui_prompt_with_text
+    )
+    from ..core.ui.rich_text import ui_rich_print
     from ..core.version import game_version_label
     from .drive.pursuer_text_bank import PursuerTextBank
     from .main_menu_backdrop import MainMenuBackdrop, make_main_menu_backdrop
@@ -112,6 +124,13 @@ class MainMenuScene:
     _OVERLAY_CONTROLS = 1
     _OVERLAY_CREDITS = 2
     _OVERLAY_NEW_GAME_CONFIRM = 3
+    _OVERLAY_NEW_GAME_SETUP = 4
+    _OVERLAY_NEW_GAME_SEED = 5
+    _NEW_GAME_ROW_DIFFICULTY = 0
+    _NEW_GAME_ROW_MODE = 1
+    _NEW_GAME_ROW_SEED = 2
+    _NEW_GAME_ROW_START = 3
+    _NEW_GAME_ROW_COUNT = 4
     _OVERLAY_BODY_X_PAD = 8
     _OVERLAY_BODY_LINE_STEP = 8
     _OVERLAY_LAYOUT_DEFAULT: OverlayLayout = _menu_overlay_layout(
@@ -171,6 +190,34 @@ class MainMenuScene:
             0,
             1,
             FOOTER_PAD_PROFILE_DEFAULT
+        ),
+        _OVERLAY_NEW_GAME_SETUP: _menu_overlay_layout(
+            20,
+            20,
+            200,
+            98,
+            30,
+            44,
+            3,
+            (1, 1, 1),
+            0,
+            1,
+            2,
+            FOOTER_PAD_PROFILE_DEFAULT
+        ),
+        _OVERLAY_NEW_GAME_SEED: _menu_overlay_layout(
+            20,
+            24,
+            200,
+            90,
+            34,
+            50,
+            3,
+            (1, 1, 1),
+            0,
+            1,
+            2,
+            FOOTER_PAD_PROFILE_DEFAULT
         )
     }
     _WATCH_PULSE_SECONDS = 4.8
@@ -213,6 +260,13 @@ class MainMenuScene:
         self._watch_error_t = 0.0
         self._watch_error_text = ""
         self._watch_rec_t = 0.0
+        self._new_game_focus_row = self._NEW_GAME_ROW_DIFFICULTY
+        self._new_game_mode_draft = self._state.input_device_mode
+        self._new_game_preset_draft = self._state.drive_preset_id
+        self._new_game_seed_text = normalize_seed_text(
+            generate_seed_text_default())
+        self._new_game_seed_cursor = 0
+        self._new_game_seed_snapshot = self._new_game_seed_text
 
     def enter(self, params: SceneEnterParams = None) -> None:
         self._selected = 0
@@ -227,7 +281,7 @@ class MainMenuScene:
         self._reset_overlay_input_latches()
         self._backdrop.enter()
         self._watch_seed = (0x13579BDF ^ (
-            (int(self._state.seed_counter) + 1) * 97)) & 0xFFFFFFFF
+            (int(self._state.run_index) + 1) * 97)) & 0xFFFFFFFF
         if self._watch_seed == 0:
             self._watch_seed = 1
         self._watch_event_t = 0.0
@@ -235,6 +289,7 @@ class MainMenuScene:
         self._watch_error_t = 0.0
         self._watch_error_text = ""
         self._watch_rec_t = 0.0
+        self._reset_new_game_setup_draft()
 
     def update(self, dt: float) -> None:
         self._poll_mouse_state()
@@ -283,8 +338,31 @@ class MainMenuScene:
     def _has_continue(self) -> bool:
         return bool(self._state.profile_loaded)
 
+    def _reset_new_game_setup_draft(self) -> None:
+        self._new_game_focus_row = self._NEW_GAME_ROW_DIFFICULTY
+        self._new_game_mode_draft = self._state.input_device_mode
+        self._new_game_preset_draft = self._state.drive_preset_id
+        seed = normalize_seed_text(generate_seed_text_default())
+        max_len = seed_text_max_len()
+        if len(seed) > max_len:
+            seed = seed[:max_len]
+        self._new_game_seed_text = seed
+        self._new_game_seed_cursor = 0
+        self._new_game_seed_snapshot = seed
+
+    def _new_game_mode_label(self) -> str:
+        mode = int(self._new_game_mode_draft)
+        if mode == int(InputDeviceMode.KEYBOARD):
+            return "KEYBOARD+mouse"
+        if mode == int(InputDeviceMode.GAMEPAD):
+            return "GAMEPAD"
+        return "KEYBOARD|GAMEPAD"
+
     def _update_overlay_input(self) -> None:
         nav_up_released, nav_down_released, nav_left_released, nav_right_released, confirm_released, cancel_released = self._poll_overlay_release_events()
+        secondary_released = self._ui.poll_action(
+            self._state.controls, Action.SECONDARY
+        )
         mouse_nav_released, mouse_confirm_released, mouse_cancel_released = self._poll_overlay_footer_mouse_release()
         if mouse_confirm_released:
             confirm_released = True
@@ -315,6 +393,30 @@ class MainMenuScene:
                 self._close_overlay()
             return
 
+        if self._overlay == self._OVERLAY_NEW_GAME_SETUP:
+            self._update_new_game_setup_input(
+                nav_up_released,
+                nav_down_released,
+                nav_left_released,
+                nav_right_released,
+                confirm_released,
+                cancel_released,
+                secondary_released,
+                mouse_nav_released
+            )
+            return
+        if self._overlay == self._OVERLAY_NEW_GAME_SEED:
+            self._update_new_game_seed_overlay_input(
+                nav_up_released,
+                nav_down_released,
+                nav_left_released,
+                nav_right_released,
+                confirm_released,
+                cancel_released,
+                secondary_released
+            )
+            return
+
         if mouse_nav_released:
             nav_down_released = True
         if self._overlay == self._OVERLAY_NEW_GAME_CONFIRM:
@@ -322,8 +424,7 @@ class MainMenuScene:
                 self._close_overlay()
                 return
             if confirm_released:
-                self._state.start_new_game()
-                self._nav.go(SceneId.DRIVE_PRESET)
+                self._open_overlay(self._OVERLAY_NEW_GAME_SETUP)
             return
 
         body_lines = self._overlay_body_lines_for(self._overlay)
@@ -337,6 +438,170 @@ class MainMenuScene:
 
         if cancel_released or confirm_released:
             self._close_overlay()
+
+    def _update_new_game_setup_input(
+        self,
+        nav_up_released: bool,
+        nav_down_released: bool,
+        nav_left_released: bool,
+        nav_right_released: bool,
+        confirm_released: bool,
+        cancel_released: bool,
+        secondary_released: bool,
+        mouse_nav_released: bool
+    ) -> None:
+        if mouse_nav_released:
+            nav_down_released = True
+        if nav_up_released:
+            self._new_game_focus_row -= 1
+        elif nav_down_released:
+            self._new_game_focus_row += 1
+        if self._new_game_focus_row < 0:
+            self._new_game_focus_row = self._NEW_GAME_ROW_COUNT - 1
+        elif self._new_game_focus_row >= self._NEW_GAME_ROW_COUNT:
+            self._new_game_focus_row = 0
+
+        if self._new_game_focus_row == self._NEW_GAME_ROW_DIFFICULTY:
+            if nav_left_released:
+                self._new_game_preset_draft = drive_preset_cycle(
+                    self._new_game_preset_draft, True
+                )
+            elif nav_right_released:
+                self._new_game_preset_draft = drive_preset_cycle(
+                    self._new_game_preset_draft, False
+                )
+        elif self._new_game_focus_row == self._NEW_GAME_ROW_MODE:
+            if nav_left_released:
+                self._cycle_new_game_mode(True)
+            elif nav_right_released:
+                self._cycle_new_game_mode(False)
+
+        if cancel_released:
+            self._close_overlay()
+            return
+        if not confirm_released:
+            return
+
+        if self._new_game_focus_row == self._NEW_GAME_ROW_SEED:
+            self._open_new_game_seed_overlay()
+            return
+        if self._new_game_focus_row == self._NEW_GAME_ROW_START:
+            self._start_new_campaign_from_setup()
+            return
+        if self._new_game_focus_row == self._NEW_GAME_ROW_DIFFICULTY:
+            self._new_game_preset_draft = drive_preset_cycle(
+                self._new_game_preset_draft,
+                True
+            )
+            return
+        if self._new_game_focus_row == self._NEW_GAME_ROW_MODE:
+            self._cycle_new_game_mode(True)
+
+    def _update_new_game_seed_overlay_input(
+        self,
+        nav_up_released: bool,
+        nav_down_released: bool,
+        nav_left_released: bool,
+        nav_right_released: bool,
+        confirm_released: bool,
+        cancel_released: bool,
+        secondary_released: bool
+    ) -> None:
+        if nav_left_released:
+            self._new_game_seed_cursor -= 1
+            self._clamp_new_game_seed_cursor()
+        elif nav_right_released:
+            self._new_game_seed_cursor += 1
+            self._clamp_new_game_seed_cursor()
+        if nav_up_released:
+            self._cycle_new_game_seed_char(True)
+        elif nav_down_released:
+            self._cycle_new_game_seed_char(False)
+        if secondary_released:
+            self._new_game_seed_text = normalize_seed_text(
+                generate_seed_text_default()
+            )
+            self._clamp_new_game_seed_cursor()
+        if cancel_released:
+            self._new_game_seed_text = self._new_game_seed_snapshot
+            self._open_overlay(self._OVERLAY_NEW_GAME_SETUP)
+            return
+        if confirm_released:
+            self._new_game_seed_text = normalize_seed_text(
+                self._new_game_seed_text)
+            self._open_overlay(self._OVERLAY_NEW_GAME_SETUP)
+
+    def _cycle_new_game_mode(self, forward: bool) -> None:
+        modes: list[InputDeviceModeId] = [
+            InputDeviceMode.KEYBOARD,
+            InputDeviceMode.GAMEPAD,
+            InputDeviceMode.BOTH
+        ]
+        idx = 0
+        i = 0
+        current = int(self._new_game_mode_draft)
+        while i < len(modes):
+            if int(modes[i]) == current:
+                idx = i
+                break
+            i += 1
+        if forward:
+            idx += 1
+            if idx >= len(modes):
+                idx = 0
+        else:
+            idx -= 1
+            if idx < 0:
+                idx = len(modes) - 1
+        self._new_game_mode_draft = modes[idx]
+
+    def _cycle_new_game_seed_char(self, forward: bool) -> None:
+        text = self._new_game_seed_text
+        if text == "":
+            text = normalize_seed_text(generate_seed_text_default())
+        if self._new_game_seed_cursor < 0:
+            self._new_game_seed_cursor = 0
+        if self._new_game_seed_cursor >= len(text):
+            self._new_game_seed_cursor = len(text) - 1
+        if self._new_game_seed_cursor < 0:
+            self._new_game_seed_cursor = 0
+        i = self._new_game_seed_cursor
+        head = text[:i]
+        ch = text[i]
+        tail = text[i + 1:]
+        self._new_game_seed_text = head + seed_cycle_char(ch, forward) + tail
+
+    def _clamp_new_game_seed_cursor(self) -> None:
+        n = len(self._new_game_seed_text)
+        if n <= 0:
+            self._new_game_seed_cursor = 0
+            return
+        if self._new_game_seed_cursor < 0:
+            self._new_game_seed_cursor = 0
+            return
+        if self._new_game_seed_cursor >= n:
+            self._new_game_seed_cursor = n - 1
+
+    def _start_new_campaign_from_setup(self) -> None:
+        seed = normalize_seed_text(self._new_game_seed_text)
+        max_len = seed_text_max_len()
+        if len(seed) > max_len:
+            seed = seed[:max_len]
+        self._state.set_input_device_mode(self._new_game_mode_draft)
+        self._state.set_drive_preset_id(self._new_game_preset_draft)
+        if int(self._new_game_mode_draft) != int(InputDeviceMode.GAMEPAD):
+            self._state.set_prompt_show_shoulders(False)
+        if int(self._new_game_mode_draft) == int(InputDeviceMode.KEYBOARD):
+            self._state.set_vibration_enabled(False)
+        self._state.save_options()
+        self._state.start_new_campaign(seed)
+        self._close_overlay()
+        self._nav.go(SceneId.GARAGE)
+
+    def _open_new_game_seed_overlay(self) -> None:
+        self._new_game_seed_snapshot = self._new_game_seed_text
+        self._clamp_new_game_seed_cursor()
+        self._open_overlay(self._OVERLAY_NEW_GAME_SEED)
 
     def _activate_selected_item(self) -> None:
         item_id, _ = self._MENU_ITEMS[self._selected]
@@ -352,8 +617,7 @@ class MainMenuScene:
             if self._has_continue():
                 self._open_overlay(self._OVERLAY_NEW_GAME_CONFIRM)
                 return
-            self._state.start_new_game()
-            self._nav.go(SceneId.DRIVE_PRESET)
+            self._open_overlay(self._OVERLAY_NEW_GAME_SETUP)
             return
         if item_id == self._ITEM_CONTROLS:
             self._open_overlay(self._OVERLAY_CONTROLS)
@@ -363,6 +627,7 @@ class MainMenuScene:
             return
 
     def _open_overlay(self, overlay_id: int) -> None:
+        prev_overlay = self._overlay
         self._overlay = int(overlay_id)
         self._overlay_scroll = 0
         self._menu_mouse_down_index = -1
@@ -370,6 +635,9 @@ class MainMenuScene:
         self._reset_controls_overlay_mouse_state()
         if self._overlay == self._OVERLAY_CONTROLS:
             self._init_controls_overlay_draft()
+        elif self._overlay == self._OVERLAY_NEW_GAME_SETUP:
+            if prev_overlay != self._OVERLAY_NEW_GAME_SEED:
+                self._reset_new_game_setup_draft()
         self._reset_menu_input_latches()
         self._reset_overlay_input_latches()
 
@@ -708,8 +976,8 @@ class MainMenuScene:
                           str(self._to_ui_int(profile.garage_fuel)), Color.WHITE, Color.WHITE)
         self._draw_kv_row(x, w, row_y + row_step * 2, "SCRAP",
                           str(profile.scrap), Color.LIGHT_GREY, Color.LIGHT_GREY)
-        self._draw_kv_row(x, w, row_y + row_step * 3, "SEED",
-                          str(self._state.seed_counter), Color.GREY, Color.GREY)
+        self._draw_kv_row(x, w, row_y + row_step * 3, "RUNS",
+                          str(self._state.run_index), Color.GREY, Color.GREY)
 
     @staticmethod
     def _to_ui_int(value: float) -> int:
@@ -850,6 +1118,12 @@ class MainMenuScene:
         if self._overlay == self._OVERLAY_NEW_GAME_CONFIRM:
             self._draw_new_game_overlay()
             return
+        if self._overlay == self._OVERLAY_NEW_GAME_SETUP:
+            self._draw_new_game_setup_overlay()
+            return
+        if self._overlay == self._OVERLAY_NEW_GAME_SEED:
+            self._draw_new_game_seed_overlay()
+            return
 
     def _draw_overlay_box(self, title: str, lines: list[str]) -> None:
         layout = self._overlay_layout()
@@ -898,6 +1172,10 @@ class MainMenuScene:
             return self._credits_overlay_lines()
         if overlay_id == self._OVERLAY_NEW_GAME_CONFIRM:
             return self._new_game_overlay_lines()
+        if overlay_id == self._OVERLAY_NEW_GAME_SETUP:
+            return self._new_game_setup_info_lines()
+        if overlay_id == self._OVERLAY_NEW_GAME_SEED:
+            return []
         return []
 
     def _overlay_layout(self) -> OverlayLayout:
@@ -938,6 +1216,30 @@ class MainMenuScene:
                 "CONFIRM",
                 "CANCEL"
             )
+        if self._overlay == self._OVERLAY_NEW_GAME_SETUP:
+            return ui_footer_slots_standard(
+                layout,
+                slot_count,
+                self._state,
+                Action.CONFIRM,
+                Action.CANCEL,
+                True,
+                "NAV",
+                "SELECT",
+                "CANCEL"
+            )
+        if self._overlay == self._OVERLAY_NEW_GAME_SEED:
+            return ui_footer_slots_standard(
+                layout,
+                slot_count,
+                self._state,
+                Action.CONFIRM,
+                Action.CANCEL,
+                True,
+                "EDIT",
+                "SAVE",
+                "CANCEL"
+            )
         if self._overlay == self._OVERLAY_CONTROLS:
             return ui_footer_slots_standard(
                 layout,
@@ -967,19 +1269,24 @@ class MainMenuScene:
     def _overlay_footer_nav_enabled(self, layout: OverlayLayout) -> bool:
         if self._overlay == self._OVERLAY_CONTROLS:
             return True
+        if self._overlay == self._OVERLAY_NEW_GAME_SETUP:
+            return True
+        if self._overlay == self._OVERLAY_NEW_GAME_SEED:
+            return True
         if self._overlay == self._OVERLAY_NONE:
             return False
         lines = self._overlay_body_lines_for(self._overlay)
         return self._overlay_max_scroll(lines, layout) > 0
 
-    def _overlay_max_chars_per_line(self, layout: OverlayLayout | None = None) -> int:
+    def _overlay_max_line_width_px(self, layout: OverlayLayout | None = None) -> int:
         if layout is None:
             layout = self._overlay_layout()
         box_w = ui_overlay_layout_int(layout, "box_w", 200)
-        chars = int((box_w - self._OVERLAY_BODY_X_PAD * 2) / 6)
-        if chars < 8:
-            return 8
-        return chars
+        # Body text starts at left pad and can use almost all remaining modal width.
+        line_w = box_w - self._OVERLAY_BODY_X_PAD - 2
+        if line_w < 24:
+            return 24
+        return line_w
 
     def _overlay_visible_lines(self, layout: OverlayLayout | None = None) -> int:
         if layout is None:
@@ -1002,7 +1309,7 @@ class MainMenuScene:
         lines: list[str],
         layout: OverlayLayout | None = None
     ) -> list[str]:
-        max_chars = self._overlay_max_chars_per_line(layout)
+        max_px = self._overlay_max_line_width_px(layout)
         out: list[str] = []
         i = 0
         while i < len(lines):
@@ -1011,25 +1318,65 @@ class MainMenuScene:
                 out.append("")
                 i += 1
                 continue
-            rest = raw
-            while len(rest) > max_chars:
-                cut = max_chars
-                probe = cut
-                while probe > 0 and rest[probe - 1] != " ":
-                    probe -= 1
-                if probe < int(max_chars * 0.55):
-                    probe = cut
-                part = rest[:probe]
-                part = part.strip()
-                if part == "":
-                    part = rest[:cut]
-                    probe = cut
-                out.append(part)
-                rest = rest[probe:]
-                rest = rest.lstrip()
-            out.append(rest)
+            words = raw.split(" ")
+            line_text = ""
+            wi = 0
+            while wi < len(words):
+                word = words[wi].strip()
+                wi += 1
+                if word == "":
+                    continue
+                if line_text == "":
+                    if text_width(word) <= max_px:
+                        line_text = word
+                        continue
+                    parts = self._overlay_wrap_long_word(word, max_px)
+                    pi = 0
+                    while pi < len(parts):
+                        out.append(parts[pi])
+                        pi += 1
+                    continue
+                trial = line_text + " " + word
+                if text_width(trial) <= max_px:
+                    line_text = trial
+                    continue
+                out.append(line_text)
+                line_text = ""
+                wi -= 1
+            if line_text != "":
+                out.append(line_text)
             i += 1
         return out
+
+    def _overlay_wrap_long_word(self, word: str, max_px: int) -> list[str]:
+        parts: list[str] = []
+        rest = str(word)
+        while rest != "":
+            cut = self._overlay_fit_prefix_chars(rest, max_px)
+            if cut <= 0:
+                cut = 1
+            parts.append(rest[:cut])
+            rest = rest[cut:]
+        return parts
+
+    @staticmethod
+    def _overlay_fit_prefix_chars(text: str, max_px: int) -> int:
+        if text == "":
+            return 0
+        max_w = int(max_px)
+        if max_w < 1:
+            max_w = 1
+        i = 1
+        last_fit = 0
+        n = len(text)
+        while i <= n:
+            if text_width(text[:i]) > max_w:
+                break
+            last_fit = i
+            i += 1
+        if last_fit <= 0:
+            return 1
+        return int(last_fit)
 
     def _overlay_max_scroll(
         self,
@@ -1244,6 +1591,137 @@ class MainMenuScene:
 
     def _draw_new_game_overlay(self) -> None:
         self._draw_overlay_box("CONFIRM RESET", self._new_game_overlay_lines())
+
+    def _draw_new_game_setup_overlay(self) -> None:
+        layout = self._overlay_layout()
+        slots, keyboard_active, button_bg_color = self._overlay_footer_state(
+            layout)
+        x, _y, w, _h, body_top, _footer_line_y, _footer_text_y = ui_overlay_screen_draw(
+            self._ui,
+            layout,
+            "NEW GAME SETUP",
+            [],
+            slots,
+            keyboard_active,
+            body_line_step=self._OVERLAY_BODY_LINE_STEP,
+            button_bg_color=button_bg_color
+        )
+        body_x = x + self._OVERLAY_BODY_X_PAD
+        row_step = 8
+        self._draw_new_game_setup_row(
+            body_x,
+            body_top,
+            "DIFFICULTY:",
+            drive_preset_label(self._new_game_preset_draft),
+            self._NEW_GAME_ROW_DIFFICULTY
+        )
+        self._draw_new_game_setup_row(
+            body_x,
+            body_top + row_step,
+            "CONTROL MODE:",
+            self._new_game_mode_label(),
+            self._NEW_GAME_ROW_MODE
+        )
+        self._draw_new_game_setup_row(
+            body_x,
+            body_top + row_step * 2,
+            "SEED:",
+            self._new_game_seed_display(),
+            self._NEW_GAME_ROW_SEED
+        )
+        self._draw_new_game_setup_row(
+            body_x,
+            body_top + row_step * 3,
+            "START:",
+            "START GAME",
+            self._NEW_GAME_ROW_START
+        )
+        info = self._overlay_wrap_lines(
+            self._new_game_setup_info_lines(), layout)
+        info_y = body_top + row_step * 5
+        i = 0
+        while i < len(info):
+            print(info[i], body_x, info_y, Color.GREY)
+            info_y += row_step
+            i += 1
+            if i >= 2:
+                break
+
+    def _draw_new_game_setup_row(
+        self,
+        x: int,
+        y: int,
+        label: str,
+        value: str,
+        row_id: int
+    ) -> None:
+        selected = self._new_game_focus_row == row_id
+        if selected:
+            rect(x - 1, y - 1, 184, 8, Color.DARK_GREY)
+        label_color = Color.LIGHT_GREY
+        value_color = Color.WHITE
+        if selected:
+            label_color = Color.YELLOW
+            value_color = Color.YELLOW
+        print(label, x, y, label_color)
+        value_x = text_right_x(value, x + 180, 6, x + 72)
+        print(value, value_x, y, value_color, fixed=True)
+
+    def _new_game_seed_display(self) -> str:
+        return self._new_game_seed_text
+
+    def _draw_new_game_seed_overlay(self) -> None:
+        layout = self._overlay_layout()
+        slots, keyboard_active, button_bg_color = self._overlay_footer_state(
+            layout)
+        x, _y, _w, _h, body_top, footer_line_y, footer_text_y = ui_overlay_screen_draw(
+            self._ui,
+            layout,
+            "SEED EDITOR",
+            [],
+            slots,
+            keyboard_active,
+            body_line_step=self._OVERLAY_BODY_LINE_STEP,
+            button_bg_color=button_bg_color
+        )
+        body_x = x + self._OVERLAY_BODY_X_PAD
+        seed_x = body_x + 36
+        print("SEED:", body_x, body_top, Color.LIGHT_GREY)
+        self._draw_new_game_seed_value(seed_x, body_top)
+        random_hint = ui_prompt_with_text(
+            ui_prompt_for_action(self._state, Action.SECONDARY),
+            "RANDOM"
+        )
+        ui_rich_print(random_hint, seed_x, body_top +
+                      10, Color.LIGHT_GREY, fixed=True)
+
+    def _draw_new_game_seed_value(self, x: int, y: int) -> None:
+        seed = self._new_game_seed_text
+        if seed == "":
+            return
+        idx = self._new_game_seed_cursor_index()
+        cell_x = x + idx * 6
+        rect(cell_x - 1, y - 1, 7, 8, Color.BLACK)
+        print(seed, x, y, Color.WHITE, fixed=True)
+        print(seed[idx], cell_x, y, Color.YELLOW, fixed=True)
+        line(cell_x, y + 6, cell_x + 5, y + 6, Color.YELLOW)
+
+    def _new_game_seed_cursor_index(self) -> int:
+        seed = self._new_game_seed_text
+        if seed == "":
+            return 0
+        idx = self._new_game_seed_cursor
+        if idx < 0:
+            return 0
+        if idx >= len(seed):
+            return len(seed) - 1
+        return int(idx)
+
+    @staticmethod
+    def _new_game_setup_info_lines() -> list[str]:
+        return [
+            "CONTROL MODE and DIFFICULTY", "can be changed later in OPTIONS",
+        ]
 
     def _controls_overlay_lines(self) -> tuple[list[str], list[int]]:
         menu_nav = ui_prompt_with_text(
