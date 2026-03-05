@@ -7,24 +7,34 @@ if TYPE_CHECKING:
     from ..core.controls.actions import Action
     from ..core.palette import Color
     from ..core.scene_ids import SceneId
-    from ..core.ui.overlay_flow import (
-        ui_overlay_flow_confirm_cancel,
-        ui_overlay_flow_single_action
-    )
     from ..core.text_layout import text_center_x, text_width
+    from ..core.ui.action_bar import (
+        ui_action_bar_build_standard,
+        ui_action_bar_make_mouse_states,
+        ui_action_bar_reset_mouse_states,
+        ui_action_bar_rows_draw_with_style,
+        ui_action_bar_rows_poll_release_with_style,
+        ui_action_bar_style_merge,
+        ui_action_bar_style_with_panel,
+        ui_action_bar_style_with_border
+    )
     from ..core.ui.meter import (
         ui_meter_draw_bar,
         ui_meter_draw_labeled,
         ui_meter_fill_ratio
     )
+    from ..core.ui.overlay_flow import (
+        ui_overlay_flow_confirm_cancel,
+        ui_overlay_flow_single_action
+    )
     from ..core.ui.overlay_runtime import UiOverlayRuntime
     from ..core.ui.overlay_screen import ui_overlay_screen_draw
     from ..core.ui.overlay_theme import ui_overlay_theme_warning
-    from ..core.ui.panel import ui_panel_draw, ui_panel_draw_split_actions
-    from ..core.ui.prompts import ui_prompt_for_action
-    from ..core.ui.prompts import ui_prompt_with_text
-    from ..core.ui.rich_text import ui_rich_print, ui_rich_text_center_x
+    from ..core.ui.panel import ui_panel_draw
+    from ..core.ui.prompts import ui_prompt_for_action, ui_prompt_with_text
     from ..data.tuning import TUNING
+
+
 class GarageScene:
     SCENE_ID = SceneId.GARAGE
     RETURN_HEADER_OPTIONS = [
@@ -61,13 +71,65 @@ class GarageScene:
         MODAL_HEADER_TEXT_OFFSET_Y,
         MODAL_BODY_TOP_OFFSET_Y
     )
+    ACTION_BAR_PANEL_X = 8
+    ACTION_BAR_PANEL_Y = 94
+    ACTION_BAR_PANEL_W = 224
+    ACTION_BAR_ROW_GAP = 1
+    ACTION_BAR_PANEL_PAD_Y = 1
+    ACTION_BAR_ROW_SPECS = (
+        (2, (1, 1)),
+        (1, (1,))
+    )
+    ACTION_BAR_PANEL_H, ACTION_BAR_LAYOUTS = ui_action_bar_build_standard(
+        ACTION_BAR_PANEL_X,
+        ACTION_BAR_PANEL_Y,
+        ACTION_BAR_PANEL_W,
+        ACTION_BAR_ROW_SPECS,
+        row_gap=ACTION_BAR_ROW_GAP,
+        pad_y=ACTION_BAR_PANEL_PAD_Y
+    )
+    ACTION_BAR_STYLE_BASE = ui_action_bar_style_merge(
+        {
+            "button_bg_color": Color.BLACK,
+            "divider_color": Color.GREY,
+            "footer_line_color": Color.GREY,
+            "slot_text_color": Color.LIGHT_GREY,
+            "slot_active_bg_color": Color.DARK_BLUE,
+            "slot_hover_bg_color": Color.DARK_GREY,
+            "slot_active_text_color": Color.WHITE,
+            "slot_hover_text_color": Color.WHITE
+        }
+    )
+    ACTION_BAR_STYLE_BASE = ui_action_bar_style_with_panel(
+        ACTION_BAR_STYLE_BASE,
+        ACTION_BAR_PANEL_X,
+        ACTION_BAR_PANEL_Y,
+        ACTION_BAR_PANEL_W,
+        ACTION_BAR_PANEL_H,
+        panel_outer_color=Color.BLACK,
+        panel_inner_color=Color.BLACK,
+        panel_border_outset=0
+    )
+    ACTION_BAR_STYLE_HOME = ui_action_bar_style_with_border(
+        ACTION_BAR_STYLE_BASE,
+        Color.GREY
+    )
+    ACTION_BAR_STYLE_SERVICE = ui_action_bar_style_with_border(
+        ACTION_BAR_STYLE_BASE,
+        Color.LIGHT_BLUE
+    )
 
     def __init__(self, nav: SceneNavigator) -> None:
         self._nav = nav
         self._state = nav.state
         self._ui = UiOverlayRuntime()
         self._profile = nav.state.profile
-        self._confirm_new_game = False
+        self._action_row_mouse = ui_action_bar_make_mouse_states(
+            len(self.ACTION_BAR_LAYOUTS)
+        )
+        self._confirm_main_menu = False
+        self._service_open = False
+        self._upgrades_modal_open = False
         self._rollback_modal_open = False
         self._rollback_modal_reason = ""
         self._rollback_modal_gain = 0
@@ -77,15 +139,26 @@ class GarageScene:
     def enter(self, params: SceneEnterParams = None) -> None:
         self._ui.sync_actions(
             self._state.controls,
-            [Action.CONFIRM, Action.CANCEL, Action.SECONDARY, Action.HELP]
+            [
+                Action.CONFIRM,
+                Action.CANCEL,
+                Action.SECONDARY,
+                Action.HELP
+            ]
         )
         self._ui.reset_footer()
-        self._confirm_new_game = False
+        self._reset_action_bar_mouse()
+        self._confirm_main_menu = False
+        self._service_open = False
+        self._upgrades_modal_open = False
         reason, gain = self._state.consume_rollback_notice()
         self._rollback_modal_open = reason is not None
         self._rollback_modal_reason = "" if reason is None else str(reason)
         self._rollback_modal_gain = int(gain)
         self._pick_header_text()
+
+    def _reset_action_bar_mouse(self) -> None:
+        ui_action_bar_reset_mouse_states(self._action_row_mouse)
 
     def _pick_header_text(self) -> None:
         if self._state.seed_counter <= 0:
@@ -228,32 +301,74 @@ class GarageScene:
         )
         print(str(theseus), 208, 81, Color.WHITE)
 
-    def _draw_secondary_actions(self) -> None:
-        repair_cost = int(TUNING.PROFILE.repair_cost)
-        left_label = "REPAIR (-" + str(repair_cost) + " SCRAP)"
-        left = ui_prompt_with_text(ui_prompt_for_action(self._state, Action.SECONDARY), left_label)
-        right = ui_prompt_with_text(ui_prompt_for_action(self._state, Action.HELP), "NEW GAME")
-        ui_panel_draw_split_actions(
-            8,
-            103,
-            224,
-            14,
-            left,
-            right,
-            Color.GREY,
-            Color.WHITE,
-            Color.BLACK,
-            Color.BLACK,
-            left_width=140,
-            left_text_color=Color.YELLOW,
-            right_text_color=Color.ORANGE
-        )
+    def _home_action_slots_top(self) -> list[str]:
+        return [
+            ui_prompt_with_text(ui_prompt_for_action(
+                self._state, Action.SECONDARY), "SERVICE"),
+            ui_prompt_with_text(ui_prompt_for_action(
+                self._state, Action.HELP), "MAIN MENU")
+        ]
 
-    def _draw_start_cta(self) -> None:
-        # Prompts live on black panels for consistent contrast with glyph sprites.
-        ui_panel_draw(6, 119, 228, 14, Color.WHITE, Color.BLACK, Color.BLACK)
-        text = ui_prompt_with_text(ui_prompt_for_action(self._state, Action.CONFIRM), "START RUN")
-        ui_rich_print(text, ui_rich_text_center_x(text, margin_x=6), 124, Color.WHITE)
+    def _home_action_slots_bottom(self) -> list[str]:
+        return [
+            ui_prompt_with_text(ui_prompt_for_action(
+                self._state, Action.CONFIRM), "NEXT RUN")
+        ]
+
+    def _service_action_slots_top(self) -> list[str]:
+        return [
+            ui_prompt_with_text(ui_prompt_for_action(
+                self._state, Action.SECONDARY), "REPAIR"),
+            ui_prompt_with_text(ui_prompt_for_action(
+                self._state, Action.HELP), "UPGRADES")
+        ]
+
+    def _service_action_slots_bottom(self) -> list[str]:
+        return [
+            ui_prompt_with_text(ui_prompt_for_action(
+                self._state, Action.CANCEL), "BACK")
+        ]
+
+    def _active_action_slots_rows(self) -> list[list[str]]:
+        if self._service_open:
+            return [
+                self._service_action_slots_top(),
+                self._service_action_slots_bottom()
+            ]
+        return [
+            self._home_action_slots_top(),
+            self._home_action_slots_bottom()
+        ]
+
+    def _active_action_keyboard_rows(self) -> list[list[bool]]:
+        top = [
+            self._state.controls.down(Action.SECONDARY),
+            self._state.controls.down(Action.HELP)
+        ]
+        if self._service_open:
+            return [
+                top,
+                [self._state.controls.down(Action.CANCEL)]
+            ]
+        return [
+            top,
+            [self._state.controls.down(Action.CONFIRM)]
+        ]
+
+    def _draw_action_bar(self) -> None:
+        slot_rows = self._active_action_slots_rows()
+        keyboard_rows = self._active_action_keyboard_rows()
+        style = self.ACTION_BAR_STYLE_HOME
+        if self._service_open:
+            style = self.ACTION_BAR_STYLE_SERVICE
+        ui_action_bar_rows_draw_with_style(
+            self.ACTION_BAR_LAYOUTS,
+            slot_rows,
+            keyboard_rows,
+            self._ui.mouse,
+            self._action_row_mouse,
+            style
+        )
 
     def _draw_rollback_popup(self) -> None:
         if not self._rollback_modal_open:
@@ -282,23 +397,23 @@ class GarageScene:
             body_line_step=10
         )
 
-    def _draw_new_game_confirm(self) -> None:
+    def _draw_main_menu_confirm(self) -> None:
         layout, slots, _slot_confirm, _slot_cancel = ui_overlay_flow_confirm_cancel(
             self.MODAL_LAYOUT_SPEC,
             self._state,
             Action.CONFIRM,
             Action.CANCEL,
-            "CONFIRM RESET",
+            "EXIT MENU",
             "CANCEL"
         )
         body_lines: list[tuple[str, int]] = [
-            ("START NEW GAME?", Color.WHITE),
-            ("THIS RESETS PROFILE PROGRESS", Color.LIGHT_GREY)
+            ("RETURN TO MAIN MENU?", Color.WHITE),
+            ("CURRENT RUN SESSION WILL END", Color.LIGHT_GREY)
         ]
         ui_overlay_screen_draw(
             self._ui,
             layout,
-            "CONFIRM RESET",
+            "EXIT GARAGE",
             body_lines,
             slots,
             [
@@ -308,11 +423,37 @@ class GarageScene:
             body_line_step=10
         )
 
+    def _draw_upgrades_modal(self) -> None:
+        if not self._upgrades_modal_open:
+            return
+        layout, slots, _slot_confirm = ui_overlay_flow_single_action(
+            self.MODAL_LAYOUT_SPEC,
+            self._state,
+            Action.CANCEL,
+            "CLOSE"
+        )
+        body_lines: list[tuple[str, int]] = [
+            ("UPGRADES ARE NOT IMPLEMENTED YET", Color.LIGHT_GREY),
+            ("COMING SOON", Color.YELLOW)
+        ]
+        ui_overlay_screen_draw(
+            self._ui,
+            layout,
+            "UPGRADES",
+            body_lines,
+            slots,
+            [self._state.controls.down(Action.CANCEL)],
+            body_line_step=10
+        )
+
     def update(self, dt: float) -> None:
         self._ui.poll_mouse()
-        confirm_released = self._ui.poll_action(self._state.controls, Action.CONFIRM)
-        cancel_released = self._ui.poll_action(self._state.controls, Action.CANCEL)
-        secondary_released = self._ui.poll_action(self._state.controls, Action.SECONDARY)
+        confirm_released = self._ui.poll_action(
+            self._state.controls, Action.CONFIRM)
+        cancel_released = self._ui.poll_action(
+            self._state.controls, Action.CANCEL)
+        secondary_released = self._ui.poll_action(
+            self._state.controls, Action.SECONDARY)
         help_released = self._ui.poll_action(self._state.controls, Action.HELP)
 
         if self._rollback_modal_open:
@@ -328,40 +469,88 @@ class GarageScene:
                 self._ui.reset_footer()
             return
 
-        if self._confirm_new_game:
+        if self._upgrades_modal_open:
+            layout, slots, slot_confirm = ui_overlay_flow_single_action(
+                self.MODAL_LAYOUT_SPEC,
+                self._state,
+                Action.CANCEL,
+                "CLOSE"
+            )
+            released_slot = self._ui.poll_footer_release(layout, slots)
+            if cancel_released or confirm_released or released_slot == slot_confirm:
+                self._upgrades_modal_open = False
+                self._ui.reset_footer()
+                self._reset_action_bar_mouse()
+            return
+
+        if self._confirm_main_menu:
             layout, slots, slot_confirm, slot_cancel = ui_overlay_flow_confirm_cancel(
                 self.MODAL_LAYOUT_SPEC,
                 self._state,
                 Action.CONFIRM,
                 Action.CANCEL,
-                "CONFIRM RESET",
+                "EXIT MENU",
                 "CANCEL"
             )
             released_slot = self._ui.poll_footer_release(layout, slots)
             if confirm_released or released_slot == slot_confirm:
-                self._state.start_new_game()
-                self._confirm_new_game = False
-                self._pick_header_text()
+                self._confirm_main_menu = False
                 self._ui.reset_footer()
+                self._reset_action_bar_mouse()
+                self._nav.go(SceneId.MAIN_MENU)
             elif cancel_released or released_slot == slot_cancel:
-                self._confirm_new_game = False
+                self._confirm_main_menu = False
                 self._ui.reset_footer()
+                self._reset_action_bar_mouse()
             return
 
-        self._ui.reset_footer()
-        if confirm_released:
+        slot_rows = self._active_action_slots_rows()
+        released_rows = ui_action_bar_rows_poll_release_with_style(
+            self.ACTION_BAR_LAYOUTS,
+            slot_rows,
+            self._ui.mouse,
+            self._action_row_mouse,
+            self.ACTION_BAR_STYLE_BASE
+        )
+        released_top = -1
+        released_bottom = -1
+        if len(released_rows) > 0:
+            released_top = int(released_rows[0])
+        if len(released_rows) > 1:
+            released_bottom = int(released_rows[1])
+
+        if self._service_open:
+            if secondary_released or released_top == 0:
+                repaired = self._profile.repair(
+                    TUNING.PROFILE.repair_cost,
+                    TUNING.PROFILE.repair_hp,
+                    TUNING.PROFILE.start_garage_hp
+                )
+                if repaired:
+                    self._state.save_profile()
+                return
+            if help_released or released_top == 1:
+                self._upgrades_modal_open = True
+                self._ui.reset_footer()
+                self._reset_action_bar_mouse()
+                return
+            if cancel_released or released_bottom == 0:
+                self._service_open = False
+                self._ui.reset_footer()
+                self._reset_action_bar_mouse()
+                return
+
+        if confirm_released or released_bottom == 0:
             self._state.start_run()
             self._nav.go(SceneId.REGION_MAP)
-        elif secondary_released:
-            repaired = self._profile.repair(
-                TUNING.PROFILE.repair_cost,
-                TUNING.PROFILE.repair_hp,
-                TUNING.PROFILE.start_garage_hp
-            )
-            if repaired:
-                self._state.save_profile()
-        elif help_released:
-            self._confirm_new_game = True
+        elif secondary_released or released_top == 0:
+            self._service_open = True
+            self._ui.reset_footer()
+            self._reset_action_bar_mouse()
+        elif help_released or released_top == 1:
+            self._confirm_main_menu = True
+            self._ui.reset_footer()
+            self._reset_action_bar_mouse()
 
     def draw(self) -> None:
         cls(Color.BLACK)
@@ -369,11 +558,11 @@ class GarageScene:
         self._draw_header()
         self._draw_vehicle_panel()
         self._draw_theseus_panel()
-        self._draw_secondary_actions()
-        self._draw_start_cta()
+        self._draw_action_bar()
         self._draw_rollback_popup()
-        if self._confirm_new_game:
-            self._draw_new_game_confirm()
+        if self._confirm_main_menu:
+            self._draw_main_menu_confirm()
+        self._draw_upgrades_modal()
 
     def exit(self) -> None:
         pass

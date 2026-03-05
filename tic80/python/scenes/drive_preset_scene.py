@@ -100,7 +100,7 @@ class DrivePhysicsPreset:
         drive_overrides: list[tuple[str, float]],
         pursuer_overrides: list[tuple[str, float]] | None = None
     ) -> None:
-        self.option_id = drive_preset_clamp(int(option_id))
+        self.option_id: DrivePresetId = drive_preset_clamp(int(option_id))
         self.name = name
         self.label = label
         self.drive_overrides = drive_overrides
@@ -304,7 +304,7 @@ class DrivePresetScene:
         diffs = self._engine.apply_preset(preset)
         if diffs is None:
             return False
-        self._state.set_drive_preset_id(preset.option_id)
+        self._state.set_drive_preset_id(drive_preset_clamp(int(preset.option_id)))
         self._state.save_options()
         trace("drive preset: " + preset.name)
         if len(diffs) == 0:

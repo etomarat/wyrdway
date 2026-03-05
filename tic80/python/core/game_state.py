@@ -288,7 +288,13 @@ class GameState:
         data = self._save.load_options()
         if data is None:
             return
-        self._input_device_mode = data.input_device_mode
+        mode = int(data.input_device_mode)
+        if mode == int(InputDeviceMode.GAMEPAD):
+            self._input_device_mode = InputDeviceMode.GAMEPAD
+        elif mode == int(InputDeviceMode.KEYBOARD):
+            self._input_device_mode = InputDeviceMode.KEYBOARD
+        else:
+            self._input_device_mode = InputDeviceMode.BOTH
         self._prompt_show_shoulders = bool(data.show_shoulders)
         self._vibration_enabled = bool(data.vibration_enabled)
         self._drive_preset_id = drive_preset_clamp(int(data.drive_preset_id))

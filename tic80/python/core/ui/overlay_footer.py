@@ -21,7 +21,7 @@ def ui_overlay_footer_draw(
     footer_text_y: int,
     button_bg_color: int = -1,
     divider_color: int = -1,
-    footer_line_color: int = -1,
+    footer_line_color: int | None = -1,
     slot_text_color: int = -1,
     slot_active_bg_color: int = -1,
     slot_hover_bg_color: int = -1,
@@ -32,7 +32,10 @@ def ui_overlay_footer_draw(
         button_bg_color = Color.BLACK
     if divider_color < 0:
         divider_color = Color.GREY
-    if footer_line_color < 0:
+    draw_footer_line = True
+    if footer_line_color is None:
+        draw_footer_line = False
+    elif footer_line_color < 0:
         footer_line_color = Color.GREY
     if slot_text_color < 0:
         slot_text_color = Color.LIGHT_GREY
@@ -47,7 +50,16 @@ def ui_overlay_footer_draw(
 
     x = ui_overlay_layout_int(layout, "box_x", 20)
     w = ui_overlay_layout_int(layout, "box_w", 200)
-    line(x + 4, footer_line_y, x + w - 5, footer_line_y, footer_line_color)
+    pad_x = ui_overlay_layout_int(layout, "footer_pad_x", 4)
+    if pad_x < 0:
+        pad_x = 0
+    max_pad = int((w - 1) * 0.5)
+    if max_pad < 0:
+        max_pad = 0
+    if pad_x > max_pad:
+        pad_x = max_pad
+    if draw_footer_line and footer_line_color is not None:
+        line(x + pad_x, footer_line_y, x + w - 1 - pad_x, footer_line_y, footer_line_color)
     slot_count = len(slots)
     slot_starts, slot_ends, button_bg_y, button_bg_h = ui_overlay_footer_slot_geometry(
         layout,

@@ -180,8 +180,20 @@ def ui_overlay_footer_slot_geometry(
     footer_line_y: int,
     footer_text_y: int
 ) -> tuple[list[int], list[int], int, int]:
-    inner_x = ui_overlay_layout_int(layout, "box_x", 20) + 4
-    inner_w = ui_overlay_layout_int(layout, "box_w", 200) - 8
+    box_x = ui_overlay_layout_int(layout, "box_x", 20)
+    box_w = ui_overlay_layout_int(layout, "box_w", 200)
+    pad_x = ui_overlay_layout_int(layout, "footer_pad_x", 4)
+    if pad_x < 0:
+        pad_x = 0
+    max_pad = int((box_w - 1) * 0.5)
+    if max_pad < 0:
+        max_pad = 0
+    if pad_x > max_pad:
+        pad_x = max_pad
+    inner_x = box_x + pad_x
+    inner_w = box_w - pad_x * 2
+    if inner_w < 1:
+        inner_w = 1
     weights = ui_overlay_layout_slot_weights(layout, slot_count)
     total_weight = 0
     i = 0
