@@ -12,16 +12,12 @@ if TYPE_CHECKING:
         ui_footer_slot_indices
     )
     from ..core.ui.modal_spec import (
-        UiModalFooterSpec,
-        UiModalNavMode,
         UiModalSpec,
         ui_modal_footer_slots,
         ui_modal_keyboard_active,
         ui_modal_nav_enabled
     )
     from ..core.ui.overlay_layout import (
-        FOOTER_PAD_PROFILE_DEFAULT,
-        FOOTER_PAD_PROFILE_INVERTED,
         OverlayLayout,
         ui_overlay_footer_positions,
         ui_overlay_layout_int,
@@ -31,56 +27,22 @@ if TYPE_CHECKING:
     from ..core.ui.overlay_screen import ui_overlay_screen_draw
     from ..core.version import game_version_label
     from .main_menu_overlays import (
-        MainMenuControlsOverlayFlow,
+        MAIN_MENU_OVERLAY_CONTROLS,
+        MAIN_MENU_OVERLAY_CREDITS,
+        MAIN_MENU_OVERLAY_NEW_GAME_CONFIRM,
+        MAIN_MENU_OVERLAY_NEW_GAME_SEED,
+        MAIN_MENU_OVERLAY_NEW_GAME_SETUP,
+        MAIN_MENU_OVERLAY_NONE,
+        MainMenuOverlayDef,
         MainMenuNewGameFlow,
-        MainMenuNewGameSeedOverlayFlow,
-        MainMenuNewGameSetupOverlayFlow,
         MainMenuOverlayFlow,
-        MainMenuSimpleOverlayFlow
+        build_main_menu_overlay_defs,
+        main_menu_overlay_default_layout
     )
     from .drive.pursuer_text_bank import PursuerTextBank
     from .main_menu_backdrop import MainMenuBackdrop, make_main_menu_backdrop
 else:
     OverlayLayout = dict
-
-
-def _menu_overlay_layout(
-    box_x: int,
-    box_y: int,
-    box_w: int,
-    box_h: int,
-    header_text_y: int,
-    body_top: int,
-    slot_count: int,
-    slot_weights: tuple[int, ...],
-    slot_nav: int,
-    slot_confirm: int,
-    slot_cancel: int,
-    footer_pad_profile: int,
-    footer_line_gap: int = 4,
-    footer_bg_color: int = 0,
-    footer_button_top_pad: int = -1
-) -> OverlayLayout:
-    layout: OverlayLayout = {
-        "box_x": int(box_x),
-        "box_y": int(box_y),
-        "box_w": int(box_w),
-        "box_h": int(box_h),
-        "header_text_y": int(header_text_y),
-        "body_top": int(body_top),
-        "footer_pad_profile": int(footer_pad_profile),
-        "footer_line_gap": int(footer_line_gap),
-        "footer_bg_color": int(footer_bg_color),
-        "slot_count": int(slot_count),
-        "slot_weights": slot_weights,
-        "slot_nav": int(slot_nav),
-        "slot_confirm": int(slot_confirm),
-        "slot_cancel": int(slot_cancel)
-    }
-    if footer_button_top_pad >= 0:
-        layout["footer_button_top_pad"] = int(footer_button_top_pad)
-    return layout
-
 
 class MainMenuScene:
     SCENE_ID = SceneId.MAIN_MENU
@@ -106,163 +68,14 @@ class MainMenuScene:
         (_ITEM_CREDITS, "CREDITS")
     ]
 
-    _OVERLAY_NONE = 0
-    _OVERLAY_CONTROLS = 1
-    _OVERLAY_CREDITS = 2
-    _OVERLAY_NEW_GAME_CONFIRM = 3
-    _OVERLAY_NEW_GAME_SETUP = 4
-    _OVERLAY_NEW_GAME_SEED = 5
+    _OVERLAY_NONE = MAIN_MENU_OVERLAY_NONE
+    _OVERLAY_CONTROLS = MAIN_MENU_OVERLAY_CONTROLS
+    _OVERLAY_CREDITS = MAIN_MENU_OVERLAY_CREDITS
+    _OVERLAY_NEW_GAME_CONFIRM = MAIN_MENU_OVERLAY_NEW_GAME_CONFIRM
+    _OVERLAY_NEW_GAME_SETUP = MAIN_MENU_OVERLAY_NEW_GAME_SETUP
+    _OVERLAY_NEW_GAME_SEED = MAIN_MENU_OVERLAY_NEW_GAME_SEED
     _OVERLAY_BODY_X_PAD = 8
     _OVERLAY_BODY_LINE_STEP = 8
-    _OVERLAY_LAYOUT_DEFAULT: OverlayLayout = _menu_overlay_layout(
-        20,
-        28,
-        200,
-        90,
-        37,
-        54,
-        4,
-        (1, 1, 1, 1),
-        0,
-        2,
-        3,
-        FOOTER_PAD_PROFILE_DEFAULT
-    )
-    _OVERLAY_LAYOUTS: dict[int, OverlayLayout] = {
-        _OVERLAY_CONTROLS: _menu_overlay_layout(
-            4,
-            4,
-            232,
-            130,
-            13,
-            25,
-            3,
-            (1, 1, 1),
-            0,
-            1,
-            2,
-            FOOTER_PAD_PROFILE_INVERTED,
-            footer_button_top_pad=2
-        ),
-        _OVERLAY_CREDITS: _menu_overlay_layout(
-            20,
-            28,
-            200,
-            90,
-            37,
-            54,
-            4,
-            (1, 1, 1, 1),
-            0,
-            2,
-            3,
-            FOOTER_PAD_PROFILE_DEFAULT
-        ),
-        _OVERLAY_NEW_GAME_CONFIRM: _menu_overlay_layout(
-            20,
-            28,
-            200,
-            90,
-            37,
-            54,
-            2,
-            (1, 1),
-            0,
-            0,
-            1,
-            FOOTER_PAD_PROFILE_DEFAULT
-        ),
-        _OVERLAY_NEW_GAME_SETUP: _menu_overlay_layout(
-            20,
-            20,
-            200,
-            98,
-            30,
-            44,
-            3,
-            (1, 1, 1),
-            0,
-            1,
-            2,
-            FOOTER_PAD_PROFILE_DEFAULT
-        ),
-        _OVERLAY_NEW_GAME_SEED: _menu_overlay_layout(
-            20,
-            24,
-            200,
-            90,
-            34,
-            50,
-            3,
-            (1, 1, 1),
-            0,
-            1,
-            2,
-            FOOTER_PAD_PROFILE_DEFAULT
-        )
-    }
-    _OVERLAY_SPECS: dict[int, UiModalSpec] = {
-        _OVERLAY_CONTROLS: UiModalSpec(
-            "OPTIONS",
-            _OVERLAY_LAYOUTS[_OVERLAY_CONTROLS],
-            UiModalFooterSpec(
-                Action.CONFIRM,
-                Action.CANCEL,
-                UiModalNavMode.ALWAYS,
-                "NAV",
-                "SAVE",
-                "CANCEL"
-            )
-        ),
-        _OVERLAY_CREDITS: UiModalSpec(
-            "CREDITS",
-            _OVERLAY_LAYOUTS[_OVERLAY_CREDITS],
-            UiModalFooterSpec(
-                Action.CONFIRM,
-                Action.CANCEL,
-                UiModalNavMode.SCROLL,
-                "NAV",
-                "",
-                "CLOSE"
-            )
-        ),
-        _OVERLAY_NEW_GAME_CONFIRM: UiModalSpec(
-            "CONFIRM RESET",
-            _OVERLAY_LAYOUTS[_OVERLAY_NEW_GAME_CONFIRM],
-            UiModalFooterSpec(
-                Action.CONFIRM,
-                Action.CANCEL,
-                UiModalNavMode.NEVER,
-                "",
-                "CONFIRM",
-                "CANCEL"
-            )
-        ),
-        _OVERLAY_NEW_GAME_SETUP: UiModalSpec(
-            "NEW GAME SETUP",
-            _OVERLAY_LAYOUTS[_OVERLAY_NEW_GAME_SETUP],
-            UiModalFooterSpec(
-                Action.CONFIRM,
-                Action.CANCEL,
-                UiModalNavMode.ALWAYS,
-                "NAV",
-                "SELECT",
-                "CANCEL"
-            )
-        ),
-        _OVERLAY_NEW_GAME_SEED: UiModalSpec(
-            "SEED EDITOR",
-            _OVERLAY_LAYOUTS[_OVERLAY_NEW_GAME_SEED],
-            UiModalFooterSpec(
-                Action.CONFIRM,
-                Action.CANCEL,
-                UiModalNavMode.ALWAYS,
-                "EDIT",
-                "SAVE",
-                "CANCEL"
-            )
-        )
-    }
     _WATCH_PULSE_SECONDS = 4.8
     _WATCH_GLITCH_SECONDS = 0.18
     _WATCH_ERROR_HOLD_SECONDS = 0.18
@@ -296,46 +109,20 @@ class MainMenuScene:
         self._watch_error_t = 0.0
         self._watch_error_text = ""
         self._watch_rec_t = 0.0
-        self._controls_overlay_flow = MainMenuControlsOverlayFlow(self._state)
         self._new_game_flow = MainMenuNewGameFlow(
             self._state.input_device_mode,
             self._state.drive_preset_id
         )
-        self._new_game_setup_overlay_flow = MainMenuNewGameSetupOverlayFlow(
-            self._new_game_flow,
-            self._OVERLAY_NEW_GAME_SEED
+        self._overlay_defs: dict[int, MainMenuOverlayDef] = (
+            build_main_menu_overlay_defs(self._state, self._new_game_flow)
         )
-        self._new_game_seed_overlay_flow = MainMenuNewGameSeedOverlayFlow(
-            self._new_game_flow
-        )
-        self._credits_overlay_flow = MainMenuSimpleOverlayFlow(
-            [
-                "WYRDWAY",
-                "A GAME BY MARAT AZIZOV",
-                "",
-                "DESIGN / CODE / ART",
-                "ETOMARAT",
-                "",
-                "THANKS FOR PLAYING"
-            ]
-        )
-        self._new_game_confirm_overlay_flow = MainMenuSimpleOverlayFlow(
-            [
-                "START NEW GAME?",
-                "CURRENT PROFILE PROGRESS",
-                "WILL BE RESET",
-                "",
-                "THIS CANNOT BE UNDONE"
-            ],
-            self._OVERLAY_NEW_GAME_SETUP
-        )
-        self._overlay_flows: dict[int, MainMenuOverlayFlow] = {
-            self._OVERLAY_CONTROLS: self._controls_overlay_flow,
-            self._OVERLAY_CREDITS: self._credits_overlay_flow,
-            self._OVERLAY_NEW_GAME_CONFIRM: self._new_game_confirm_overlay_flow,
-            self._OVERLAY_NEW_GAME_SETUP: self._new_game_setup_overlay_flow,
-            self._OVERLAY_NEW_GAME_SEED: self._new_game_seed_overlay_flow
-        }
+        self._overlay_specs: dict[int, UiModalSpec] = {}
+        self._overlay_flows: dict[int, MainMenuOverlayFlow] = {}
+        for overlay_id in self._overlay_defs:
+            overlay_def = self._overlay_defs[overlay_id]
+            self._overlay_specs[int(overlay_id)] = overlay_def.spec
+            self._overlay_flows[int(overlay_id)] = overlay_def.flow
+        self._overlay_layout_default = main_menu_overlay_default_layout()
 
     def enter(self, params: SceneEnterParams = None) -> None:
         self._selected = 0
@@ -345,7 +132,6 @@ class MainMenuScene:
         self._menu_mouse_down_index = -1
         self._ui.reset_footer()
         self._reset_menu_input_latches()
-        self._controls_overlay_flow.reset_draft()
         self._reset_overlay_input_latches()
         self._backdrop.enter()
         self._watch_seed = (0x13579BDF ^ (
@@ -357,7 +143,6 @@ class MainMenuScene:
         self._watch_error_t = 0.0
         self._watch_error_text = ""
         self._watch_rec_t = 0.0
-        self._reset_new_game_setup_draft()
 
     def update(self, dt: float) -> None:
         self._poll_mouse_state()
@@ -405,12 +190,6 @@ class MainMenuScene:
 
     def _has_continue(self) -> bool:
         return bool(self._state.profile_loaded)
-
-    def _reset_new_game_setup_draft(self) -> None:
-        self._new_game_flow.reset_draft(
-            self._state.input_device_mode,
-            self._state.drive_preset_id
-        )
 
     def _update_overlay_input(self) -> None:
         nav_up_released, nav_down_released, nav_left_released, nav_right_released, confirm_released, cancel_released = self._poll_overlay_release_events()
@@ -873,7 +652,12 @@ class MainMenuScene:
             self._OVERLAY_BODY_LINE_STEP
         )
 
-    def _draw_overlay_box(self, title: str, lines: list[str]) -> None:
+    def _draw_overlay_box(
+        self,
+        title: str,
+        lines: list[str],
+        line_colors: list[int] | None = None
+    ) -> None:
         layout = self._overlay_layout()
         slots, keyboard_active, button_bg_color = self._overlay_footer_state(
             layout)
@@ -887,7 +671,11 @@ class MainMenuScene:
             body_line_step=self._OVERLAY_BODY_LINE_STEP,
             button_bg_color=button_bg_color
         )
-        wrapped = self._overlay_wrap_lines(lines, layout)
+        wrapped, wrapped_colors = self._overlay_wrap_lines_with_colors(
+            lines,
+            line_colors,
+            layout
+        )
         self._clamp_overlay_scroll(lines, layout)
         visible_lines = self._overlay_visible_lines(layout)
         max_scroll = self._overlay_max_scroll(lines, layout)
@@ -898,7 +686,7 @@ class MainMenuScene:
             src_i = self._overlay_scroll + i
             if src_i >= len(wrapped):
                 break
-            print(wrapped[src_i], body_x, draw_y, Color.LIGHT_GREY)
+            print(wrapped[src_i], body_x, draw_y, wrapped_colors[src_i])
             draw_y += self._OVERLAY_BODY_LINE_STEP
             i += 1
         if max_scroll > 0:
@@ -925,7 +713,7 @@ class MainMenuScene:
         target = self._overlay
         if overlay_id is not None:
             target = int(overlay_id)
-        return self._OVERLAY_SPECS.get(int(target))
+        return self._overlay_specs.get(int(target))
 
     def _overlay_title(self, fallback: str) -> str:
         spec = self._overlay_spec()
@@ -936,7 +724,7 @@ class MainMenuScene:
     def _overlay_layout(self) -> OverlayLayout:
         spec = self._overlay_spec()
         if spec is None:
-            return self._OVERLAY_LAYOUT_DEFAULT
+            return self._overlay_layout_default
         return spec.layout
 
     def _overlay_scrollable(self, overlay_id: int, layout: OverlayLayout) -> bool:
@@ -1040,6 +828,60 @@ class MainMenuScene:
                 out.append(line_text)
             i += 1
         return out
+
+    def _overlay_wrap_lines_with_colors(
+        self,
+        lines: list[str],
+        line_colors: list[int] | None,
+        layout: OverlayLayout | None = None
+    ) -> tuple[list[str], list[int]]:
+        default_color = int(Color.LIGHT_GREY)
+        wrapped_lines: list[str] = []
+        wrapped_colors: list[int] = []
+        max_px = self._overlay_max_line_width_px(layout)
+        i = 0
+        while i < len(lines):
+            raw = str(lines[i])
+            color = default_color
+            if line_colors is not None and i < len(line_colors):
+                color = int(line_colors[i])
+            if raw == "":
+                wrapped_lines.append("")
+                wrapped_colors.append(color)
+                i += 1
+                continue
+            words = raw.split(" ")
+            line_text = ""
+            wi = 0
+            while wi < len(words):
+                word = words[wi].strip()
+                wi += 1
+                if word == "":
+                    continue
+                if line_text == "":
+                    if text_width(word) <= max_px:
+                        line_text = word
+                        continue
+                    parts = self._overlay_wrap_long_word(word, max_px)
+                    pi = 0
+                    while pi < len(parts):
+                        wrapped_lines.append(parts[pi])
+                        wrapped_colors.append(color)
+                        pi += 1
+                    continue
+                trial = line_text + " " + word
+                if text_width(trial) <= max_px:
+                    line_text = trial
+                    continue
+                wrapped_lines.append(line_text)
+                wrapped_colors.append(color)
+                line_text = ""
+                wi -= 1
+            if line_text != "":
+                wrapped_lines.append(line_text)
+                wrapped_colors.append(color)
+            i += 1
+        return wrapped_lines, wrapped_colors
 
     def _overlay_wrap_long_word(self, word: str, max_px: int) -> list[str]:
         parts: list[str] = []

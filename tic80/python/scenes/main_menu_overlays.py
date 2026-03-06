@@ -10,6 +10,7 @@ if TYPE_CHECKING:
         seed_text_max_len
     )
     from ..core.controls.actions import Action
+    from ..core.controls.modes import InputDeviceMode, InputDeviceModeId
     from ..core.controls.prompts import (
         PromptGlyph,
         filter_prompt_glyphs,
@@ -17,14 +18,18 @@ if TYPE_CHECKING:
         prompt_glyphs_for_action,
         prompt_glyphs_for_nav_hint
     )
-    from ..core.controls.modes import InputDeviceMode, InputDeviceModeId
     from ..core.drive_presets import (
         DrivePresetId,
         drive_preset_cycle,
         drive_preset_label
     )
+    from ..core.game_state import GameState
     from ..core.palette import Color
-    from ..core.text_layout import text_right_x
+    from ..core.ui.modal_spec import (
+        UiModalFooterSpec,
+        UiModalNavMode,
+        UiModalSpec
+    )
     from ..core.ui.options_bindings_table import ui_options_bindings_table_draw
     from ..core.ui.options_overlay_state import UiOptionsOverlayState
     from ..core.ui.options_settings import (
@@ -32,7 +37,11 @@ if TYPE_CHECKING:
         ui_options_settings_draw,
         ui_options_settings_row_at
     )
-    from ..core.ui.overlay_layout import OverlayLayout
+    from ..core.ui.overlay_layout import (
+        FOOTER_PAD_PROFILE_DEFAULT,
+        FOOTER_PAD_PROFILE_INVERTED,
+        OverlayLayout
+    )
     from ..core.ui.overlay_screen import ui_overlay_screen_draw
     from ..core.ui.overlay_theme import ui_overlay_theme_inverted
     from ..core.ui.prompts import (
@@ -40,9 +49,71 @@ if TYPE_CHECKING:
         ui_prompt_gap_join,
         ui_prompt_with_text
     )
-    from ..core.ui.rich_text import ui_rich_print
-    from ..core.game_state import GameState
+    from ..core.ui.rich_text import ui_rich_print, ui_rich_text_width
     from .main_menu_scene import MainMenuScene
+
+
+MAIN_MENU_OVERLAY_NONE = 0
+MAIN_MENU_OVERLAY_CONTROLS = 1
+MAIN_MENU_OVERLAY_CREDITS = 2
+MAIN_MENU_OVERLAY_NEW_GAME_CONFIRM = 3
+MAIN_MENU_OVERLAY_NEW_GAME_SETUP = 4
+MAIN_MENU_OVERLAY_NEW_GAME_SEED = 5
+
+
+def _menu_overlay_layout(
+    box_x: int,
+    box_y: int,
+    box_w: int,
+    box_h: int,
+    header_text_y: int,
+    body_top: int,
+    slot_count: int,
+    slot_weights: tuple[int, ...],
+    slot_nav: int,
+    slot_confirm: int,
+    slot_cancel: int,
+    footer_pad_profile: int,
+    footer_line_gap: int = 4,
+    footer_bg_color: int = 0,
+    footer_button_top_pad: int = -1
+) -> OverlayLayout:
+    layout: OverlayLayout = {
+        "box_x": int(box_x),
+        "box_y": int(box_y),
+        "box_w": int(box_w),
+        "box_h": int(box_h),
+        "header_text_y": int(header_text_y),
+        "body_top": int(body_top),
+        "footer_pad_profile": int(footer_pad_profile),
+        "footer_line_gap": int(footer_line_gap),
+        "footer_bg_color": int(footer_bg_color),
+        "slot_count": int(slot_count),
+        "slot_weights": slot_weights,
+        "slot_nav": int(slot_nav),
+        "slot_confirm": int(slot_confirm),
+        "slot_cancel": int(slot_cancel)
+    }
+    if footer_button_top_pad >= 0:
+        layout["footer_button_top_pad"] = int(footer_button_top_pad)
+    return layout
+
+
+def main_menu_overlay_default_layout() -> OverlayLayout:
+    return _menu_overlay_layout(
+        20,
+        28,
+        200,
+        90,
+        37,
+        54,
+        4,
+        (1, 1, 1, 1),
+        0,
+        2,
+        3,
+        FOOTER_PAD_PROFILE_DEFAULT
+    )
 
 
 class MainMenuOverlayFlow:
@@ -71,6 +142,16 @@ class MainMenuOverlayFlow:
 
     def draw(self, scene: MainMenuScene, body_x_pad: int, body_line_step: int) -> None:
         return
+
+
+class MainMenuOverlayDef:
+    def __init__(
+        self,
+        spec: UiModalSpec,
+        flow: MainMenuOverlayFlow
+    ) -> None:
+        self.spec = spec
+        self.flow = flow
 
 
 class MainMenuNewGameFlow:
@@ -121,14 +202,15 @@ class MainMenuNewGameFlow:
     def mode_label(self) -> str:
         mode = int(self.mode_draft)
         if mode == int(InputDeviceMode.KEYBOARD):
-            return "KEYBOARD+mouse"
+            return "KEYBOARD"
         if mode == int(InputDeviceMode.GAMEPAD):
             return "GAMEPAD"
-        return "KEYBOARD|GAMEPAD"
+        return "DUAL INPUT"
 
     def setup_rows(self) -> list[tuple[str, str, int]]:
         return [
-            ("DIFFICULTY:", drive_preset_label(self.preset_draft), self.ROW_DIFFICULTY),
+            ("DIFFICULTY:", drive_preset_label(
+                self.preset_draft), self.ROW_DIFFICULTY),
             ("CONTROL MODE:", self.mode_label(), self.ROW_MODE),
             ("SEED:", self.seed_text, self.ROW_SEED),
             ("START:", "START GAME", self.ROW_START)
@@ -159,7 +241,8 @@ class MainMenuNewGameFlow:
             if nav_left_released:
                 self.preset_draft = drive_preset_cycle(self.preset_draft, True)
             elif nav_right_released:
-                self.preset_draft = drive_preset_cycle(self.preset_draft, False)
+                self.preset_draft = drive_preset_cycle(
+                    self.preset_draft, False)
         elif self.focus_row == self.ROW_MODE:
             if nav_left_released:
                 self._cycle_mode(True)
@@ -309,12 +392,21 @@ class MainMenuNewGameFlow:
         )
         body_x = x + body_x_pad
         row_step = 8
+        left_arrow = self._setup_nav_arrow(scene, Action.NAV_LEFT)
+        right_arrow = self._setup_nav_arrow(scene, Action.NAV_RIGHT)
         rows = self.setup_rows()
         i = 0
         while i < len(rows):
             label, value, row_id = rows[i]
-            self._draw_setup_row(body_x, body_top + row_step * i,
-                                 label, value, row_id)
+            self._draw_setup_row(
+                body_x,
+                body_top + row_step * i,
+                label,
+                value,
+                row_id,
+                left_arrow,
+                right_arrow
+            )
             i += 1
         info = scene._overlay_wrap_lines(self.info_lines(), layout)
         info_y = body_top + row_step * 5
@@ -427,19 +519,44 @@ class MainMenuNewGameFlow:
         y: int,
         label: str,
         value: str,
-        row_id: int
+        row_id: int,
+        left_arrow: str,
+        right_arrow: str
     ) -> None:
         selected = self.focus_row == row_id
         if selected:
-            rect(x - 1, y - 1, 184, 8, Color.DARK_GREY)
+            rect(x - 1, y - 2, 184, 9, Color.BLACK)
         label_color = Color.LIGHT_GREY
         value_color = Color.WHITE
         if selected:
             label_color = Color.YELLOW
             value_color = Color.YELLOW
         print(label, x, y, label_color)
-        value_x = text_right_x(value, x + 180, 6, x + 72)
+        show_adjust_hints = (
+            selected
+            and row_id != self.ROW_SEED
+            and row_id != self.ROW_START
+            and left_arrow != ""
+            and right_arrow != ""
+        )
+        left_w = ui_rich_text_width(left_arrow)
+        right_w = ui_rich_text_width(right_arrow)
+        left_gap = ui_rich_text_width("{gap}")
+        right_gap = ui_rich_text_width("{gap}")
+        right_gap_comp = -1
+        left_reserve = left_w + left_gap
+        right_reserve = right_w + right_gap
+        value_w = self._mono_text_width(value)
+        value_x = x + 180 - right_reserve + right_gap_comp - value_w
+        min_value_x = x + 72 + left_reserve
+        if value_x < min_value_x:
+            value_x = min_value_x
         print(value, value_x, y, value_color, fixed=True)
+        if show_adjust_hints:
+            left_x = value_x - left_reserve
+            right_x = value_x + value_w + right_gap + right_gap_comp
+            ui_rich_print(left_arrow, left_x, y, value_color, fixed=True)
+            ui_rich_print(right_arrow, right_x, y, value_color, fixed=True)
 
     def _draw_seed_value(self, x: int, y: int) -> None:
         seed = self.seed_text
@@ -451,6 +568,16 @@ class MainMenuNewGameFlow:
         print(seed, x, y, Color.WHITE, fixed=True)
         print(seed[idx], cell_x, y, Color.YELLOW, fixed=True)
         line(cell_x, y + 6, cell_x + 5, y + 6, Color.YELLOW)
+
+    def _setup_nav_arrow(self, scene: MainMenuScene, action_id: int) -> str:
+        glyphs = prompt_glyphs_for_action(action_id, self.mode_draft)
+        if len(glyphs) <= 0:
+            return ""
+        return format_prompt([glyphs[0]], scene._state.prompt_glyph_detail)
+
+    @staticmethod
+    def _mono_text_width(text: str) -> int:
+        return len(str(text)) * 6
 
 
 class MainMenuNewGameSetupOverlayFlow(MainMenuOverlayFlow):
@@ -666,7 +793,8 @@ class MainMenuControlsOverlayFlow(MainMenuOverlayFlow):
                 self._options.focus_row = down_row
                 if down_dir != 0:
                     if self._options.setting_enabled(down_row):
-                        self._options.apply_setting_change(down_row, down_dir > 0)
+                        self._options.apply_setting_change(
+                            down_row, down_dir > 0)
                     return
                 self._options.apply_setting_change(down_row, True)
             return
@@ -912,7 +1040,7 @@ class MainMenuControlsOverlayFlow(MainMenuOverlayFlow):
         return ui_prompt_gap_join([left, right])
 
     def _keyboard_nav_arrow(self, action_id: int) -> str:
-        glyphs = prompt_glyphs_for_action(action_id, InputDeviceMode.KEYBOARD)
+        glyphs = prompt_glyphs_for_action(action_id, self._options.mode_draft)
         if len(glyphs) <= 0:
             return ""
         return format_prompt([glyphs[0]], self._state.prompt_glyph_detail)
@@ -922,9 +1050,17 @@ class MainMenuControlsOverlayFlow(MainMenuOverlayFlow):
 
 
 class MainMenuSimpleOverlayFlow(MainMenuOverlayFlow):
-    def __init__(self, lines: list[str], confirm_open_overlay: int = -1) -> None:
+    def __init__(
+        self,
+        lines: list[str],
+        confirm_open_overlay: int = -1,
+        line_colors: list[int] | None = None
+    ) -> None:
         self._lines = list(lines)
         self._confirm_open_overlay = int(confirm_open_overlay)
+        self._line_colors: list[int] | None = None
+        if line_colors is not None:
+            self._line_colors = list(line_colors)
 
     def body_lines(self) -> list[str]:
         return list(self._lines)
@@ -964,5 +1100,203 @@ class MainMenuSimpleOverlayFlow(MainMenuOverlayFlow):
     def draw(self, scene: MainMenuScene, body_x_pad: int, body_line_step: int) -> None:
         scene._draw_overlay_box(
             scene._overlay_title(""),
-            self._lines
+            self._lines,
+            self._line_colors
         )
+
+
+def build_main_menu_overlay_defs(
+    state: GameState,
+    new_game_flow: MainMenuNewGameFlow
+) -> dict[int, MainMenuOverlayDef]:
+    controls_flow = MainMenuControlsOverlayFlow(state)
+    credits_flow = MainMenuSimpleOverlayFlow(
+        [
+            "Wyrdway",
+            "A game by @etomarat",
+            "",
+            "Want to appear here?",
+            "Leave feedback at itch.io page:",
+            "https://etomarat.itch.io/wyrdway",
+            "",
+            "Playtesters:",
+            "Skellybob56",
+            "14zy",
+            "plasticlife-art",
+            "",
+            "Thanks for playing!"
+        ],
+        line_colors=[
+            Color.WHITE,
+            Color.LIGHT_GREY,
+            Color.LIGHT_GREY,
+            Color.WHITE,
+            Color.WHITE,
+            Color.YELLOW,
+            Color.LIGHT_GREY,
+            Color.WHITE,
+            Color.LIGHT_GREY,
+            Color.LIGHT_GREY,
+            Color.LIGHT_GREY,
+            Color.LIGHT_GREY,
+            Color.WHITE
+        ]
+    )
+    new_game_confirm_flow = MainMenuSimpleOverlayFlow(
+        [
+            "START NEW GAME?",
+            "CURRENT PROFILE PROGRESS",
+            "WILL BE RESET",
+            "",
+            "THIS CANNOT BE UNDONE"
+        ],
+        MAIN_MENU_OVERLAY_NEW_GAME_SETUP
+    )
+    new_game_setup_flow = MainMenuNewGameSetupOverlayFlow(
+        new_game_flow,
+        MAIN_MENU_OVERLAY_NEW_GAME_SEED
+    )
+    new_game_seed_flow = MainMenuNewGameSeedOverlayFlow(new_game_flow)
+    return {
+        MAIN_MENU_OVERLAY_CONTROLS: MainMenuOverlayDef(
+            UiModalSpec(
+                "OPTIONS",
+                _menu_overlay_layout(
+                    4,
+                    4,
+                    232,
+                    130,
+                    13,
+                    25,
+                    3,
+                    (1, 1, 1),
+                    0,
+                    1,
+                    2,
+                    FOOTER_PAD_PROFILE_INVERTED,
+                    footer_button_top_pad=2
+                ),
+                UiModalFooterSpec(
+                    Action.CONFIRM,
+                    Action.CANCEL,
+                    UiModalNavMode.ALWAYS,
+                    "NAV",
+                    "SAVE",
+                    "CANCEL"
+                )
+            ),
+            controls_flow
+        ),
+        MAIN_MENU_OVERLAY_CREDITS: MainMenuOverlayDef(
+            UiModalSpec(
+                "CREDITS",
+                _menu_overlay_layout(
+                    16,
+                    20,
+                    208,
+                    106,
+                    30,
+                    44,
+                    2,
+                    (1, 1),
+                    0,
+                    1,
+                    1,
+                    FOOTER_PAD_PROFILE_DEFAULT
+                ),
+                UiModalFooterSpec(
+                    Action.CONFIRM,
+                    Action.CANCEL,
+                    UiModalNavMode.ALWAYS,
+                    "NAV",
+                    "",
+                    "CLOSE"
+                )
+            ),
+            credits_flow
+        ),
+        MAIN_MENU_OVERLAY_NEW_GAME_CONFIRM: MainMenuOverlayDef(
+            UiModalSpec(
+                "CONFIRM RESET",
+                _menu_overlay_layout(
+                    20,
+                    28,
+                    200,
+                    90,
+                    37,
+                    54,
+                    2,
+                    (1, 1),
+                    0,
+                    0,
+                    1,
+                    FOOTER_PAD_PROFILE_DEFAULT
+                ),
+                UiModalFooterSpec(
+                    Action.CONFIRM,
+                    Action.CANCEL,
+                    UiModalNavMode.NEVER,
+                    "",
+                    "CONFIRM",
+                    "CANCEL"
+                )
+            ),
+            new_game_confirm_flow
+        ),
+        MAIN_MENU_OVERLAY_NEW_GAME_SETUP: MainMenuOverlayDef(
+            UiModalSpec(
+                "NEW GAME SETUP",
+                _menu_overlay_layout(
+                    20,
+                    20,
+                    200,
+                    98,
+                    30,
+                    44,
+                    3,
+                    (1, 1, 1),
+                    0,
+                    1,
+                    2,
+                    FOOTER_PAD_PROFILE_DEFAULT
+                ),
+                UiModalFooterSpec(
+                    Action.CONFIRM,
+                    Action.CANCEL,
+                    UiModalNavMode.ALWAYS,
+                    "NAV",
+                    "SELECT",
+                    "CANCEL"
+                )
+            ),
+            new_game_setup_flow
+        ),
+        MAIN_MENU_OVERLAY_NEW_GAME_SEED: MainMenuOverlayDef(
+            UiModalSpec(
+                "SEED EDITOR",
+                _menu_overlay_layout(
+                    20,
+                    24,
+                    200,
+                    90,
+                    34,
+                    50,
+                    3,
+                    (1, 1, 1),
+                    0,
+                    1,
+                    2,
+                    FOOTER_PAD_PROFILE_DEFAULT
+                ),
+                UiModalFooterSpec(
+                    Action.CONFIRM,
+                    Action.CANCEL,
+                    UiModalNavMode.ALWAYS,
+                    "EDIT",
+                    "SAVE",
+                    "CANCEL"
+                )
+            ),
+            new_game_seed_flow
+        )
+    }

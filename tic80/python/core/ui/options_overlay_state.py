@@ -56,10 +56,10 @@ class UiOptionsOverlayState:
 
     def input_mode_label(self) -> str:
         if self.mode_draft == self._MODE_KEYBOARD:
-            return "KEYBOARD+mouse"
+            return "KEYBOARD"
         if self.mode_draft == self._MODE_GAMEPAD:
             return "GAMEPAD"
-        return "KEYBOARD|GAMEPAD"
+        return "DUAL INPUT"
 
     def setting_label(self, row: int) -> str:
         if row == self._ROW_MODE:
