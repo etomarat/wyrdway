@@ -68,6 +68,7 @@ class DriveScene:
     def enter(self, params: SceneEnterParams = None) -> None:
         if not isinstance(params, DriveEnterParams):
             raise TypeError("DriveScene.enter expects DriveEnterParams")
+        self._state.clear_drive_feedback()
         self._pursuer_archetype = create_active_pursuer_archetype()
         self._mode = params.mode
         self._evacuated = False
@@ -136,7 +137,9 @@ class DriveScene:
 
         allow_dash = not self._logic.finished()
         inp = read_drive_input(self._state.controls, allow_dash)
+        was_offroad = self._logic.offroad
         self._logic.update(dt, inp.steer, inp.throttle, inp.brake, inp.handbrake, inp.dash_pressed)
+        self._update_offroad_transition_haptics(was_offroad)
         z_after = zone_at_hitboxes(self._logic, zones)
         self._active_zone = z_after if z_after is not None else z_before
 
@@ -181,7 +184,26 @@ class DriveScene:
         objects = self._objects
         if road is None or logic is None or objects is None:
             return
-        apply_obstacle_hits(run, road, logic, objects, TUNING, self._renderer.notify_obstacle_hit)
+        apply_obstacle_hits(run, road, logic, objects, TUNING, self._notify_obstacle_hit)
+
+    def _notify_obstacle_hit(
+        self,
+        contact_wx: float,
+        contact_wy: float,
+        normal_x: float,
+        normal_y: float,
+        impact: float,
+        hitbox_radius: float
+    ) -> None:
+        self._renderer.notify_obstacle_hit(
+            contact_wx,
+            contact_wy,
+            normal_x,
+            normal_y,
+            impact,
+            hitbox_radius
+        )
+        self._state.vibe_obstacle_hit(impact)
 
     def _boost_pushback_event(self, z_before: DriveZone | None, z_after: DriveZone | None) -> bool:
         if z_before is not None or z_after is None:
@@ -189,6 +211,18 @@ class DriveScene:
         if TUNING.DRIVE.zone_boost_forward_accel <= 0.0 and TUNING.DRIVE.zone_boost_center_accel <= 0.0:
             return False
         return True
+
+    def _update_offroad_transition_haptics(self, was_offroad: bool) -> None:
+        logic = self._logic
+        if logic is None:
+            return
+        if was_offroad or not logic.offroad:
+            return
+        max_speed = float(TUNING.DRIVE.max_speed)
+        speed_n = 0.0
+        if max_speed > 0.0:
+            speed_n = float(logic.speed) / max_speed
+        self._state.vibe_offroad_transition(speed_n)
 
     def _append_popup(self, text: str, color: int) -> None:
         self._popups.append(_DrivePopup(text, color))
@@ -252,6 +286,7 @@ class DriveScene:
         if strike_delta.scrap_loss > 0 or fuel_loss > 0 or hp_loss > 0:
             intensity = float(self._pursuer_archetype.profile.strike_shake_intensity)
             self._renderer.notify_pursuer_strike(intensity, self._pursuer_archetype.variant_id)
+            self._state.vibe_pursuer_strike(hp_loss, intensity)
             if hp_loss > 0:
                 self._renderer.notify_pursuer_hp_strike_fx(logic, hp_loss, intensity)
             self._append_strike_popups(strike_delta, fuel_loss, hp_loss)
@@ -297,6 +332,13 @@ class DriveScene:
             strike_flash,
             screen_glitch_active
         )
+        self._state.vibe_drive_feedback(
+            self._drive_gravel_strength(logic),
+            self._renderer.exhaust_strength(),
+            self._drive_drift_strength(logic)
+        )
+        if self._renderer.consume_start_move_event():
+            self._state.vibe_burnout_start()
         if self._pursuer.active:
             # FX погони (виньетка/шум) рисуем ПОД HUD.
             self._pursuer_screen_fx.draw(
@@ -362,15 +404,60 @@ class DriveScene:
             i += 1
 
     def exit(self) -> None:
-        pass
+        self._state.clear_drive_feedback()
 
     def _evacuate(self, reason: str) -> None:
         self._evacuated = True
+        self._state.vibe_run_failed()
         if self._telemetry is not None:
             self._telemetry.dump("rollback fail " + reason)
         chase_contact = self._mode == "extract"
         self._state.rollback_to_last_save(reason, chase_contact)
         self._nav.go(SceneId.RESULT, ResultEnterParams("RUN FAILED"))
+
+    @staticmethod
+    def _drive_gravel_strength(logic: DriveLogic) -> float:
+        if not logic.offroad:
+            return 0.0
+        speed_n = float(logic.dbg_speed_factor)
+        if speed_n <= 0.08:
+            return 0.0
+        strength = (speed_n - 0.08) / 0.40
+        if strength <= 0.0:
+            return 0.0
+        if strength >= 1.0:
+            return 1.0
+        return float(strength)
+
+    @staticmethod
+    def _drive_drift_strength(logic: DriveLogic) -> float:
+        min_speed = float(TUNING.DRIVE.skid_min_speed)
+        speed = float(logic.speed)
+        if speed <= min_speed:
+            return 0.0
+        denom = abs(logic.v_forward) + TUNING.DRIVE.slip_eps_speed
+        slip = abs(logic.v_side) / denom
+        if slip > 1.0:
+            slip = 1.0
+        slip_threshold = float(TUNING.DRIVE.skid_slip_threshold)
+        drift_n = (slip - slip_threshold) / 0.55
+        if drift_n <= 0.0 and logic.dbg_handbrake_decel <= 0.0:
+            return 0.0
+        speed_n = (speed - min_speed) / 28.0
+        if speed_n <= 0.0:
+            return 0.0
+        if speed_n >= 1.0:
+            speed_n = 1.0
+        if drift_n <= 0.0:
+            drift_n = 0.0
+        elif drift_n >= 1.0:
+            drift_n = 1.0
+        if logic.dbg_handbrake_decel > 0.0 and drift_n < 0.38:
+            drift_n = 0.38
+        strength = drift_n * speed_n
+        if strength >= 1.0:
+            return 1.0
+        return float(strength)
 
 
 def make_drive_scene(nav: SceneNavigator) -> DriveScene:

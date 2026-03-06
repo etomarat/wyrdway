@@ -190,6 +190,82 @@ class GameState:
         self._haptics.play_engine_startup()
         return True
 
+    def vibe_ui_confirm(self) -> bool:
+        if not self.vibration_allowed():
+            return False
+        self._haptics.ui_confirm()
+        return True
+
+    def vibe_ui_fail(self) -> bool:
+        if not self.vibration_allowed():
+            return False
+        self._haptics.ui_fail()
+        return True
+
+    def vibe_pickup(self) -> bool:
+        if not self.vibration_allowed():
+            return False
+        self._haptics.pickup()
+        return True
+
+    def vibe_begin_return(self) -> bool:
+        if not self.vibration_allowed():
+            return False
+        self._haptics.begin_return()
+        return True
+
+    def vibe_repair(self) -> bool:
+        if not self.vibration_allowed():
+            return False
+        self._haptics.repair()
+        return True
+
+    def vibe_burnout_start(self) -> bool:
+        if not self.vibration_allowed():
+            return False
+        self._haptics.burnout_start()
+        return True
+
+    def vibe_offroad_transition(self, speed_n: float) -> bool:
+        if not self.vibration_allowed():
+            return False
+        self._haptics.offroad_transition(speed_n)
+        return True
+
+    def vibe_drive_feedback(self, gravel: float, engine: float, drift: float) -> bool:
+        if not self.vibration_allowed():
+            self._haptics.clear_drive_feedback()
+            return False
+        self._haptics.set_drive_feedback(gravel, engine, drift)
+        return True
+
+    def clear_drive_feedback(self) -> None:
+        self._haptics.clear_drive_feedback()
+
+    def vibe_obstacle_hit(self, impact: float) -> bool:
+        if not self.vibration_allowed():
+            return False
+        self._haptics.obstacle_hit(impact)
+        return True
+
+    def vibe_pursuer_strike(self, hp_loss: int, intensity: float) -> bool:
+        if not self.vibration_allowed():
+            return False
+        self._haptics.pursuer_strike(hp_loss, intensity)
+        return True
+
+    def vibe_run_failed(self) -> bool:
+        if not self.vibration_allowed():
+            return False
+        self._haptics.run_failed()
+        return True
+
+    def vibe_return_success(self) -> bool:
+        if not self.vibration_allowed():
+            return False
+        self._haptics.return_success()
+        return True
+
     @property
     def options_shoulders_configured(self) -> bool:
         return bool(self._options_shoulders_configured)

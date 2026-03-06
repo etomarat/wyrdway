@@ -32,7 +32,7 @@ TUNING.DRIVE.slip_eps_speed = 5.0
 # - порогов ручника и т.п.
 #
 # Жёсткий предохранитель скорости задаётся отдельно: `speed_cap`.
-TUNING.DRIVE.max_speed = 100.0
+TUNING.DRIVE.max_speed = 110.0
 
 # speed_cap — жёсткий предохранитель v_forward (чтобы симуляция не улетала).
 #

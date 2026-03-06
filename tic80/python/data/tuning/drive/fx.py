@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 # - skid_life_frames: длина хвоста (сколько кадров живёт сегмент)
 # - skid_slant_scale / skid_slant_max: насколько сильно наклоняем след по v_side
 TUNING.DRIVE.skid_slip_threshold = 0.25
-TUNING.DRIVE.skid_min_speed = 5.0
+TUNING.DRIVE.skid_min_speed = 50.0
 TUNING.DRIVE.skid_back_px = 12.0
 TUNING.DRIVE.skid_wheel_dx_px = 6.0
 TUNING.DRIVE.skid_seg_len_px = 8.0

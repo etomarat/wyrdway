@@ -204,6 +204,7 @@ class ResultScene:
                 poi_action = str(delta.poi_action)
 
         self._build_run_report_layout(poi_action, delivered_scrap, fuel_recovered)
+        self._state.vibe_return_success()
 
     def update(self, dt: float) -> None:
         self._ui.poll_mouse()

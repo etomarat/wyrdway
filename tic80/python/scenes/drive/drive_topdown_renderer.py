@@ -61,6 +61,7 @@ class DriveTopdownRenderer:
         self._pursuer_text_overlay = PursuerTextOverlay(self._pursuer_text_bank)
         self._camera = TopdownCameraRig()
         self._pursuer_anim_t = 0.0
+        self._start_move_event = False
 
     def notify_obstacle_hit(
         self,
@@ -123,6 +124,15 @@ class DriveTopdownRenderer:
             impact,
             hit_r
         )
+
+    def exhaust_strength(self) -> float:
+        return float(self._fx_overlay.exhaust_strength())
+
+    def consume_start_move_event(self) -> bool:
+        if not self._start_move_event:
+            return False
+        self._start_move_event = False
+        return True
 
     def draw(
         self,
@@ -211,6 +221,7 @@ class DriveTopdownRenderer:
 
         # FX/следы лучше рисовать ДО машины, чтобы кузов перекрывал их.
         start_move = self._fx_overlay.update(road, logic, proj, pose)
+        self._start_move_event = start_move
         if start_move:
             self._skid_marks.trigger_start(float(TUNING.DRIVE.start_skid_seconds))
         self._skid_marks.update_and_draw(

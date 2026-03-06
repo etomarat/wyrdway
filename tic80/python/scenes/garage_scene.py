@@ -491,6 +491,7 @@ class GarageScene:
                     TUNING.PROFILE.start_garage_hp
                 )
                 if repaired:
+                    self._state.vibe_repair()
                     self._state.save_profile()
                 return
             if help_released or released_top == 1:
@@ -505,6 +506,7 @@ class GarageScene:
                 return
 
         if confirm_released or released_bottom == 0:
+            self._state.vibe_ui_confirm()
             self._state.start_run()
             self._nav.go(SceneId.REGION_MAP)
         elif secondary_released or released_top == 0:
@@ -515,6 +517,7 @@ class GarageScene:
             self._state.save_profile()
             self._ui.reset_footer()
             self._reset_action_bar_mouse()
+            self._state.vibe_ui_confirm()
             self._nav.go(SceneId.MAIN_MENU)
 
     def draw(self) -> None:

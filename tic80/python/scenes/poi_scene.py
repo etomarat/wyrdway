@@ -79,11 +79,13 @@ class PoiScene:
         if go_result:
             if message is None:
                 message = "POI FAILED"
+            self._state.vibe_run_failed()
             self._state.rollback_to_last_save(message, False)
             self._nav.go(SceneId.RESULT, ResultEnterParams("RUN FAILED"))
             return
 
         run.ensure_return_from_active_outbound()
+        self._state.vibe_begin_return()
         self._nav.go(SceneId.DRIVE, DriveEnterParams("extract"))
 
     def _start_leave_summary(self) -> None:
@@ -111,6 +113,10 @@ class PoiScene:
                 run.add_fuel(self._loot_fuel)
                 delta.add_fuel_gained(self._loot_fuel)
 
+        if self._loot_scrap > 0 or self._loot_fuel > 0:
+            self._state.vibe_pickup()
+        else:
+            self._state.vibe_ui_confirm()
         self._mode = self.MODE_LOOT_SUMMARY
 
     def _interact_lines(self) -> list[tuple[str, int]]:

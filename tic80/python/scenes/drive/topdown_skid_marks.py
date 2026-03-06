@@ -41,12 +41,13 @@ class TopdownSkidMarks:
         min_speed = float(TUNING.DRIVE.skid_min_speed)
         if skid_min_speed is not None:
             min_speed = float(skid_min_speed)
+        moving_fast_enough = logic.speed > min_speed
 
         # Порог чуть выше нуля, чтобы не рисовать “дрожь” на прямой.
-        active = slip > slip_threshold
+        active = moving_fast_enough and slip > slip_threshold
         if not active:
             # Ручник сам по себе тоже должен оставлять следы, если мы реально движемся.
-            if logic.speed > min_speed and logic.dbg_handbrake_decel > 0.0:
+            if moving_fast_enough and logic.dbg_handbrake_decel > 0.0:
                 active = True
         if reverse:
             active = False
@@ -56,7 +57,7 @@ class TopdownSkidMarks:
             self._start_skid_t -= dt
             if self._start_skid_t < 0.0:
                 self._start_skid_t = 0.0
-            if not reverse and (not active) and logic.speed > min_speed:
+            if not reverse and (not active) and moving_fast_enough:
                 active = True
 
         i = 0
