@@ -32,6 +32,18 @@ def btnp(id: int, hold: int = -1, period: int = -1) -> bool:
     ...
 
 
+def rumble(
+    gamepad: int = 0,
+    weak: int = 0,
+    strong: int = 0,
+    duration: int = 120
+) -> bool:
+    """Запросить вибрацию геймпада.
+
+    Returns `True` if the backend/controller accepted the rumble request."""
+    ...
+
+
 def circ(x: int, y: int, radius: int, color: int) -> None:
     """Эта функция рисует заполненный круг нужного радиуса и цвета с центром в x, y.
     Использует алгоритм Брезенхэма.

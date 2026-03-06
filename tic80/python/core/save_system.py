@@ -14,10 +14,10 @@ if TYPE_CHECKING:
 # - добавили/удалили/переименовали поля
 # - изменили масштаб/единицы хранения
 # - поменяли смысл значения
-SAVE_SCHEMA_VERSION = 7
+SAVE_SCHEMA_VERSION = 8
 # Магическая сигнатура, чтобы отличать наш сейв от "мусора".
 SAVE_MAGIC = 0x57595244  # "WYRD"
-OPTIONS_SCHEMA_VERSION = 1
+OPTIONS_SCHEMA_VERSION = 3
 OPTIONS_MAGIC = 0x4F505453  # "OPTS"
 
 # Индексы pmem-слотов (0..255). Профиль, runtime-флаги и отдельный блок опций.
@@ -42,6 +42,8 @@ PMEM_OPTIONS_INPUT_MODE_SLOT = 32
 PMEM_OPTIONS_SHOW_SHOULDERS_SLOT = 33
 PMEM_OPTIONS_VIBRATION_SLOT = 34
 PMEM_OPTIONS_DRIVE_PRESET_SLOT = 35
+PMEM_OPTIONS_SHOULDERS_CONFIGURED_SLOT = 36
+PMEM_OPTIONS_VIBRATION_CONFIGURED_SLOT = 37
 
 # Единый коэффициент масштаба для float-полей (храним float как int).
 FLOAT_SCALE = 100.0
@@ -93,20 +95,31 @@ class SaveProfileData:
 
 
 class SaveOptionsData:
-    __slots__ = ("input_device_mode", "show_shoulders", "vibration_enabled", "drive_preset_id")
+    __slots__ = (
+        "input_device_mode",
+        "show_shoulders",
+        "vibration_enabled",
+        "drive_preset_id",
+        "shoulders_configured",
+        "vibration_configured"
+    )
 
     def __init__(
         self,
         input_device_mode: InputDeviceModeId,
         show_shoulders: bool,
         vibration_enabled: bool,
-        drive_preset_id: DrivePresetId
+        drive_preset_id: DrivePresetId,
+        shoulders_configured: bool,
+        vibration_configured: bool
     ) -> None:
         mode = normalize_input_device_mode(int(input_device_mode))
         self.input_device_mode = mode
         self.show_shoulders = bool(show_shoulders)
         self.vibration_enabled = bool(vibration_enabled)
         self.drive_preset_id = drive_preset_clamp(int(drive_preset_id))
+        self.shoulders_configured = bool(shoulders_configured)
+        self.vibration_configured = bool(vibration_configured)
 
 
 class SaveSystem:
@@ -211,24 +224,30 @@ class SaveSystem:
     def load_options(self) -> SaveOptionsData | None:
         if pmem(PMEM_OPTIONS_MAGIC_SLOT) != OPTIONS_MAGIC:
             return None
-        if pmem(PMEM_OPTIONS_SCHEMA_SLOT) != OPTIONS_SCHEMA_VERSION:
+        schema = int(pmem(PMEM_OPTIONS_SCHEMA_SLOT))
+        if schema != OPTIONS_SCHEMA_VERSION:
             return None
 
         mode = normalize_input_device_mode(int(pmem(PMEM_OPTIONS_INPUT_MODE_SLOT)))
         show_shoulders = int(pmem(PMEM_OPTIONS_SHOW_SHOULDERS_SLOT)) != 0
         vibration_enabled = int(pmem(PMEM_OPTIONS_VIBRATION_SLOT)) != 0
         drive_preset_id = drive_preset_clamp(int(pmem(PMEM_OPTIONS_DRIVE_PRESET_SLOT)))
+        shoulders_configured = int(
+            pmem(PMEM_OPTIONS_SHOULDERS_CONFIGURED_SLOT)) != 0
+        vibration_configured = int(
+            pmem(PMEM_OPTIONS_VIBRATION_CONFIGURED_SLOT)) != 0
 
         if mode != int(InputDeviceMode.GAMEPAD):
             show_shoulders = False
         if mode == int(InputDeviceMode.KEYBOARD):
             vibration_enabled = False
-
         return SaveOptionsData(
             mode,
             show_shoulders,
             vibration_enabled,
-            drive_preset_id
+            drive_preset_id,
+            shoulders_configured,
+            vibration_configured
         )
 
     def save_options(
@@ -236,7 +255,9 @@ class SaveSystem:
         input_device_mode: InputDeviceModeId,
         show_shoulders: bool,
         vibration_enabled: bool,
-        drive_preset_id: DrivePresetId
+        drive_preset_id: DrivePresetId,
+        shoulders_configured: bool,
+        vibration_configured: bool
     ) -> None:
         mode = normalize_input_device_mode(int(input_device_mode))
 
@@ -254,6 +275,10 @@ class SaveSystem:
         pmem(PMEM_OPTIONS_SHOW_SHOULDERS_SLOT, shoulders_int)
         pmem(PMEM_OPTIONS_VIBRATION_SLOT, vibration_int)
         pmem(PMEM_OPTIONS_DRIVE_PRESET_SLOT, int(drive_preset_clamp(int(drive_preset_id))))
+        pmem(PMEM_OPTIONS_SHOULDERS_CONFIGURED_SLOT,
+             1 if bool(shoulders_configured) else 0)
+        pmem(PMEM_OPTIONS_VIBRATION_CONFIGURED_SLOT,
+             1 if bool(vibration_configured) else 0)
 
     def load_runtime_flags(self) -> tuple[bool, bool]:
         run_active = int(pmem(PMEM_RUN_ACTIVE_SLOT)) != 0

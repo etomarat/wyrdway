@@ -25,7 +25,9 @@ if TYPE_CHECKING:
         drive_preset_clamp
     )
     from .drive_preset_runtime import DrivePresetRuntime
+    from .haptics import Haptics
     from .profile import Profile
+    from .rumble import rumble_supported
     from .run_state import RunState
     from .save_system import SaveSystem
 
@@ -49,8 +51,12 @@ class GameState:
         "_prompt_glyph_detail",
         "_prompt_show_shoulders",
         "_vibration_enabled",
+        "_rumble_supported",
+        "_options_shoulders_configured",
+        "_options_vibration_configured",
         "_drive_preset_id",
         "_drive_preset_runtime",
+        "_haptics",
         "_controls"
     )
 
@@ -76,10 +82,14 @@ class GameState:
         # not attempt to detect input device.
         self._input_device_mode: InputDeviceModeId = InputDeviceMode.BOTH
         self._prompt_glyph_detail: PromptGlyphDetailId = PromptGlyphDetail.ALL
+        self._rumble_supported = rumble_supported()
         self._prompt_show_shoulders = False
-        self._vibration_enabled = True
-        self._drive_preset_id: DrivePresetId = DrivePresetIdValues.HARD
+        self._vibration_enabled = bool(self._rumble_supported)
+        self._options_shoulders_configured = False
+        self._options_vibration_configured = False
+        self._drive_preset_id: DrivePresetId = DrivePresetIdValues.NORMAL
         self._drive_preset_runtime = DrivePresetRuntime()
+        self._haptics = Haptics()
         self._controls = Controls(make_default_bindings())
 
     @property
@@ -120,6 +130,8 @@ class GameState:
 
     def set_input_device_mode(self, mode: InputDeviceModeId) -> None:
         self._input_device_mode = mode
+        if int(mode) == int(InputDeviceMode.KEYBOARD):
+            self._haptics.clear()
 
     @property
     def prompt_glyph_detail(self) -> PromptGlyphDetailId:
@@ -141,6 +153,56 @@ class GameState:
 
     def set_vibration_enabled(self, enabled: bool) -> None:
         self._vibration_enabled = bool(enabled)
+        if not self._vibration_enabled:
+            self._haptics.clear()
+
+    @property
+    def rumble_supported(self) -> bool:
+        return bool(self._rumble_supported)
+
+    def refresh_rumble_support(self) -> bool:
+        self._rumble_supported = rumble_supported()
+        if not self._rumble_supported:
+            self._haptics.clear()
+        return bool(self._rumble_supported)
+
+    @property
+    def haptics(self) -> Haptics:
+        return self._haptics
+
+    def vibration_allowed(self) -> bool:
+        if not self._rumble_supported:
+            return False
+        if int(self._input_device_mode) == int(InputDeviceMode.KEYBOARD):
+            return False
+        if self._options_vibration_configured:
+            return bool(self._vibration_enabled)
+        return True
+
+    def vibrate(self, weak: int, strong: int, duration: int = 120) -> bool:
+        if not self.vibration_allowed():
+            return False
+        return self._haptics.pulse(weak, strong, duration)
+
+    def play_engine_startup_vibration(self) -> bool:
+        if not self.vibration_allowed():
+            return False
+        self._haptics.play_engine_startup()
+        return True
+
+    @property
+    def options_shoulders_configured(self) -> bool:
+        return bool(self._options_shoulders_configured)
+
+    @property
+    def options_vibration_configured(self) -> bool:
+        return bool(self._options_vibration_configured)
+
+    def mark_options_configured(self, shoulders_configured: bool, vibration_configured: bool) -> None:
+        if shoulders_configured:
+            self._options_shoulders_configured = True
+        if vibration_configured:
+            self._options_vibration_configured = True
 
     @property
     def drive_preset_id(self) -> DrivePresetId:
@@ -357,14 +419,22 @@ class GameState:
             self._input_device_mode = InputDeviceMode.BOTH
         self._prompt_show_shoulders = bool(data.show_shoulders)
         self._vibration_enabled = bool(data.vibration_enabled)
+        self._options_shoulders_configured = bool(data.shoulders_configured)
+        self._options_vibration_configured = bool(data.vibration_configured)
         self._drive_preset_id = drive_preset_clamp(int(data.drive_preset_id))
+        self.refresh_rumble_support()
+        if not self._rumble_supported:
+            self._vibration_enabled = False
+            self._haptics.clear()
 
     def save_options(self) -> None:
         self._save.save_options(
             self._input_device_mode,
             self._prompt_show_shoulders,
             self._vibration_enabled,
-            self._drive_preset_id
+            self._drive_preset_id,
+            self._options_shoulders_configured,
+            self._options_vibration_configured
         )
 
     def start_new_campaign(self, seed_text: str) -> None:

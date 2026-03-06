@@ -6,3 +6,4 @@ tic80/python/build.min.py
 tic80.exe
 tq-bundler.exe
 dist/
+*.log

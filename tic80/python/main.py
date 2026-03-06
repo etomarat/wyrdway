@@ -99,6 +99,8 @@ def BOOT() -> None:
     _boot_debug_state()
 
     SCENE_MANAGER.state.load_options()
+    SCENE_MANAGER.state.refresh_rumble_support()
+    SCENE_MANAGER.state.play_engine_startup_vibration()
     SCENE_MANAGER.state.load_profile()
     SCENE_MANAGER.state.recover_interrupted_session()
     SCENE_MANAGER.register(SceneId.MAIN_MENU, make_main_menu_scene)
@@ -118,6 +120,7 @@ def TIC() -> None:
 
     SCENE_MANAGER.state.clear_debug_lines()
     _update_debug_input()
+    SCENE_MANAGER.state.haptics.update(dt)
     SCENE_MANAGER.update(dt)
     SCENE_MANAGER.draw()
 

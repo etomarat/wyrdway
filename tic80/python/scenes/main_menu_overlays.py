@@ -33,14 +33,14 @@ if TYPE_CHECKING:
     from ..core.ui.options_bindings_table import ui_options_bindings_table_draw
     from ..core.ui.options_overlay_state import UiOptionsOverlayState
     from ..core.ui.options_settings import (
-        ui_options_settings_dir_at,
         ui_options_settings_draw,
         ui_options_settings_row_at
     )
     from ..core.ui.overlay_layout import (
         FOOTER_PAD_PROFILE_DEFAULT,
         FOOTER_PAD_PROFILE_INVERTED,
-        OverlayLayout
+        OverlayLayout,
+        ui_overlay_layout_int
     )
     from ..core.ui.overlay_screen import ui_overlay_screen_draw
     from ..core.ui.overlay_theme import ui_overlay_theme_inverted
@@ -215,6 +215,25 @@ class MainMenuNewGameFlow:
             ("SEED:", self.seed_text, self.ROW_SEED),
             ("START:", "START GAME", self.ROW_START)
         ]
+
+    def apply_setup_row_click(self, row_id: int, reverse: bool) -> int:
+        row = int(row_id)
+        if row < self.ROW_DIFFICULTY or row > self.ROW_START:
+            return self.ACTION_NONE
+        self.focus_row = row
+        if row == self.ROW_DIFFICULTY:
+            self.preset_draft = drive_preset_cycle(self.preset_draft, not reverse)
+            return self.ACTION_NONE
+        if row == self.ROW_MODE:
+            self._cycle_mode(not reverse)
+            return self.ACTION_NONE
+        if reverse:
+            return self.ACTION_NONE
+        if row == self.ROW_SEED:
+            return self.ACTION_OPEN_SEED
+        if row == self.ROW_START:
+            return self.ACTION_START
+        return self.ACTION_NONE
 
     def update_setup_input(
         self,
@@ -455,10 +474,24 @@ class MainMenuNewGameFlow:
             seed = seed[:max_len]
         state.set_input_device_mode(self.mode_draft)
         state.set_drive_preset_id(self.preset_draft)
-        if int(self.mode_draft) != int(InputDeviceMode.GAMEPAD):
+        rumble_supported = state.refresh_rumble_support()
+        mode = int(self.mode_draft)
+        if mode == int(InputDeviceMode.KEYBOARD):
             state.set_prompt_show_shoulders(False)
-        if int(self.mode_draft) == int(InputDeviceMode.KEYBOARD):
             state.set_vibration_enabled(False)
+        elif mode == int(InputDeviceMode.BOTH):
+            state.set_prompt_show_shoulders(False)
+            if not state.options_vibration_configured:
+                state.set_vibration_enabled(rumble_supported)
+            if not rumble_supported:
+                state.set_vibration_enabled(False)
+        else:
+            if not state.options_shoulders_configured:
+                state.set_prompt_show_shoulders(rumble_supported)
+            if not state.options_vibration_configured:
+                state.set_vibration_enabled(rumble_supported)
+            if not rumble_supported:
+                state.set_vibration_enabled(False)
         state.save_options()
         state.start_new_campaign(seed)
 
@@ -581,17 +614,33 @@ class MainMenuNewGameFlow:
 
 
 class MainMenuNewGameSetupOverlayFlow(MainMenuOverlayFlow):
+    _BODY_X_PAD = 8
+    _ROW_STEP = 8
+    _ROW_W = 184
+
     def __init__(self, flow: MainMenuNewGameFlow, seed_overlay_id: int) -> None:
         self._flow = flow
         self._seed_overlay_id = int(seed_overlay_id)
+        self._mouse_hover_row = -1
+        self._mouse_down_row = -1
+        self._mouse_right_down_row = -1
 
     def on_open(self, scene: MainMenuScene, prev_overlay_id: int) -> None:
+        self.reset_mouse_state()
         if int(prev_overlay_id) == self._seed_overlay_id:
             return
         self._flow.reset_draft(
             scene._state.input_device_mode,
             scene._state.drive_preset_id
         )
+
+    def on_close(self, scene: MainMenuScene) -> None:
+        self.reset_mouse_state()
+
+    def reset_mouse_state(self) -> None:
+        self._mouse_hover_row = -1
+        self._mouse_down_row = -1
+        self._mouse_right_down_row = -1
 
     def body_lines(self) -> list[str]:
         return self._flow.info_lines()
@@ -608,6 +657,14 @@ class MainMenuNewGameSetupOverlayFlow(MainMenuOverlayFlow):
         secondary_released: bool,
         mouse_nav_released: bool
     ) -> None:
+        self._update_mouse_state(scene)
+        mouse_action = self._poll_mouse_setup_release(scene)
+        if mouse_action == self._flow.ACTION_OPEN_SEED:
+            scene._open_new_game_seed_overlay()
+            return
+        if mouse_action == self._flow.ACTION_START:
+            scene._start_new_campaign_from_setup()
+            return
         self._flow.update_setup_overlay_input(
             scene,
             nav_up_released,
@@ -621,6 +678,52 @@ class MainMenuNewGameSetupOverlayFlow(MainMenuOverlayFlow):
 
     def draw(self, scene: MainMenuScene, body_x_pad: int, body_line_step: int) -> None:
         self._flow.draw_setup_overlay(scene, body_x_pad, body_line_step)
+
+    def _update_mouse_state(self, scene: MainMenuScene) -> None:
+        hover_row = self._setup_row_at(scene, scene._mouse_x, scene._mouse_y)
+        self._mouse_hover_row = hover_row
+        if hover_row >= 0:
+            self._flow.focus_row = hover_row
+        if scene._mouse_left_pressed:
+            self._mouse_down_row = hover_row
+        if scene._mouse_right_pressed:
+            self._mouse_right_down_row = hover_row
+        if not scene._mouse_left_down and not scene._mouse_left_released:
+            self._mouse_down_row = -1
+        if not scene._mouse_right_down and not scene._mouse_right_released:
+            self._mouse_right_down_row = -1
+
+    def _poll_mouse_setup_release(self, scene: MainMenuScene) -> int:
+        hover_row = self._mouse_hover_row
+        if scene._mouse_left_released:
+            down_row = self._mouse_down_row
+            self._mouse_down_row = -1
+            if down_row >= 0 and down_row == hover_row:
+                return self._flow.apply_setup_row_click(down_row, True)
+            return self._flow.ACTION_NONE
+        if scene._mouse_right_released:
+            down_row = self._mouse_right_down_row
+            self._mouse_right_down_row = -1
+            if down_row >= 0 and down_row == hover_row:
+                return self._flow.apply_setup_row_click(down_row, False)
+        return self._flow.ACTION_NONE
+
+    def _setup_row_at(self, scene: MainMenuScene, mx: int, my: int) -> int:
+        layout = scene._overlay_layout()
+        body_x = ui_overlay_layout_int(layout, "box_x", 20) + self._BODY_X_PAD
+        body_top = ui_overlay_layout_int(layout, "body_top", 44)
+        row_x = body_x - 1
+        if mx < row_x or mx >= row_x + self._ROW_W:
+            return -1
+        rows = self._flow.setup_rows()
+        i = 0
+        while i < len(rows):
+            _label, _value, row_id = rows[i]
+            row_y = body_top + i * self._ROW_STEP
+            if my >= row_y - 2 and my < row_y + 7:
+                return int(row_id)
+            i += 1
+        return -1
 
 
 class MainMenuNewGameSeedOverlayFlow(MainMenuOverlayFlow):
@@ -662,18 +765,17 @@ class MainMenuControlsOverlayFlow(MainMenuOverlayFlow):
         self._state = state
         self._options = UiOptionsOverlayState()
         self._mouse_hover_row = -1
-        self._mouse_hover_dir = 0
         self._mouse_down_row = -1
-        self._mouse_down_dir = 0
         self._mouse_right_down_row = -1
-        self._mouse_right_down_dir = 0
 
     def reset_draft(self) -> None:
+        rumble_supported = self._state.refresh_rumble_support()
         self._options.reset_draft(
             self._state.input_device_mode,
             self._state.drive_preset_id,
             self._state.prompt_show_shoulders,
-            self._state.vibration_enabled
+            self._state.vibration_enabled,
+            rumble_supported
         )
         self.reset_mouse_state()
 
@@ -685,11 +787,8 @@ class MainMenuControlsOverlayFlow(MainMenuOverlayFlow):
 
     def reset_mouse_state(self) -> None:
         self._mouse_hover_row = -1
-        self._mouse_hover_dir = 0
         self._mouse_down_row = -1
-        self._mouse_down_dir = 0
         self._mouse_right_down_row = -1
-        self._mouse_right_down_dir = 0
 
     def body_lines(self) -> list[str]:
         lines, _colors = self._bindings_lines()
@@ -707,6 +806,7 @@ class MainMenuControlsOverlayFlow(MainMenuOverlayFlow):
         secondary_released: bool,
         mouse_nav_released: bool
     ) -> None:
+        prev_mode = int(self._options.mode_draft)
         self._update_mouse_state(scene)
         self._options.update_from_nav(
             nav_up_released,
@@ -717,6 +817,8 @@ class MainMenuControlsOverlayFlow(MainMenuOverlayFlow):
         if mouse_nav_released:
             self._options.update_from_nav(False, True, False, False)
         self._poll_mouse_setting_release(scene)
+        if int(self._options.mode_draft) != prev_mode:
+            self._options.set_rumble_supported(self._state.refresh_rumble_support())
         if cancel_released:
             scene._close_overlay()
             return
@@ -758,56 +860,37 @@ class MainMenuControlsOverlayFlow(MainMenuOverlayFlow):
             scene._mouse_x,
             scene._mouse_y
         )
-        hover_dir = 0
         if hover_row >= 0:
             self._options.focus_row = hover_row
-            hover_dir = self._setting_dir_at(
-                layout,
-                hover_row,
-                scene._mouse_x,
-                scene._mouse_y
-            )
         self._mouse_hover_row = hover_row
-        self._mouse_hover_dir = hover_dir
         if scene._mouse_left_pressed:
             self._mouse_down_row = hover_row
-            self._mouse_down_dir = hover_dir
         if scene._mouse_right_pressed:
             self._mouse_right_down_row = hover_row
-            self._mouse_right_down_dir = hover_dir
-        if not scene._mouse_left_down:
+        if not scene._mouse_left_down and not scene._mouse_left_released:
             self._mouse_down_row = -1
-            self._mouse_down_dir = 0
-        if not scene._mouse_right_down:
+        if not scene._mouse_right_down and not scene._mouse_right_released:
             self._mouse_right_down_row = -1
-            self._mouse_right_down_dir = 0
 
     def _poll_mouse_setting_release(self, scene: MainMenuScene) -> None:
         hover_row = self._mouse_hover_row
         if scene._mouse_left_released:
             down_row = self._mouse_down_row
-            down_dir = self._mouse_down_dir
             self._mouse_down_row = -1
-            self._mouse_down_dir = 0
             if down_row >= 0 and down_row == hover_row:
                 self._options.focus_row = down_row
-                if down_dir != 0:
-                    if self._options.setting_enabled(down_row):
-                        self._options.apply_setting_change(
-                            down_row, down_dir > 0)
-                    return
-                self._options.apply_setting_change(down_row, True)
+                if self._options.setting_enabled(down_row):
+                    self._options.apply_setting_change(down_row, False)
             return
         if scene._mouse_right_released:
             down_row = self._mouse_right_down_row
             self._mouse_right_down_row = -1
-            self._mouse_right_down_dir = 0
             if down_row < 0 or down_row != hover_row:
                 return
             self._options.focus_row = down_row
             if not self._options.setting_enabled(down_row):
                 return
-            self._options.apply_setting_change(down_row, False)
+            self._options.apply_setting_change(down_row, True)
 
     def _apply_settings_to_state(self) -> None:
         self._state.set_input_device_mode(self._options.mode_draft)
@@ -822,6 +905,10 @@ class MainMenuControlsOverlayFlow(MainMenuOverlayFlow):
             and self._options.vibration_enabled()
         )
         self._state.set_vibration_enabled(vibration_enabled)
+        self._state.mark_options_configured(
+            self._options.shoulders_touched(),
+            self._options.vibration_touched()
+        )
         self._state.save_options()
 
     def _draw_settings(
@@ -902,30 +989,6 @@ class MainMenuControlsOverlayFlow(MainMenuOverlayFlow):
             8,
             7,
             self._options.row_count(),
-            mx,
-            my
-        )
-
-    def _setting_dir_at(
-        self,
-        layout: OverlayLayout,
-        row: int,
-        mx: int,
-        my: int
-    ) -> int:
-        left_arrow = self._keyboard_nav_arrow(Action.NAV_LEFT)
-        right_arrow = self._keyboard_nav_arrow(Action.NAV_RIGHT)
-        return ui_options_settings_dir_at(
-            layout,
-            8,
-            7,
-            row,
-            self._options.setting_enabled(row),
-            self._options.setting_value(row),
-            left_arrow,
-            right_arrow,
-            -1,
-            "CONTROL MODE:",
             mx,
             my
         )
