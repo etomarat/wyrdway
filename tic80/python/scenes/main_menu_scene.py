@@ -520,13 +520,13 @@ class MainMenuScene:
         if selected_id != self._ITEM_CONTINUE:
             return
 
-        split_y = y + 66
-        line(x, split_y, x + w - 1, split_y, Color.DARK_GREY)
-        print("ON CONTINUE", x + 3, split_y + 4, Color.LIGHT_GREY)
         profile = self._state.profile
         row_step = 8
         seed_row_y = y + h - 9
-        row_y = seed_row_y - row_step * 3
+        row_y = seed_row_y - row_step * 4
+        split_y = row_y - 14
+        line(x, split_y, x + w - 1, split_y, Color.DARK_GREY)
+        print("ON CONTINUE", x + 3, split_y + 4, Color.LIGHT_GREY)
         self._draw_kv_row(x, w, row_y, "HP", str(
             self._to_ui_int(profile.garage_hp)), Color.WHITE, Color.WHITE)
         self._draw_kv_row(x, w, row_y + row_step, "FUEL",
@@ -535,6 +535,8 @@ class MainMenuScene:
                           str(profile.scrap), Color.LIGHT_GREY, Color.LIGHT_GREY)
         self._draw_kv_row(x, w, row_y + row_step * 3, "RUNS",
                           str(self._state.run_index), Color.GREY, Color.GREY)
+        self._draw_kv_row(x, w, row_y + row_step * 4, "SEED",
+                          self._state.campaign_seed_text, Color.GREY, Color.GREY)
 
     @staticmethod
     def _to_ui_int(value: float) -> int:
