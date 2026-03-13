@@ -1,6 +1,8 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from typing import Sequence
+
     from ..controls.actions import ActionId
     from ..controls.input import Controls
 else:
@@ -26,12 +28,16 @@ class UiReleaseLatch:
     def sync_actions_from_controls(
         self,
         controls: Controls,
-        actions: list[ActionId]
+        actions: "Sequence[ActionId]",
+        context_token: int = 0
     ) -> None:
         i = 0
         while i < len(actions):
             action = actions[i]
-            self.sync_action(action, bool(controls.down(action)))
+            self.sync_action(
+                action,
+                self._controls_down(controls, action, context_token)
+            )
             i += 1
 
     def released(self, action: ActionId, is_down: bool) -> bool:
@@ -49,5 +55,23 @@ class UiReleaseLatch:
         self._armed[action_id] = armed
         return released
 
-    def poll(self, controls: Controls, action: ActionId) -> bool:
-        return self.released(action, bool(controls.down(action)))
+    def poll(
+        self,
+        controls: Controls,
+        action: ActionId,
+        context_token: int = 0
+    ) -> bool:
+        return self.released(
+            action,
+            self._controls_down(controls, action, context_token)
+        )
+
+    @staticmethod
+    def _controls_down(
+        controls: Controls,
+        action: ActionId,
+        context_token: int
+    ) -> bool:
+        if int(context_token) != 0:
+            return bool(controls.down_for(action, context_token))
+        return bool(controls.down(action))

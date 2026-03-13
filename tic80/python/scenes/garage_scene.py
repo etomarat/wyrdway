@@ -4,7 +4,7 @@ if TYPE_CHECKING:
     from tic80 import cls, line, print, rect, time
 
     from ..contracts import SceneEnterParams, SceneNavigator
-    from ..core.controls.actions import Action
+    from ..core.controls.actions import Action, ActionId
     from ..core.palette import Color
     from ..core.scene_ids import SceneId
     from ..core.text_layout import text_center_x, text_width
@@ -19,15 +19,13 @@ if TYPE_CHECKING:
         ui_action_bar_style_with_border,
         ui_action_bar_style_with_panel
     )
+    from ..core.ui.input_layer import UiInputLayer
     from ..core.ui.meter import (
         ui_meter_draw_bar,
         ui_meter_draw_labeled,
         ui_meter_fill_ratio
     )
-    from ..core.ui.overlay_flow import (
-        ui_overlay_flow_single_action
-    )
-    from ..core.ui.overlay_runtime import UiOverlayRuntime
+    from ..core.ui.overlay_flow import ui_overlay_flow_single_action
     from ..core.ui.overlay_screen import ui_overlay_screen_draw
     from ..core.ui.overlay_theme import ui_overlay_theme_warning
     from ..core.ui.panel import ui_panel_draw
@@ -132,7 +130,8 @@ class GarageScene:
     def __init__(self, nav: SceneNavigator) -> None:
         self._nav = nav
         self._state = nav.state
-        self._ui = UiOverlayRuntime()
+        self._base_ui = UiInputLayer()
+        self._modal_ui = UiInputLayer()
         self._profile = nav.state.profile
         self._action_row_mouse = ui_action_bar_make_mouse_states(
             len(self.ACTION_BAR_LAYOUTS)
@@ -147,16 +146,8 @@ class GarageScene:
 
     def enter(self, params: SceneEnterParams = None) -> None:
         self._state.drive_preset_runtime.apply_by_id(self._state.drive_preset_id)
-        self._ui.sync_actions(
-            self._state.controls,
-            [
-                Action.CONFIRM,
-                Action.CANCEL,
-                Action.SECONDARY,
-                Action.HELP
-            ]
-        )
-        self._ui.reset_footer()
+        self._base_ui.reset_footer()
+        self._modal_ui.reset_footer()
         self._reset_action_bar_mouse()
         self._service_open = False
         self._upgrades_modal_open = False
@@ -165,9 +156,46 @@ class GarageScene:
         self._rollback_modal_reason = "" if reason is None else str(reason)
         self._rollback_modal_gain = int(gain)
         self._pick_header_text()
+        self._apply_input_context(True)
 
     def _reset_action_bar_mouse(self) -> None:
         ui_action_bar_reset_mouse_states(self._action_row_mouse)
+
+    def _apply_input_context(self, swallow_held: bool) -> None:
+        actions: list[ActionId] = [
+            Action.CONFIRM,
+            Action.CANCEL,
+            Action.SECONDARY,
+            Action.HELP
+        ]
+        if self._rollback_modal_open:
+            actions = [Action.CANCEL]
+            self._modal_ui.activate(
+                self._state.controls,
+                actions,
+                swallow_held
+            )
+        elif self._upgrades_modal_open:
+            actions = [Action.CANCEL]
+            self._modal_ui.activate(
+                self._state.controls,
+                actions,
+                swallow_held
+            )
+        elif self._service_open:
+            actions = [Action.CANCEL, Action.SECONDARY, Action.HELP]
+            self._base_ui.activate(
+                self._state.controls,
+                actions,
+                swallow_held
+            )
+        else:
+            actions = [Action.CONFIRM, Action.SECONDARY, Action.HELP]
+            self._base_ui.activate(
+                self._state.controls,
+                actions,
+                swallow_held
+            )
 
     def _pick_header_text(self) -> None:
         if self._state.run_index <= 0:
@@ -353,17 +381,17 @@ class GarageScene:
 
     def _active_action_keyboard_rows(self) -> list[list[bool]]:
         top = [
-            self._state.controls.down(Action.SECONDARY),
-            self._state.controls.down(Action.HELP)
+            self._base_ui.down(self._state.controls, Action.SECONDARY),
+            self._base_ui.down(self._state.controls, Action.HELP)
         ]
         if self._service_open:
             return [
                 top,
-                [self._state.controls.down(Action.CANCEL)]
+                [self._base_ui.down(self._state.controls, Action.CANCEL)]
             ]
         return [
             top,
-            [self._state.controls.down(Action.CONFIRM)]
+            [self._base_ui.down(self._state.controls, Action.CONFIRM)]
         ]
 
     def _draw_action_bar(self) -> None:
@@ -376,7 +404,7 @@ class GarageScene:
             self.ACTION_BAR_LAYOUTS,
             slot_rows,
             keyboard_rows,
-            self._ui.mouse,
+            self._base_ui.mouse,
             self._action_row_mouse,
             style
         )
@@ -398,12 +426,12 @@ class GarageScene:
             ("THESEUS +" + str(self._rollback_modal_gain), Color.RED)
         ]
         ui_overlay_screen_draw(
-            self._ui,
+            self._modal_ui.runtime,
             layout,
             "ROLLBACK RECOVERED",
             body_lines,
             slots,
-            [self._state.controls.down(Action.CANCEL)],
+            [self._modal_ui.down(self._state.controls, Action.CANCEL)],
             theme=ui_overlay_theme_warning(),
             body_line_step=10
         )
@@ -418,61 +446,83 @@ class GarageScene:
             "CLOSE"
         )
         body_lines: list[tuple[str, int]] = [
-            ("UPGRADES ARE NOT IMPLEMENTED YET", Color.LIGHT_GREY),
+            ("NOT IMPLEMENTED YET", Color.LIGHT_GREY),
             ("COMING SOON", Color.YELLOW)
         ]
         ui_overlay_screen_draw(
-            self._ui,
+            self._modal_ui.runtime,
             layout,
             "UPGRADES",
             body_lines,
             slots,
-            [self._state.controls.down(Action.CANCEL)],
+            [self._modal_ui.down(self._state.controls, Action.CANCEL)],
             body_line_step=10
         )
 
     def update(self, dt: float) -> None:
-        self._ui.poll_mouse()
-        confirm_released = self._ui.poll_confirm(
-            self._state, self._state.controls)
-        cancel_released = self._ui.poll_cancel(
-            self._state, self._state.controls)
-        secondary_released = self._ui.poll_action(
-            self._state.controls, Action.SECONDARY)
-        help_released = self._ui.poll_action(self._state.controls, Action.HELP)
+        if self._rollback_modal_open or self._upgrades_modal_open:
+            self._modal_ui.poll_mouse()
+        else:
+            self._base_ui.poll_mouse()
+        confirm_released = self._base_ui.poll_confirm(
+            self._state,
+            self._state.controls
+        )
+        cancel_released = self._base_ui.poll_cancel(
+            self._state,
+            self._state.controls
+        )
+        secondary_released = self._base_ui.poll_action(
+            self._state.controls,
+            Action.SECONDARY
+        )
+        help_released = self._base_ui.poll_action(
+            self._state.controls,
+            Action.HELP
+        )
 
         if self._rollback_modal_open:
+            cancel_released = self._modal_ui.poll_cancel(
+                self._state,
+                self._state.controls
+            )
             layout, slots, slot_confirm = ui_overlay_flow_single_action(
                 self.MODAL_LAYOUT_SPEC,
                 self._state,
                 Action.CANCEL,
                 "CLOSE"
             )
-            released_slot = self._ui.poll_footer_release(layout, slots)
-            if cancel_released or self._ui.footer_button_released(self._state, released_slot, slot_confirm):
+            released_slot = self._modal_ui.poll_footer_release(layout, slots)
+            if cancel_released or self._modal_ui.footer_button_released(self._state, released_slot, slot_confirm):
                 self._rollback_modal_open = False
-                self._ui.reset_footer()
+                self._modal_ui.reset_footer()
+                self._apply_input_context(True)
             return
 
         if self._upgrades_modal_open:
+            cancel_released = self._modal_ui.poll_cancel(
+                self._state,
+                self._state.controls
+            )
             layout, slots, slot_confirm = ui_overlay_flow_single_action(
                 self.MODAL_LAYOUT_SPEC,
                 self._state,
                 Action.CANCEL,
                 "CLOSE"
             )
-            released_slot = self._ui.poll_footer_release(layout, slots)
-            if cancel_released or confirm_released or self._ui.footer_button_released(self._state, released_slot, slot_confirm):
+            released_slot = self._modal_ui.poll_footer_release(layout, slots)
+            if cancel_released or self._modal_ui.footer_button_released(self._state, released_slot, slot_confirm):
                 self._upgrades_modal_open = False
-                self._ui.reset_footer()
+                self._modal_ui.reset_footer()
                 self._reset_action_bar_mouse()
+                self._apply_input_context(True)
                 return
 
         slot_rows = self._active_action_slots_rows()
         released_rows = ui_action_bar_rows_poll_release_with_style(
             self.ACTION_BAR_LAYOUTS,
             slot_rows,
-            self._ui.mouse,
+            self._base_ui.mouse,
             self._action_row_mouse,
             self.ACTION_BAR_STYLE_BASE
         )
@@ -499,14 +549,16 @@ class GarageScene:
             if help_released or released_top == 1:
                 self._state.vibe_ui_button()
                 self._upgrades_modal_open = True
-                self._ui.reset_footer()
+                self._modal_ui.reset_footer()
                 self._reset_action_bar_mouse()
+                self._apply_input_context(True)
                 return
             if cancel_released or released_bottom == 0:
                 self._state.vibe_ui_button()
                 self._service_open = False
-                self._ui.reset_footer()
+                self._base_ui.reset_footer()
                 self._reset_action_bar_mouse()
+                self._apply_input_context(True)
                 return
 
         if confirm_released or released_bottom == 0:
@@ -516,12 +568,13 @@ class GarageScene:
         elif secondary_released or released_top == 0:
             self._state.vibe_ui_button()
             self._service_open = True
-            self._ui.reset_footer()
+            self._base_ui.reset_footer()
             self._reset_action_bar_mouse()
+            self._apply_input_context(True)
         elif help_released or released_top == 1:
             self._state.vibe_ui_button()
             self._state.save_profile()
-            self._ui.reset_footer()
+            self._base_ui.reset_footer()
             self._reset_action_bar_mouse()
             self._nav.go(SceneId.MAIN_MENU)
 

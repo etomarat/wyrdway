@@ -4,7 +4,7 @@ if TYPE_CHECKING:
     from tic80 import cls, print
 
     from ..contracts import DriveEnterParams, SceneEnterParams, SceneNavigator
-    from ..core.controls.actions import Action
+    from ..core.controls.actions import Action, ActionId
     from ..core.palette import Color
     from ..core.poi_text import poi_type_label
     from ..core.run_state import RunState
@@ -13,8 +13,8 @@ if TYPE_CHECKING:
         ui_footer_slot_indices,
         ui_footer_slots_standard
     )
+    from ..core.ui.input_layer import UiInputLayer
     from ..core.ui.overlay_layout import ui_overlay_layout_centered_by_spec
-    from ..core.ui.overlay_runtime import UiOverlayRuntime
     from ..core.ui.overlay_screen import ui_overlay_screen_draw
     from ..data.tuning import TUNING
 class RegionMapScene:
@@ -37,25 +37,26 @@ class RegionMapScene:
     def __init__(self, nav: SceneNavigator) -> None:
         self._nav = nav
         self._state = nav.state
-        self._ui = UiOverlayRuntime()
+        self._ui = UiInputLayer()
         self.selected_node = 1
         self.node_count = 5
 
     def enter(self, params: SceneEnterParams = None) -> None:
-        self._ui.sync_actions(
-            self._state.controls,
-            [
-                Action.NAV_UP,
-                Action.NAV_DOWN,
-                Action.NAV_LEFT,
-                Action.NAV_RIGHT,
-                Action.CONFIRM
-            ]
-        )
         self._ui.reset_footer()
+        self._apply_input_context(True)
         run = self._state.run
         if run is not None and run.node_id is not None:
             self.selected_node = run.node_id
+
+    def _apply_input_context(self, swallow_held: bool) -> None:
+        actions: list[ActionId] = [
+            Action.NAV_UP,
+            Action.NAV_DOWN,
+            Action.NAV_LEFT,
+            Action.NAV_RIGHT,
+            Action.CONFIRM
+        ]
+        self._ui.activate(self._state.controls, actions, swallow_held)
 
     def update(self, dt: float) -> None:
         self._ui.poll_mouse()
@@ -123,10 +124,10 @@ class RegionMapScene:
 
     def _nav_down(self) -> bool:
         return (
-            self._state.controls.down(Action.NAV_UP)
-            or self._state.controls.down(Action.NAV_DOWN)
-            or self._state.controls.down(Action.NAV_LEFT)
-            or self._state.controls.down(Action.NAV_RIGHT)
+            self._ui.down(self._state.controls, Action.NAV_UP)
+            or self._ui.down(self._state.controls, Action.NAV_DOWN)
+            or self._ui.down(self._state.controls, Action.NAV_LEFT)
+            or self._ui.down(self._state.controls, Action.NAV_RIGHT)
         )
 
     def _footer_slots(self) -> list[str]:
@@ -168,10 +169,10 @@ class RegionMapScene:
         slots = self._footer_slots()
         keyboard_active = [
             self._nav_down(),
-            self._state.controls.down(Action.CONFIRM)
+            self._ui.down(self._state.controls, Action.CONFIRM)
         ]
         box_x, _box_y, _box_w, _box_h, body_top, _footer_line_y, _footer_text_y = ui_overlay_screen_draw(
-            self._ui,
+            self._ui.runtime,
             layout,
             "REGION MAP",
             [],

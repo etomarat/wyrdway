@@ -68,6 +68,18 @@ class DriveScene:
     def enter(self, params: SceneEnterParams = None) -> None:
         if not isinstance(params, DriveEnterParams):
             raise TypeError("DriveScene.enter expects DriveEnterParams")
+        self._state.controls.enter_context(
+            [
+                Action.CONFIRM,
+                Action.NAV_LEFT,
+                Action.NAV_RIGHT,
+                Action.THROTTLE,
+                Action.BRAKE,
+                Action.HANDBRAKE,
+                Action.SKILL
+            ],
+            True
+        )
         self._state.clear_drive_feedback()
         self._pursuer_archetype = create_active_pursuer_archetype()
         self._mode = params.mode

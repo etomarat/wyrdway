@@ -6,6 +6,7 @@ if TYPE_CHECKING:
 
     from ...contracts import PursuerVariantIdValue
     from ...contracts import PursuerVariantTuning
+    from ...core.palette import Color
     from ...data.tuning import TUNING
     from ...systems.drive.drive_fx import TopdownProjector
     from ...systems.drive.drive_logic_core import DriveLogic

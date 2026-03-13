@@ -7,8 +7,8 @@ if TYPE_CHECKING:
     from ..core.controls.actions import Action
     from ..core.palette import Color, ColorId
     from ..core.scene_ids import SceneId
+    from ..core.ui.input_layer import UiInputLayer
     from ..core.ui.overlay_flow import ui_overlay_flow_single_action
-    from ..core.ui.overlay_runtime import UiOverlayRuntime
     from ..core.ui.overlay_screen import ui_overlay_screen_draw
     from ..core.ui.overlay_theme import (
         OverlayTheme,
@@ -35,7 +35,7 @@ class ResultScene:
     def __init__(self, nav: SceneNavigator) -> None:
         self._nav = nav
         self._state = nav.state
-        self._ui = UiOverlayRuntime()
+        self._ui = UiInputLayer()
         self._title = "MISSION REPORT"
         self._title_color: ColorId = Color.WHITE
         self._subtitle = ""
@@ -170,11 +170,8 @@ class ResultScene:
         )
 
     def enter(self, params: SceneEnterParams = None) -> None:
-        self._ui.sync_actions(
-            self._state.controls,
-            [Action.CONFIRM]
-        )
         self._ui.reset_footer()
+        self._ui.activate(self._state.controls, [Action.CONFIRM], True, False)
         fallback = None
         if params is not None:
             if not isinstance(params, ResultEnterParams):
@@ -238,12 +235,12 @@ class ResultScene:
             self._cta
         )
         ui_overlay_screen_draw(
-            self._ui,
+            self._ui.runtime,
             layout,
             self._title,
             self._body_lines(),
             slots,
-            [self._state.controls.down(Action.CONFIRM)],
+            [self._ui.down(self._state.controls, Action.CONFIRM)],
             theme=self._theme,
             title_color=self._title_color
         )

@@ -9,17 +9,17 @@ if TYPE_CHECKING:
         SceneEnterParams,
         SceneNavigator
     )
-    from ..core.controls.actions import Action
+    from ..core.controls.actions import Action, ActionId
     from ..core.palette import Color
     from ..core.poi_text import poi_type_label
     from ..core.run_state import PoiAction
     from ..core.scene_ids import SceneId
+    from ..core.ui.input_layer import UiInputLayer
     from ..core.ui.overlay_flow import (
         ui_overlay_flow_confirm_cancel,
         ui_overlay_flow_single_action
     )
     from ..core.ui.overlay_layout import ui_overlay_layout_centered_by_spec
-    from ..core.ui.overlay_runtime import UiOverlayRuntime
     from ..core.ui.overlay_screen import ui_overlay_screen_draw
     from ..data.tuning import TUNING
     from ..systems.drive.pursuers.registry import (
@@ -45,7 +45,7 @@ class PoiScene:
     def __init__(self, nav: SceneNavigator) -> None:
         self._nav = nav
         self._state = nav.state
-        self._ui = UiOverlayRuntime()
+        self._ui = UiInputLayer()
         self.timer = TUNING.POI.timer_seconds
         self._loot_scrap = 0
         self._loot_fuel = 0
@@ -54,10 +54,6 @@ class PoiScene:
         self._mode = self.MODE_INTERACT
 
     def enter(self, params: SceneEnterParams = None) -> None:
-        self._ui.sync_actions(
-            self._state.controls,
-            [Action.CONFIRM, Action.CANCEL]
-        )
         self._ui.reset_footer()
         self.timer = TUNING.POI.timer_seconds
         self._loot_scrap = 0
@@ -65,6 +61,13 @@ class PoiScene:
         self._pursuer_name = active_pursuer_name()
         self._pursuer_name_color = active_pursuer_name_color()
         self._mode = self.MODE_INTERACT
+        self._apply_input_context(True)
+
+    def _apply_input_context(self, swallow_held: bool) -> None:
+        actions: list[ActionId] = [Action.CONFIRM]
+        if self._mode == self.MODE_INTERACT:
+            actions = [Action.CONFIRM, Action.CANCEL]
+        self._ui.activate(self._state.controls, actions, swallow_held)
 
     def _leave(
         self,
@@ -92,6 +95,7 @@ class PoiScene:
         delta = run.ensure_delta(run.node_id)
         delta.set_poi_action("leave")
         self._mode = self.MODE_LEAVE_SUMMARY
+        self._apply_input_context(True)
 
     def _start_loot_summary(self) -> None:
         run = self._state.require_run()
@@ -113,6 +117,7 @@ class PoiScene:
                 delta.add_fuel_gained(self._loot_fuel)
 
         self._mode = self.MODE_LOOT_SUMMARY
+        self._apply_input_context(True)
 
     def _interact_lines(self) -> list[tuple[str, int]]:
         timer_line = "TIME LEFT: " + f"{self.timer:.1f}" + "s"
@@ -177,7 +182,7 @@ class PoiScene:
             len(slots) - 1
         )
         ui_overlay_screen_draw(
-            self._ui,
+            self._ui.runtime,
             layout,
             title,
             lines,
@@ -265,7 +270,7 @@ class PoiScene:
                     " IS STILL TRACKING YOU"
                 ),
                 slots,
-                [self._state.controls.down(Action.CONFIRM)]
+                [self._ui.down(self._state.controls, Action.CONFIRM)]
             )
             return
         if self._mode == self.MODE_LOOT_SUMMARY:
@@ -285,7 +290,7 @@ class PoiScene:
                     " IS IN PURSUIT"
                 ),
                 slots,
-                [self._state.controls.down(Action.CONFIRM)]
+                [self._ui.down(self._state.controls, Action.CONFIRM)]
             )
             return
         _layout, slots, slot_confirm, slot_cancel = ui_overlay_flow_confirm_cancel(
@@ -297,8 +302,14 @@ class PoiScene:
             "LEAVE"
         )
         keyboard_active = [False, False]
-        keyboard_active[slot_confirm] = self._state.controls.down(Action.CONFIRM)
-        keyboard_active[slot_cancel] = self._state.controls.down(Action.CANCEL)
+        keyboard_active[slot_confirm] = self._ui.down(
+            self._state.controls,
+            Action.CONFIRM
+        )
+        keyboard_active[slot_cancel] = self._ui.down(
+            self._state.controls,
+            Action.CANCEL
+        )
         self._draw_overlay(
             "POI INTERACTION",
             Color.WHITE,

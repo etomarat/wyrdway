@@ -32,37 +32,73 @@ class UiOverlayRuntime:
         self.mouse = UiMouseState()
         self.footer_mouse = OverlayFooterMouseState()
 
-    def sync_actions(self, controls: Controls, actions: list[ActionId]) -> None:
-        self.release.sync_actions_from_controls(controls, actions)
+    def sync_actions(
+        self,
+        controls: Controls,
+        actions: "Sequence[ActionId]",
+        context_token: int = 0
+    ) -> None:
+        self.release.sync_actions_from_controls(controls, actions, context_token)
 
     def poll_mouse(self) -> None:
         self.mouse.poll()
 
-    def poll_action(self, controls: Controls, action: ActionId) -> bool:
-        return self.release.poll(controls, action)
+    def poll_action(
+        self,
+        controls: Controls,
+        action: ActionId,
+        context_token: int = 0
+    ) -> bool:
+        return self.release.poll(controls, action, context_token)
 
     def poll_button_action(
         self,
         state: GameState,
         controls: Controls,
-        action: ActionId
+        action: ActionId,
+        context_token: int = 0
     ) -> bool:
-        released = self.release.poll(controls, action)
+        released = self.release.poll(controls, action, context_token)
         if released:
             state.vibe_ui_button()
         return released
 
-    def poll_confirm(self, state: GameState, controls: Controls) -> bool:
-        return self.poll_button_action(state, controls, self._ACTION_CONFIRM)
+    def poll_confirm(
+        self,
+        state: GameState,
+        controls: Controls,
+        context_token: int = 0
+    ) -> bool:
+        return self.poll_button_action(
+            state,
+            controls,
+            self._ACTION_CONFIRM,
+            context_token
+        )
 
-    def poll_cancel(self, state: GameState, controls: Controls) -> bool:
-        return self.poll_button_action(state, controls, self._ACTION_CANCEL)
+    def poll_cancel(
+        self,
+        state: GameState,
+        controls: Controls,
+        context_token: int = 0
+    ) -> bool:
+        return self.poll_button_action(
+            state,
+            controls,
+            self._ACTION_CANCEL,
+            context_token
+        )
 
-    def poll_actions(self, controls: Controls, actions: list[ActionId]) -> list[bool]:
+    def poll_actions(
+        self,
+        controls: Controls,
+        actions: "Sequence[ActionId]",
+        context_token: int = 0
+    ) -> list[bool]:
         out: list[bool] = []
         i = 0
         while i < len(actions):
-            out.append(self.release.poll(controls, actions[i]))
+            out.append(self.release.poll(controls, actions[i], context_token))
             i += 1
         return out
 

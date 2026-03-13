@@ -4,7 +4,7 @@ if TYPE_CHECKING:
     from tic80 import circ, cls, line, pix, print, rect
 
     from ..contracts import SceneEnterParams, SceneNavigator
-    from ..core.controls.actions import Action
+    from ..core.controls.actions import Action, ActionId
     from ..core.palette import Color
     from ..core.scene_ids import SceneId
     from ..core.text_layout import text_right_x, text_width
@@ -17,13 +17,13 @@ if TYPE_CHECKING:
         ui_modal_keyboard_active,
         ui_modal_nav_enabled
     )
+    from ..core.ui.input_layer import UiInputLayer
     from ..core.ui.overlay_layout import (
         OverlayLayout,
         ui_overlay_footer_positions,
         ui_overlay_layout_int,
         ui_overlay_layout_slot_count
     )
-    from ..core.ui.overlay_runtime import UiOverlayRuntime
     from ..core.ui.overlay_screen import ui_overlay_screen_draw
     from ..core.version import game_version_label
     from .main_menu_overlays import (
@@ -86,7 +86,8 @@ class MainMenuScene:
     def __init__(self, nav: SceneNavigator) -> None:
         self._nav = nav
         self._state = nav.state
-        self._ui = UiOverlayRuntime()
+        self._menu_ui = UiInputLayer()
+        self._overlay_ui = UiInputLayer()
         self._selected = 0
         self._overlay = self._OVERLAY_NONE
         self._overlay_scroll = 0
@@ -130,9 +131,9 @@ class MainMenuScene:
         self._overlay_scroll = 0
         self._menu_mouse_hover_index = -1
         self._menu_mouse_down_index = -1
-        self._ui.reset_footer()
-        self._reset_menu_input_latches()
-        self._reset_overlay_input_latches()
+        self._menu_ui.reset_footer()
+        self._overlay_ui.reset_footer()
+        self._apply_input_context(True)
         self._backdrop.enter()
         self._watch_seed = (0x13579BDF ^ (
             (int(self._state.run_index) + 1) * 97)) & 0xFFFFFFFF
@@ -193,7 +194,7 @@ class MainMenuScene:
 
     def _update_overlay_input(self) -> None:
         nav_up_released, nav_down_released, nav_left_released, nav_right_released, confirm_released, cancel_released = self._poll_overlay_release_events()
-        secondary_released = self._ui.poll_action(
+        secondary_released = self._overlay_ui.poll_action(
             self._state.controls, Action.SECONDARY
         )
         mouse_nav_released, mouse_confirm_released, mouse_cancel_released = self._poll_overlay_footer_mouse_release()
@@ -279,12 +280,11 @@ class MainMenuScene:
         self._overlay = int(overlay_id)
         self._overlay_scroll = 0
         self._menu_mouse_down_index = -1
-        self._ui.reset_footer()
+        self._overlay_ui.reset_footer()
         flow = self._overlay_flow(self._overlay)
         if flow is not None:
             flow.on_open(self, prev_overlay)
-        self._reset_menu_input_latches()
-        self._reset_overlay_input_latches()
+        self._apply_input_context(True)
 
     def _close_overlay(self) -> None:
         flow = self._overlay_flow(self._overlay)
@@ -292,29 +292,31 @@ class MainMenuScene:
             flow.on_close(self)
         self._overlay = self._OVERLAY_NONE
         self._overlay_scroll = 0
-        self._ui.reset_footer()
-        self._reset_menu_input_latches()
-        self._reset_overlay_input_latches()
+        self._overlay_ui.reset_footer()
+        self._apply_input_context(True)
 
     def _poll_mouse_state(self) -> None:
-        self._ui.poll_mouse()
-        self._mouse_left_pressed = self._ui.mouse.left_pressed
-        self._mouse_left_released = self._ui.mouse.left_released
-        self._mouse_left_down = self._ui.mouse.left_down
-        self._mouse_right_pressed = self._ui.mouse.right_pressed
-        self._mouse_right_released = self._ui.mouse.right_released
-        self._mouse_right_down = self._ui.mouse.right_down
-        self._mouse_x = self._ui.mouse.x
-        self._mouse_y = self._ui.mouse.y
-        self._mouse_scroll_y = self._ui.mouse.scroll_y
+        ui = self._menu_ui
+        if self._overlay != self._OVERLAY_NONE:
+            ui = self._overlay_ui
+        ui.poll_mouse()
+        self._mouse_left_pressed = ui.mouse.left_pressed
+        self._mouse_left_released = ui.mouse.left_released
+        self._mouse_left_down = ui.mouse.left_down
+        self._mouse_right_pressed = ui.mouse.right_pressed
+        self._mouse_right_released = ui.mouse.right_released
+        self._mouse_right_down = ui.mouse.right_down
+        self._mouse_x = ui.mouse.x
+        self._mouse_y = ui.mouse.y
+        self._mouse_scroll_y = ui.mouse.scroll_y
 
     def _poll_menu_confirm_release(self) -> bool:
-        return self._ui.poll_action(self._state.controls, Action.CONFIRM)
+        return self._menu_ui.poll_action(self._state.controls, Action.CONFIRM)
 
     def _poll_menu_nav_release_events(self) -> tuple[bool, bool]:
         return (
-            self._ui.poll_action(self._state.controls, Action.NAV_UP),
-            self._ui.poll_action(self._state.controls, Action.NAV_DOWN)
+            self._menu_ui.poll_action(self._state.controls, Action.NAV_UP),
+            self._menu_ui.poll_action(self._state.controls, Action.NAV_DOWN)
         )
 
     def _poll_menu_mouse_confirm_release(self) -> bool:
@@ -334,11 +336,11 @@ class MainMenuScene:
 
     def _poll_overlay_footer_mouse_release(self) -> tuple[bool, bool, bool]:
         if self._overlay == self._OVERLAY_NONE:
-            self._ui.reset_footer()
+            self._overlay_ui.reset_footer()
             return False, False, False
         spec = self._overlay_spec()
         if spec is None:
-            self._ui.reset_footer()
+            self._overlay_ui.reset_footer()
             return False, False, False
         footer = spec.footer
         layout = self._overlay_layout()
@@ -352,7 +354,7 @@ class MainMenuScene:
             footer,
             nav_enabled
         )
-        released_slot = self._ui.poll_footer_release(layout, slots)
+        released_slot = self._overlay_ui.poll_footer_release(layout, slots)
         slot_nav, slot_confirm, slot_cancel = ui_footer_slot_indices(
             layout, slot_count)
         return (
@@ -361,48 +363,56 @@ class MainMenuScene:
             released_slot == slot_cancel
         )
 
-    def _sync_release_menu_actions(self) -> None:
-        self._ui.sync_actions(
+    def _apply_input_context(self, swallow_held: bool) -> None:
+        actions: list[ActionId] = [
+            Action.NAV_UP,
+            Action.NAV_DOWN,
+            Action.CONFIRM
+        ]
+        if self._overlay != self._OVERLAY_NONE:
+            self._overlay_ui.activate(
+                self._state.controls,
+                [
+                    Action.NAV_UP,
+                    Action.NAV_DOWN,
+                    Action.NAV_LEFT,
+                    Action.NAV_RIGHT,
+                    Action.CONFIRM,
+                    Action.CANCEL,
+                    Action.SECONDARY
+                ],
+                swallow_held
+            )
+            return
+        self._menu_ui.activate(
             self._state.controls,
-            [Action.NAV_UP, Action.NAV_DOWN, Action.CONFIRM]
+            actions,
+            swallow_held
         )
-
-    def _sync_release_overlay_actions(self) -> None:
-        self._ui.sync_actions(
-            self._state.controls,
-            [
-                Action.NAV_UP,
-                Action.NAV_DOWN,
-                Action.NAV_LEFT,
-                Action.NAV_RIGHT,
-                Action.CONFIRM,
-                Action.CANCEL
-            ]
-        )
-
-    def _reset_overlay_input_latches(self) -> None:
-        self._sync_release_overlay_actions()
-
-    def _reset_menu_input_latches(self) -> None:
-        self._sync_release_menu_actions()
 
     def _poll_overlay_release_events(self) -> tuple[bool, bool, bool, bool, bool, bool]:
         return (
-            self._ui.poll_action(self._state.controls, Action.NAV_UP),
-            self._ui.poll_action(self._state.controls, Action.NAV_DOWN),
-            self._ui.poll_action(self._state.controls, Action.NAV_LEFT),
-            self._ui.poll_action(self._state.controls, Action.NAV_RIGHT),
-            self._ui.poll_action(self._state.controls, Action.CONFIRM),
-            self._ui.poll_action(self._state.controls, Action.CANCEL)
+            self._overlay_ui.poll_action(self._state.controls, Action.NAV_UP),
+            self._overlay_ui.poll_action(self._state.controls, Action.NAV_DOWN),
+            self._overlay_ui.poll_action(self._state.controls, Action.NAV_LEFT),
+            self._overlay_ui.poll_action(self._state.controls, Action.NAV_RIGHT),
+            self._overlay_ui.poll_action(self._state.controls, Action.CONFIRM),
+            self._overlay_ui.poll_action(self._state.controls, Action.CANCEL)
         )
 
     def _overlay_nav_any_down(self) -> bool:
         return bool(
-            self._state.controls.down(Action.NAV_UP)
-            or self._state.controls.down(Action.NAV_DOWN)
-            or self._state.controls.down(Action.NAV_LEFT)
-            or self._state.controls.down(Action.NAV_RIGHT)
+            self._overlay_ui.down(self._state.controls, Action.NAV_UP)
+            or self._overlay_ui.down(self._state.controls, Action.NAV_DOWN)
+            or self._overlay_ui.down(self._state.controls, Action.NAV_LEFT)
+            or self._overlay_ui.down(self._state.controls, Action.NAV_RIGHT)
         )
+
+    def _overlay_down(self, action: ActionId) -> bool:
+        return self._overlay_ui.down(self._state.controls, action)
+
+    def _menu_down(self, action: ActionId) -> bool:
+        return self._menu_ui.down(self._state.controls, action)
 
     def _draw_title(self) -> None:
         rect(0, 0, 240, 18, Color.BLACK)
@@ -478,7 +488,7 @@ class MainMenuScene:
         keyboard_active = (
             selected
             and self._overlay == self._OVERLAY_NONE
-            and self._state.controls.down(Action.CONFIRM)
+            and self._menu_down(Action.CONFIRM)
         )
         mouse_active = (
             self._mouse_left_down
@@ -675,7 +685,7 @@ class MainMenuScene:
         slots, keyboard_active, button_bg_color = self._overlay_footer_state(
             layout)
         x, _y, w, _h, body_top, _footer_line_y, _footer_text_y = ui_overlay_screen_draw(
-            self._ui,
+            self._overlay_ui.runtime,
             layout,
             title,
             [],
@@ -768,7 +778,8 @@ class MainMenuScene:
             self._state.controls,
             footer,
             nav_enabled,
-            self._overlay_nav_any_down()
+            self._overlay_nav_any_down(),
+            self._overlay_ui.context_token
         )
         return slots, keyboard_active, button_bg_color
 

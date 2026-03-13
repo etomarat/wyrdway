@@ -9,7 +9,7 @@ if TYPE_CHECKING:
         seed_cycle_char,
         seed_text_max_len
     )
-    from ..core.controls.actions import Action
+    from ..core.controls.actions import Action, ActionId
     from ..core.controls.modes import InputDeviceMode, InputDeviceModeId
     from ..core.controls.prompts import (
         PromptGlyph,
@@ -173,8 +173,8 @@ class MainMenuNewGameFlow:
         preset: DrivePresetId
     ) -> None:
         self.focus_row = self.ROW_DIFFICULTY
-        self.mode_draft = mode
-        self.preset_draft = preset
+        self.mode_draft: InputDeviceModeId = mode
+        self.preset_draft: DrivePresetId = preset
         seed = normalize_seed_text(generate_seed_text_default())
         max_len = seed_text_max_len()
         if len(seed) > max_len:
@@ -400,7 +400,7 @@ class MainMenuNewGameFlow:
         slots, keyboard_active, button_bg_color = scene._overlay_footer_state(
             layout)
         x, _y, w, _h, body_top, _footer_line_y, _footer_text_y = ui_overlay_screen_draw(
-            scene._ui,
+            scene._overlay_ui.runtime,
             layout,
             scene._overlay_title("NEW GAME SETUP"),
             [],
@@ -447,7 +447,7 @@ class MainMenuNewGameFlow:
         slots, keyboard_active, button_bg_color = scene._overlay_footer_state(
             layout)
         x, _y, _w, _h, body_top, _footer_line_y, _footer_text_y = ui_overlay_screen_draw(
-            scene._ui,
+            scene._overlay_ui.runtime,
             layout,
             scene._overlay_title("SEED EDITOR"),
             [],
@@ -602,7 +602,7 @@ class MainMenuNewGameFlow:
         print(seed[idx], cell_x, y, Color.YELLOW, fixed=True)
         line(cell_x, y + 6, cell_x + 5, y + 6, Color.YELLOW)
 
-    def _setup_nav_arrow(self, scene: MainMenuScene, action_id: int) -> str:
+    def _setup_nav_arrow(self, scene: MainMenuScene, action_id: ActionId) -> str:
         glyphs = prompt_glyphs_for_action(action_id, self.mode_draft)
         if len(glyphs) <= 0:
             return ""
@@ -831,7 +831,7 @@ class MainMenuControlsOverlayFlow(MainMenuOverlayFlow):
         slots, keyboard_active, button_bg_color = scene._overlay_footer_state(
             layout)
         x, _y, w, _h, body_top, footer_line_y, _footer_text_y = ui_overlay_screen_draw(
-            scene._ui,
+            scene._overlay_ui.runtime,
             layout,
             scene._overlay_title("OPTIONS"),
             [],
@@ -843,7 +843,14 @@ class MainMenuControlsOverlayFlow(MainMenuOverlayFlow):
         )
         line_step = 7
         body_x = x + body_x_pad
-        self._draw_settings(layout, body_x, body_top, line_step, body_x_pad)
+        self._draw_settings(
+            scene,
+            layout,
+            body_x,
+            body_top,
+            line_step,
+            body_x_pad
+        )
         info_top = body_top + line_step * self._options.row_count() + 5
         line(body_x, info_top - 2, x + w - 9, info_top - 2, Color.DARK_GREY)
         self._draw_bindings_table(
@@ -913,6 +920,7 @@ class MainMenuControlsOverlayFlow(MainMenuOverlayFlow):
 
     def _draw_settings(
         self,
+        scene: MainMenuScene,
         layout: OverlayLayout,
         body_x: int,
         body_top: int,
@@ -937,7 +945,7 @@ class MainMenuControlsOverlayFlow(MainMenuOverlayFlow):
             values.append(self._options.setting_value(row))
             enabled_rows.append(enabled)
             active_rows.append(
-                self._setting_row_active(row, selected, enabled)
+                self._setting_row_active(scene, row, selected, enabled)
             )
             row += 1
         ui_options_settings_draw(
@@ -961,7 +969,13 @@ class MainMenuControlsOverlayFlow(MainMenuOverlayFlow):
             Color.WHITE
         )
 
-    def _setting_row_active(self, row: int, selected: bool, enabled: bool) -> bool:
+    def _setting_row_active(
+        self,
+        scene: MainMenuScene,
+        row: int,
+        selected: bool,
+        enabled: bool
+    ) -> bool:
         mouse_active = (
             self._mouse_down_row == row
             and self._mouse_hover_row == row
@@ -979,8 +993,8 @@ class MainMenuControlsOverlayFlow(MainMenuOverlayFlow):
         if not enabled:
             return False
         return bool(
-            self._state.controls.down(Action.NAV_LEFT)
-            or self._state.controls.down(Action.NAV_RIGHT)
+            scene._overlay_down(Action.NAV_LEFT)
+            or scene._overlay_down(Action.NAV_RIGHT)
         )
 
     def _setting_row_at(self, layout: OverlayLayout, mx: int, my: int) -> int:

@@ -19,12 +19,12 @@ if TYPE_CHECKING:
     )
     from ..core.palette import Color
     from ..core.scene_ids import SceneId
+    from ..core.ui.input_layer import UiInputLayer
     from ..core.ui.prompts import (
         ui_prompt_for_action,
         ui_prompt_for_nav_hint,
         ui_prompt_with_text
     )
-    from ..core.ui.release_latch import UiReleaseLatch
     from ..core.ui.rich_text import ui_rich_print
     from ..core.version import GAME_VERSION
     from ..data.tuning import TUNING
@@ -213,7 +213,7 @@ class DrivePresetScene:
     def __init__(self, nav: SceneNavigator) -> None:
         self._nav = nav
         self._state = nav.state
-        self._release = UiReleaseLatch()
+        self._ui = UiInputLayer()
         self._selected = 0
         self._engine = DrivePresetEngine()
         self._presets = [
@@ -275,7 +275,7 @@ class DrivePresetScene:
         ]
 
     def enter(self, params: SceneEnterParams = None) -> None:
-        self._release.sync_actions_from_controls(
+        self._ui.activate(
             self._state.controls,
             [
                 Action.NAV_LEFT,
@@ -284,7 +284,8 @@ class DrivePresetScene:
                 Action.NAV_DOWN,
                 Action.CONFIRM,
                 Action.SECONDARY
-            ]
+            ],
+            True
         )
         self._state.end_run()
         self._engine.capture_baseline()
@@ -331,12 +332,12 @@ class DrivePresetScene:
         )
 
     def update(self, dt: float) -> None:
-        nav_left_released = self._release.poll(self._state.controls, Action.NAV_LEFT)
-        nav_up_released = self._release.poll(self._state.controls, Action.NAV_UP)
-        nav_right_released = self._release.poll(self._state.controls, Action.NAV_RIGHT)
-        nav_down_released = self._release.poll(self._state.controls, Action.NAV_DOWN)
-        confirm_released = self._release.poll(self._state.controls, Action.CONFIRM)
-        secondary_released = self._release.poll(self._state.controls, Action.SECONDARY)
+        nav_left_released = self._ui.poll_action(self._state.controls, Action.NAV_LEFT)
+        nav_up_released = self._ui.poll_action(self._state.controls, Action.NAV_UP)
+        nav_right_released = self._ui.poll_action(self._state.controls, Action.NAV_RIGHT)
+        nav_down_released = self._ui.poll_action(self._state.controls, Action.NAV_DOWN)
+        confirm_released = self._ui.poll_action(self._state.controls, Action.CONFIRM)
+        secondary_released = self._ui.poll_action(self._state.controls, Action.SECONDARY)
 
         if (
             nav_left_released

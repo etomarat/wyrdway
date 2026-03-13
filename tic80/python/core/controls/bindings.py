@@ -17,6 +17,13 @@ class InputRef:
         self.code = int(code)
 
 
+INPUT_REF_TOKEN_STRIDE = 65536
+
+
+def input_ref_token(ref: InputRef) -> int:
+    return int(ref.kind) * INPUT_REF_TOKEN_STRIDE + int(ref.code)
+
+
 def btn_ref(button_id: int) -> InputRef:
     return InputRef(InputKind.BTN, button_id)
 
@@ -49,6 +56,26 @@ class ActionBindings:
 
     def pressed_buttons(self, action: ActionId) -> list[InputRef]:
         return self._pressed.get(action, [])
+
+    def all_refs(self) -> list[InputRef]:
+        out: list[InputRef] = []
+        seen: dict[int, bool] = {}
+        groups = [self._down, self._pressed]
+        group_index = 0
+        while group_index < len(groups):
+            group = groups[group_index]
+            for action_id in group:
+                refs = group[action_id]
+                i = 0
+                while i < len(refs):
+                    ref = refs[i]
+                    token = input_ref_token(ref)
+                    if not seen.get(token, False):
+                        seen[token] = True
+                        out.append(ref)
+                    i += 1
+            group_index += 1
+        return out
 
 
 def make_default_bindings() -> ActionBindings:

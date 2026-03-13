@@ -45,6 +45,8 @@ class SceneManager(SceneNavigator):
         if scene_id not in self._scenes:
             return
 
+        self._state.controls.swallow_held_inputs()
+
         if scene_id == SceneId.DRIVE:
             if not isinstance(params, DriveEnterParams):
                 raise TypeError("DRIVE scene requires DriveEnterParams")

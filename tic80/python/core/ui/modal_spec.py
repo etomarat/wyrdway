@@ -97,7 +97,8 @@ def ui_modal_keyboard_active(
     controls: Controls,
     footer: UiModalFooterSpec,
     nav_enabled: bool,
-    nav_down: bool
+    nav_down: bool,
+    context_token: int = 0
 ) -> list[bool]:
     slot_nav, slot_confirm, slot_cancel = ui_footer_slot_indices(
         layout,
@@ -110,6 +111,16 @@ def ui_modal_keyboard_active(
         i += 1
     if nav_enabled:
         active[slot_nav] = bool(nav_down)
-    active[slot_confirm] = controls.down(footer.confirm_action)
-    active[slot_cancel] = controls.down(footer.cancel_action)
+    if int(context_token) != 0:
+        active[slot_confirm] = controls.down_for(
+            footer.confirm_action,
+            context_token
+        )
+        active[slot_cancel] = controls.down_for(
+            footer.cancel_action,
+            context_token
+        )
+    else:
+        active[slot_confirm] = controls.down(footer.confirm_action)
+        active[slot_cancel] = controls.down(footer.cancel_action)
     return active
