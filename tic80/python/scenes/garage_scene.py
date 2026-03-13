@@ -433,10 +433,10 @@ class GarageScene:
 
     def update(self, dt: float) -> None:
         self._ui.poll_mouse()
-        confirm_released = self._ui.poll_action(
-            self._state.controls, Action.CONFIRM)
-        cancel_released = self._ui.poll_action(
-            self._state.controls, Action.CANCEL)
+        confirm_released = self._ui.poll_confirm(
+            self._state, self._state.controls)
+        cancel_released = self._ui.poll_cancel(
+            self._state, self._state.controls)
         secondary_released = self._ui.poll_action(
             self._state.controls, Action.SECONDARY)
         help_released = self._ui.poll_action(self._state.controls, Action.HELP)
@@ -449,7 +449,7 @@ class GarageScene:
                 "CLOSE"
             )
             released_slot = self._ui.poll_footer_release(layout, slots)
-            if cancel_released or released_slot == slot_confirm:
+            if cancel_released or self._ui.footer_button_released(self._state, released_slot, slot_confirm):
                 self._rollback_modal_open = False
                 self._ui.reset_footer()
             return
@@ -462,11 +462,11 @@ class GarageScene:
                 "CLOSE"
             )
             released_slot = self._ui.poll_footer_release(layout, slots)
-            if cancel_released or confirm_released or released_slot == slot_confirm:
+            if cancel_released or confirm_released or self._ui.footer_button_released(self._state, released_slot, slot_confirm):
                 self._upgrades_modal_open = False
                 self._ui.reset_footer()
                 self._reset_action_bar_mouse()
-            return
+                return
 
         slot_rows = self._active_action_slots_rows()
         released_rows = ui_action_bar_rows_poll_release_with_style(
@@ -491,33 +491,38 @@ class GarageScene:
                     TUNING.PROFILE.start_garage_hp
                 )
                 if repaired:
-                    self._state.vibe_repair()
+                    self._state.vibe_success()
                     self._state.save_profile()
+                else:
+                    self._state.vibe_fail()
                 return
             if help_released or released_top == 1:
+                self._state.vibe_ui_button()
                 self._upgrades_modal_open = True
                 self._ui.reset_footer()
                 self._reset_action_bar_mouse()
                 return
             if cancel_released or released_bottom == 0:
+                self._state.vibe_ui_button()
                 self._service_open = False
                 self._ui.reset_footer()
                 self._reset_action_bar_mouse()
                 return
 
         if confirm_released or released_bottom == 0:
-            self._state.vibe_ui_confirm()
+            self._state.vibe_ui_button()
             self._state.start_run()
             self._nav.go(SceneId.REGION_MAP)
         elif secondary_released or released_top == 0:
+            self._state.vibe_ui_button()
             self._service_open = True
             self._ui.reset_footer()
             self._reset_action_bar_mouse()
         elif help_released or released_top == 1:
+            self._state.vibe_ui_button()
             self._state.save_profile()
             self._ui.reset_footer()
             self._reset_action_bar_mouse()
-            self._state.vibe_ui_confirm()
             self._nav.go(SceneId.MAIN_MENU)
 
     def draw(self) -> None:

@@ -351,12 +351,14 @@ class DrivePresetScene:
         if confirm_released:
             if not self._apply_selected_preset():
                 return
+            self._state.vibe_ui_button()
             self._nav.go(SceneId.GARAGE)
         elif secondary_released:
             if not self._chase_test_allowed():
                 return
             if not self._apply_selected_preset():
                 return
+            self._state.vibe_ui_button()
             self._start_chase_test()
 
     def draw(self) -> None:

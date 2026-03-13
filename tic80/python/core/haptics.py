@@ -13,18 +13,24 @@ class Haptics:
         "_pulse_weak",
         "_pulse_strong",
         "_pulse_time_s",
-        "_base_weak",
-        "_base_strong",
+        "_gravel_weak",
+        "_gravel_strong",
+        "_engine_base_weak",
+        "_engine_base_strong",
         "_engine_level",
         "_engine_pulse_weak",
         "_engine_pulse_strong",
         "_engine_pulse_time_s",
         "_engine_cycle_time_s",
+        "_drift_base_weak",
+        "_drift_base_strong",
         "_drift_level",
         "_drift_pulse_weak",
         "_drift_pulse_strong",
         "_drift_pulse_time_s",
         "_drift_cycle_time_s",
+        "_drive_duck_time_s",
+        "_drive_duck_n",
         "_rumble_refresh_s",
         "_last_sent_weak",
         "_last_sent_strong"
@@ -38,18 +44,24 @@ class Haptics:
         self._pulse_weak = 0
         self._pulse_strong = 0
         self._pulse_time_s = 0.0
-        self._base_weak = 0
-        self._base_strong = 0
+        self._gravel_weak = 0
+        self._gravel_strong = 0
+        self._engine_base_weak = 0
+        self._engine_base_strong = 0
         self._engine_level = 0.0
         self._engine_pulse_weak = 0
         self._engine_pulse_strong = 0
         self._engine_pulse_time_s = 0.0
         self._engine_cycle_time_s = 0.0
+        self._drift_base_weak = 0
+        self._drift_base_strong = 0
         self._drift_level = 0.0
         self._drift_pulse_weak = 0
         self._drift_pulse_strong = 0
         self._drift_pulse_time_s = 0.0
         self._drift_cycle_time_s = 0.0
+        self._drive_duck_time_s = 0.0
+        self._drive_duck_n = 0.0
         self._rumble_refresh_s = 0.0
         self._last_sent_weak = 0
         self._last_sent_strong = 0
@@ -63,18 +75,24 @@ class Haptics:
         self._flush_rumble(True)
 
     def clear_drive_feedback(self) -> None:
-        self._base_weak = 0
-        self._base_strong = 0
+        self._gravel_weak = 0
+        self._gravel_strong = 0
+        self._engine_base_weak = 0
+        self._engine_base_strong = 0
         self._engine_level = 0.0
         self._engine_pulse_weak = 0
         self._engine_pulse_strong = 0
         self._engine_pulse_time_s = 0.0
         self._engine_cycle_time_s = 0.0
+        self._drift_base_weak = 0
+        self._drift_base_strong = 0
         self._drift_level = 0.0
         self._drift_pulse_weak = 0
         self._drift_pulse_strong = 0
         self._drift_pulse_time_s = 0.0
         self._drift_cycle_time_s = 0.0
+        self._drive_duck_time_s = 0.0
+        self._drive_duck_n = 0.0
         self._flush_rumble(True)
 
     def set_drive_feedback(self, gravel: float, engine: float, drift: float) -> None:
@@ -83,16 +101,12 @@ class Haptics:
         drift_n = self._clamp01(drift)
         self._engine_level = engine_n
         self._drift_level = drift_n
-        self._base_weak = self._clamp_motor(
-            self._scale_int(0, 9500, gravel_n)
-            + self._scale_int(0, 450, engine_n)
-            + self._scale_int(0, 1100, drift_n)
-        )
-        self._base_strong = self._clamp_motor(
-            self._scale_int(0, 5500, gravel_n)
-            + self._scale_int(0, 3200, engine_n)
-            + self._scale_int(0, 2400, drift_n)
-        )
+        self._gravel_weak = self._scale_int(0, 9500, gravel_n)
+        self._gravel_strong = self._scale_int(0, 5500, gravel_n)
+        self._engine_base_weak = self._scale_int(0, 450, engine_n)
+        self._engine_base_strong = self._scale_int(0, 3200, engine_n)
+        self._drift_base_weak = self._scale_int(0, 1100, drift_n)
+        self._drift_base_strong = self._scale_int(0, 2400, drift_n)
 
     def update(self, dt: float) -> None:
         dt_s = float(dt)
@@ -114,6 +128,11 @@ class Haptics:
                 self._drift_pulse_time_s = 0.0
                 self._drift_pulse_weak = 0
                 self._drift_pulse_strong = 0
+        if self._drive_duck_time_s > 0.0:
+            self._drive_duck_time_s -= dt_s
+            if self._drive_duck_time_s <= 0.0:
+                self._drive_duck_time_s = 0.0
+                self._drive_duck_n = 0.0
         if self._engine_level > 0.10:
             self._engine_cycle_time_s -= dt_s
             if self._engine_cycle_time_s <= 0.0:
@@ -162,30 +181,16 @@ class Haptics:
         self._set_pulse(weak, strong, duration)
         return self._flush_rumble(True)
 
-    def ui_confirm(self) -> None:
-        self.pulse(1800, 9000, 40)
-
-    def ui_fail(self) -> None:
+    def fail(self) -> None:
         self._start_pattern([
-            (0, 18000, 50, 85),
-            (2500, 9000, 75, 0)
+            (900, 4200, 30, 88),
+            (2600, 13000, 58, 0)
         ])
 
-    def pickup(self) -> None:
+    def success(self) -> None:
         self._start_pattern([
-            (2500, 9500, 40, 55),
-            (4200, 14500, 50, 0)
-        ])
-
-    def begin_return(self) -> None:
-        self._start_pattern([
-            (3200, 12000, 55, 0)
-        ])
-
-    def repair(self) -> None:
-        self._start_pattern([
-            (4200, 14500, 50, 70),
-            (6200, 20500, 65, 0)
+            (0, 18000, 26, 98),
+            (300, 11000, 30, 0)
         ])
 
     def burnout_start(self) -> None:
@@ -210,6 +215,25 @@ class Haptics:
                 self._scale_int(1800, 5200, t),
                 self._scale_int(6000, 14000, t),
                 50,
+                0
+            )
+        ])
+
+    def booster_enter(self, speed_n: float) -> None:
+        t = self._clamp01(speed_n)
+        self._drive_duck_n = 0.82
+        self._drive_duck_time_s = 0.16
+        self._start_pattern([
+            (
+                self._scale_int(7000, 12000, t),
+                self._scale_int(22000, 32000, t),
+                self._scale_int(78, 98, t),
+                self._scale_int(78, 98, t)
+            ),
+            (
+                self._scale_int(4200, 7600, t),
+                self._scale_int(14000, 22000, t),
+                self._scale_int(65, 82, t),
                 0
             )
         ])
@@ -255,18 +279,6 @@ class Haptics:
                 self._scale_int(60, 95, total_n),
                 0
             )
-        ])
-
-    def run_failed(self) -> None:
-        self._start_pattern([
-            (0, 22000, 65, 95),
-            (3500, 12000, 110, 0)
-        ])
-
-    def return_success(self) -> None:
-        self._start_pattern([
-            (2200, 9000, 40, 60),
-            (4200, 15000, 55, 0)
         ])
 
     def _clear_pattern(self) -> None:
@@ -327,19 +339,25 @@ class Haptics:
         return ok
 
     def _combined_weak(self) -> int:
+        drive_mult = self._drive_feedback_mult()
         return self._clamp_motor(
-            self._base_weak
+            self._gravel_weak
             + self._pulse_weak
-            + self._engine_pulse_weak
-            + self._drift_pulse_weak
+            + self._scaled_motor(self._engine_base_weak, drive_mult)
+            + self._scaled_motor(self._engine_pulse_weak, drive_mult)
+            + self._scaled_motor(self._drift_base_weak, drive_mult)
+            + self._scaled_motor(self._drift_pulse_weak, drive_mult)
         )
 
     def _combined_strong(self) -> int:
+        drive_mult = self._drive_feedback_mult()
         return self._clamp_motor(
-            self._base_strong
+            self._gravel_strong
             + self._pulse_strong
-            + self._engine_pulse_strong
-            + self._drift_pulse_strong
+            + self._scaled_motor(self._engine_base_strong, drive_mult)
+            + self._scaled_motor(self._engine_pulse_strong, drive_mult)
+            + self._scaled_motor(self._drift_base_strong, drive_mult)
+            + self._scaled_motor(self._drift_pulse_strong, drive_mult)
         )
 
     def _trigger_engine_pulse(self) -> None:
@@ -370,6 +388,16 @@ class Haptics:
     def _scale_int(low: int, high: int, t: float) -> int:
         t_i = Haptics._clamp01(t)
         return int(float(low) + (float(high) - float(low)) * t_i)
+
+    def _drive_feedback_mult(self) -> float:
+        if self._drive_duck_time_s <= 0.0:
+            return 1.0
+        n = self._clamp01(self._drive_duck_n)
+        return 1.0 - n
+
+    @staticmethod
+    def _scaled_motor(value: int, mult: float) -> int:
+        return int(float(value) * float(mult))
 
     @staticmethod
     def _clamp_motor(value: int) -> int:

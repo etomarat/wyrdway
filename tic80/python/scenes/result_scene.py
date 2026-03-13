@@ -204,7 +204,6 @@ class ResultScene:
                 poi_action = str(delta.poi_action)
 
         self._build_run_report_layout(poi_action, delivered_scrap, fuel_recovered)
-        self._state.vibe_return_success()
 
     def update(self, dt: float) -> None:
         self._ui.poll_mouse()
@@ -215,7 +214,7 @@ class ResultScene:
             self._cta
         )
         released_slot = self._ui.poll_footer_release(layout, slots)
-        if self._ui.poll_action(self._state.controls, Action.CONFIRM) or released_slot == slot_confirm:
+        if self._ui.poll_confirm(self._state, self._state.controls) or self._ui.footer_button_released(self._state, released_slot, slot_confirm):
             self._state.apply_run_results()
             self._nav.go(SceneId.GARAGE)
 

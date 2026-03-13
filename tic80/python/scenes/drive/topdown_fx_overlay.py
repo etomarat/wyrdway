@@ -168,11 +168,11 @@ class TopdownFxOverlay:
         self._fx_spawn_accum_off_smoke -= int(self._fx_spawn_accum_off_smoke)
 
     def _maybe_emit_exhaust_smoke(self, logic: DriveLogic, dt: float, pose: CarPose2D) -> None:
-        """Эмитит выхлоп в зависимости от доли текущей скорости от max_speed."""
+        """Эмитит выхлоп в зависимости от доли текущей скорости от feedback_speed_ref."""
         d = TUNING.DRIVE
-        if d.max_speed <= 0.0 or d.fx_exhaust_rate <= 0.0:
+        if d.feedback_speed_ref <= 0.0 or d.fx_exhaust_rate <= 0.0:
             return
-        speed_factor = logic.speed / d.max_speed
+        speed_factor = logic.speed / d.feedback_speed_ref
         over = speed_factor - d.fx_exhaust_min_speed_factor
         ramp = float(d.fx_exhaust_ramp_speed_factor)
         if ramp < 0.01:

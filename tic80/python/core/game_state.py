@@ -190,35 +190,20 @@ class GameState:
         self._haptics.play_engine_startup()
         return True
 
-    def vibe_ui_confirm(self) -> bool:
+    def vibe_fail(self) -> bool:
         if not self.vibration_allowed():
             return False
-        self._haptics.ui_confirm()
+        self._haptics.fail()
         return True
 
-    def vibe_ui_fail(self) -> bool:
+    def vibe_ui_button(self) -> bool:
         if not self.vibration_allowed():
             return False
-        self._haptics.ui_fail()
+        self._haptics.success()
         return True
 
-    def vibe_pickup(self) -> bool:
-        if not self.vibration_allowed():
-            return False
-        self._haptics.pickup()
-        return True
-
-    def vibe_begin_return(self) -> bool:
-        if not self.vibration_allowed():
-            return False
-        self._haptics.begin_return()
-        return True
-
-    def vibe_repair(self) -> bool:
-        if not self.vibration_allowed():
-            return False
-        self._haptics.repair()
-        return True
+    def vibe_success(self) -> bool:
+        return self.vibe_ui_button()
 
     def vibe_burnout_start(self) -> bool:
         if not self.vibration_allowed():
@@ -230,6 +215,12 @@ class GameState:
         if not self.vibration_allowed():
             return False
         self._haptics.offroad_transition(speed_n)
+        return True
+
+    def vibe_booster_enter(self, speed_n: float) -> bool:
+        if not self.vibration_allowed():
+            return False
+        self._haptics.booster_enter(speed_n)
         return True
 
     def vibe_drive_feedback(self, gravel: float, engine: float, drift: float) -> bool:
@@ -252,18 +243,6 @@ class GameState:
         if not self.vibration_allowed():
             return False
         self._haptics.pursuer_strike(hp_loss, intensity)
-        return True
-
-    def vibe_run_failed(self) -> bool:
-        if not self.vibration_allowed():
-            return False
-        self._haptics.run_failed()
-        return True
-
-    def vibe_return_success(self) -> bool:
-        if not self.vibration_allowed():
-            return False
-        self._haptics.return_success()
         return True
 
     @property

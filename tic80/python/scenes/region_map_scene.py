@@ -61,7 +61,8 @@ class RegionMapScene:
         self._ui.poll_mouse()
         nav_up_released = self._ui.poll_action(self._state.controls, Action.NAV_UP)
         nav_down_released = self._ui.poll_action(self._state.controls, Action.NAV_DOWN)
-        confirm_released = self._ui.poll_action(self._state.controls, Action.CONFIRM)
+        confirm_released = self._ui.poll_confirm(
+            self._state, self._state.controls)
         slot_count = 2
         slot_weights = (1, 1)
         layout = ui_overlay_layout_centered_by_spec(
@@ -80,11 +81,11 @@ class RegionMapScene:
             self.selected_node = max(1, self.selected_node - 1)
         if nav_down_released:
             self.selected_node = min(self.node_count, self.selected_node + 1)
-        if released_slot == slot_nav:
+        if self._ui.footer_button_released(self._state, released_slot, slot_nav):
             self.selected_node += 1
             if self.selected_node > self.node_count:
                 self.selected_node = 1
-        if confirm_released or released_slot == slot_confirm:
+        if confirm_released or self._ui.footer_button_released(self._state, released_slot, slot_confirm):
             run = self._state.require_run()
             run.ensure_outbound_segment(
                 self.selected_node,

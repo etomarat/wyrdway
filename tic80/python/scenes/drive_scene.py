@@ -142,6 +142,7 @@ class DriveScene:
         self._update_offroad_transition_haptics(was_offroad)
         z_after = zone_at_hitboxes(self._logic, zones)
         self._active_zone = z_after if z_after is not None else z_before
+        self._update_booster_enter_haptics(z_before, z_after)
 
         self._apply_obstacle_hits(run)
         self._update_pursuer(dt, run, z_before, z_after)
@@ -218,11 +219,27 @@ class DriveScene:
             return
         if was_offroad or not logic.offroad:
             return
-        max_speed = float(TUNING.DRIVE.max_speed)
+        max_speed = float(TUNING.DRIVE.feedback_speed_ref)
         speed_n = 0.0
         if max_speed > 0.0:
             speed_n = float(logic.speed) / max_speed
         self._state.vibe_offroad_transition(speed_n)
+
+    def _update_booster_enter_haptics(
+        self,
+        z_before: DriveZone | None,
+        z_after: DriveZone | None
+    ) -> None:
+        logic = self._logic
+        if logic is None:
+            return
+        if not self._boost_pushback_event(z_before, z_after):
+            return
+        max_speed = float(TUNING.DRIVE.feedback_speed_ref)
+        speed_n = 0.0
+        if max_speed > 0.0:
+            speed_n = float(logic.speed) / max_speed
+        self._state.vibe_booster_enter(speed_n)
 
     def _append_popup(self, text: str, color: int) -> None:
         self._popups.append(_DrivePopup(text, color))
@@ -408,7 +425,7 @@ class DriveScene:
 
     def _evacuate(self, reason: str) -> None:
         self._evacuated = True
-        self._state.vibe_run_failed()
+        self._state.vibe_fail()
         if self._telemetry is not None:
             self._telemetry.dump("rollback fail " + reason)
         chase_contact = self._mode == "extract"

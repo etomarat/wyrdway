@@ -302,6 +302,52 @@ class RoadModel:
             idx = len(self._dir_x) - 1
         return self._dir_x[idx], self._dir_y[idx]
 
+    def sample_centerline_interp(self, s: float) -> tuple[float, float]:
+        """Возвращает интерполированный центр дороги в точке `s`."""
+        idx, next_idx, t = self._interp_segment_for_s(s, len(self._center_x))
+        if idx == next_idx:
+            return self._center_x[idx], self._center_y[idx]
+        x0 = self._center_x[idx]
+        y0 = self._center_y[idx]
+        x1 = self._center_x[next_idx]
+        y1 = self._center_y[next_idx]
+        return (
+            x0 + (x1 - x0) * t,
+            y0 + (y1 - y0) * t
+        )
+
+    def direction_at_interp(self, s: float) -> tuple[float, float]:
+        """Возвращает интерполированное unit-направление вдоль дороги в `s`."""
+        idx, next_idx, t = self._interp_segment_for_s(s, len(self._dir_x))
+        if idx == next_idx:
+            return self._dir_x[idx], self._dir_y[idx]
+        dx = self._dir_x[idx] + (self._dir_x[next_idx] - self._dir_x[idx]) * t
+        dy = self._dir_y[idx] + (self._dir_y[next_idx] - self._dir_y[idx]) * t
+        l2 = dx * dx + dy * dy
+        if l2 > 0.0:
+            inv = 1.0 / (l2 ** 0.5)
+            dx *= inv
+            dy *= inv
+        return (dx, dy)
+
+    def _interp_segment_for_s(self, s: float, count: int) -> tuple[int, int, float]:
+        if count <= 1 or self.ds <= 0.0:
+            return (0, 0, 0.0)
+        if s <= 0.0:
+            return (0, 0, 0.0)
+        pos = s / self.ds
+        idx = int(pos)
+        if idx < 0:
+            idx = 0
+        if idx >= count - 1:
+            return (count - 1, count - 1, 0.0)
+        t = pos - float(idx)
+        if t < 0.0:
+            t = 0.0
+        if t > 1.0:
+            t = 1.0
+        return (idx, idx + 1, t)
+
     def center_points_len(self) -> int:
         """Количество предрасчитанных точек centerline."""
         return len(self._center_x)

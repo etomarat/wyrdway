@@ -48,9 +48,6 @@ PERF = PerfOverlay()
 def _boot_debug_state() -> None:
     debug_enabled = bool(TUNING.DEBUG.debug_enabled)
     if not debug_enabled:
-        TUNING.DRIVE.debug_vectors_enabled = False
-        TUNING.DRIVE.debug_hitboxes_enabled = False
-        TUNING.DRIVE.debug_zones_enabled = False
         TUNING.DRIVE.telemetry_enabled = False
     DEBUG.set_enabled(debug_enabled and TUNING.DEBUG.overlay_default)
     SCENE_MANAGER.state.set_debug_overlay_enabled(DEBUG.enabled)

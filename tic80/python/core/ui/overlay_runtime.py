@@ -5,6 +5,7 @@ if TYPE_CHECKING:
 
     from ..controls.actions import ActionId
     from ..controls.input import Controls
+    from ..game_state import GameState
     from .overlay_layout import (
         OverlayLayout,
         ui_overlay_footer_positions
@@ -18,10 +19,14 @@ if TYPE_CHECKING:
 else:
     ActionId = int
     Controls = object
+    GameState = object
     OverlayLayout = dict
 
 
 class UiOverlayRuntime:
+    _ACTION_CONFIRM = 0
+    _ACTION_CANCEL = 1
+
     def __init__(self) -> None:
         self.release = UiReleaseLatch()
         self.mouse = UiMouseState()
@@ -35,6 +40,23 @@ class UiOverlayRuntime:
 
     def poll_action(self, controls: Controls, action: ActionId) -> bool:
         return self.release.poll(controls, action)
+
+    def poll_button_action(
+        self,
+        state: GameState,
+        controls: Controls,
+        action: ActionId
+    ) -> bool:
+        released = self.release.poll(controls, action)
+        if released:
+            state.vibe_ui_button()
+        return released
+
+    def poll_confirm(self, state: GameState, controls: Controls) -> bool:
+        return self.poll_button_action(state, controls, self._ACTION_CONFIRM)
+
+    def poll_cancel(self, state: GameState, controls: Controls) -> bool:
+        return self.poll_button_action(state, controls, self._ACTION_CANCEL)
 
     def poll_actions(self, controls: Controls, actions: list[ActionId]) -> list[bool]:
         out: list[bool] = []
@@ -60,6 +82,28 @@ class UiOverlayRuntime:
             footer_line_y,
             footer_text_y
         )
+
+    def poll_footer_button_release(
+        self,
+        state: GameState,
+        layout: OverlayLayout,
+        slots: list[str]
+    ) -> int:
+        released_slot = self.poll_footer_release(layout, slots)
+        if released_slot >= 0:
+            state.vibe_ui_button()
+        return released_slot
+
+    def footer_button_released(
+        self,
+        state: GameState,
+        released_slot: int,
+        slot_index: int
+    ) -> bool:
+        if int(released_slot) != int(slot_index):
+            return False
+        state.vibe_ui_button()
+        return True
 
     def slot_states(
         self,

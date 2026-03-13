@@ -197,6 +197,15 @@ class MainMenuScene:
             self._state.controls, Action.SECONDARY
         )
         mouse_nav_released, mouse_confirm_released, mouse_cancel_released = self._poll_overlay_footer_mouse_release()
+        if (
+            secondary_released
+            or mouse_nav_released
+            or mouse_confirm_released
+            or mouse_cancel_released
+            or confirm_released
+            or cancel_released
+        ):
+            self._state.vibe_ui_button()
         if mouse_confirm_released:
             confirm_released = True
         if mouse_cancel_released:
@@ -246,18 +255,22 @@ class MainMenuScene:
             self._state.load_profile()
             if not self._has_continue():
                 return
+            self._state.vibe_ui_button()
             self._nav.go(SceneId.GARAGE)
             return
         if item_id == self._ITEM_NEW_GAME:
+            self._state.vibe_ui_button()
             if self._has_continue():
                 self._open_overlay(self._OVERLAY_NEW_GAME_CONFIRM)
                 return
             self._open_overlay(self._OVERLAY_NEW_GAME_SETUP)
             return
         if item_id == self._ITEM_CONTROLS:
+            self._state.vibe_ui_button()
             self._open_overlay(self._OVERLAY_CONTROLS)
             return
         if item_id == self._ITEM_CREDITS:
+            self._state.vibe_ui_button()
             self._open_overlay(self._OVERLAY_CREDITS)
             return
 

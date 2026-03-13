@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from tic80 import line
 
-    from ...core.palette import Color, ColorId
+    from ...core.palette import Color
     from ...data.tuning import TUNING
     from ...systems.drive.drive_fx import DriveFxProjector
     from ...systems.drive.drive_objects import DriveZone
@@ -49,6 +49,7 @@ class TopdownRoadDraw:
         self,
         road: RoadModel,
         zones: list[DriveZone],
+        active_zone: DriveZone | None,
         start_idx: int,
         end_idx: int,
         proj: DriveFxProjector
@@ -74,21 +75,11 @@ class TopdownRoadDraw:
             rsx, rsy = proj.world_to_screen(rx, ry)
 
             if prev_lsx is not None and prev_lsy is not None:
-                line(int(prev_lsx), int(prev_lsy), int(lsx), int(lsy), Color.LIGHT_GREEN)
+                line(int(prev_lsx), int(prev_lsy), int(
+                    lsx), int(lsy), Color.LIGHT_GREEN)
             if prev_rsx is not None and prev_rsy is not None:
-                line(int(prev_rsx), int(prev_rsy), int(rsx), int(rsy), Color.LIGHT_GREEN)
-
-            self._draw_zone_stripe_at(
-                road,
-                zones,
-                i,
-                cx,
-                cy,
-                nrm_x,
-                nrm_y,
-                half,
-                proj
-            )
+                line(int(prev_rsx), int(prev_rsy), int(
+                    rsx), int(rsy), Color.LIGHT_GREEN)
 
             prev_lsx = lsx
             prev_lsy = lsy
@@ -96,17 +87,38 @@ class TopdownRoadDraw:
             prev_rsy = rsy
             i += 1
 
-    def draw_zone_outline(
+        s_vis0 = start_idx * road.ds
+        s_vis1 = end_idx * road.ds
+        i = 0
+        while i < len(zones):
+            is_active = active_zone is not None and zones[i] is active_zone
+            self._draw_booster_lane_edges(
+                road,
+                zones[i],
+                is_active,
+                s_vis0,
+                s_vis1,
+                proj
+            )
+            self._draw_zone_chevrons(
+                road,
+                zones[i],
+                is_active,
+                s_vis0,
+                s_vis1,
+                proj
+            )
+            i += 1
+
+    def _draw_booster_lane_edges(
         self,
         road: RoadModel,
         z: DriveZone,
-        start_idx: int,
-        end_idx: int,
-        proj: DriveFxProjector,
-        color: ColorId
+        is_active: bool,
+        s_vis0: float,
+        s_vis1: float,
+        proj: DriveFxProjector
     ) -> None:
-        s_vis0 = start_idx * road.ds
-        s_vis1 = end_idx * road.ds
         s0 = z.s_start
         s1 = z.s_end
         if s0 < s_vis0:
@@ -119,19 +131,22 @@ class TopdownRoadDraw:
         d0 = z.d_center - z.radius
         d1 = z.d_center + z.radius
 
-        step = road.ds * 2.0
-        if step < road.ds:
-            step = road.ds
+        step = road.ds * 0.5
+        if step < 1.0:
+            step = 1.0
 
         prev0x = None
         prev0y = None
         prev1x = None
         prev1y = None
+        color = Color.GREEN
+        if is_active:
+            color = Color.WHITE
 
         s = s0
         while s <= s1:
-            cx, cy = road.sample_centerline(s)
-            dx, dy = road.direction_at(s)
+            cx, cy = road.sample_centerline_interp(s)
+            dx, dy = road.direction_at_interp(s)
             nrm_x = -dy
             nrm_y = dx
 
@@ -152,23 +167,64 @@ class TopdownRoadDraw:
             prev1y = zsy1
             s += step
 
-    def _draw_zone_stripe_at(
+    def _draw_zone_chevrons(
         self,
         road: RoadModel,
-        zones: list[DriveZone],
-        idx: int,
-        cx: float,
-        cy: float,
-        nrm_x: float,
-        nrm_y: float,
-        half: float,
+        zone: DriveZone,
+        is_active: bool,
+        s_vis0: float,
+        s_vis1: float,
         proj: DriveFxProjector
     ) -> None:
-        span = self._zone_span_at_s(idx * road.ds, zones)
-        if span is None:
+        zone_len = zone.s_end - zone.s_start
+        if zone_len <= 0.0:
             return
 
-        d0, d1 = span
+        chevron_len = TUNING.DRIVE.zone_chevron_length
+        if chevron_len < 3.0:
+            chevron_len = 3.0
+        gap_len = TUNING.DRIVE.zone_chevron_gap
+        if gap_len < 0.0:
+            gap_len = 0.0
+        pitch = chevron_len + gap_len
+        if pitch <= 0.0:
+            return
+
+        chevrons_n = 1
+        if zone_len > chevron_len and pitch > 0.0:
+            chevrons_n += int((zone_len - chevron_len) / pitch)
+
+        used_len = chevron_len + float(chevrons_n - 1) * pitch
+        lead_in = (zone_len - used_len) * 0.5
+        if lead_in < 0.0:
+            lead_in = 0.0
+        center_s = zone.s_start + lead_in + chevron_len * 0.5
+        i = 0
+        while i < chevrons_n:
+            if center_s >= s_vis0 - chevron_len and center_s <= s_vis1 + chevron_len:
+                self._draw_zone_chevron_at_s(
+                    road,
+                    zone,
+                    is_active,
+                    center_s,
+                    chevron_len,
+                    proj
+                )
+            center_s += pitch
+            i += 1
+
+    def _draw_zone_chevron_at_s(
+        self,
+        road: RoadModel,
+        zone: DriveZone,
+        is_active: bool,
+        center_s: float,
+        chevron_len: float,
+        proj: DriveFxProjector
+    ) -> None:
+        half = road.width_at(center_s) * 0.5
+        d0 = zone.d_center - zone.radius
+        d1 = zone.d_center + zone.radius
         if d0 < -half:
             d0 = -half
         if d0 > half:
@@ -178,19 +234,50 @@ class TopdownRoadDraw:
         if d1 > half:
             d1 = half
 
-        zx0 = cx + nrm_x * d0
-        zy0 = cy + nrm_y * d0
-        zx1 = cx + nrm_x * d1
-        zy1 = cy + nrm_y * d1
-        zsx0, zsy0 = proj.world_to_screen(zx0, zy0)
-        zsx1, zsy1 = proj.world_to_screen(zx1, zy1)
-        line(int(zsx0), int(zsy0), int(zsx1), int(zsy1), Color.YELLOW)
+        span_width = d1 - d0
+        if span_width <= 2.0:
+            return
 
-    def _zone_span_at_s(self, s: float, zones: list[DriveZone]) -> tuple[float, float] | None:
-        i = 0
-        while i < len(zones):
-            z = zones[i]
-            if s >= z.s_start and s <= z.s_end:
-                return (z.d_center - z.radius, z.d_center + z.radius)
-            i += 1
-        return None
+        center_d = (d0 + d1) * 0.5
+        back_len = chevron_len * 0.32
+        arm_half = span_width * 0.34
+        if arm_half < 2.0:
+            arm_half = 2.0
+        if arm_half > 4.0:
+            arm_half = 4.0
+
+        tail_s = center_s - back_len
+        tip_s = center_s + chevron_len
+        left_x, left_y = self._road_point_at_sd(
+            road,
+            tail_s,
+            center_d - arm_half
+        )
+        right_x, right_y = self._road_point_at_sd(
+            road,
+            tail_s,
+            center_d + arm_half
+        )
+        tip_x, tip_y = self._road_point_at_sd(
+            road,
+            tip_s,
+            center_d
+        )
+        sx_tip, sy_tip = proj.world_to_screen(tip_x, tip_y)
+        sx_left, sy_left = proj.world_to_screen(left_x, left_y)
+        sx_right, sy_right = proj.world_to_screen(right_x, right_y)
+        line(int(sx_left), int(sy_left), int(
+            sx_tip), int(sy_tip), Color.YELLOW)
+        line(int(sx_left), int(sy_left) + 1, int(
+            sx_tip), int(sy_tip) + 1, Color.YELLOW)
+        line(int(sx_right), int(sy_right), int(
+            sx_tip), int(sy_tip), Color.YELLOW)
+        line(int(sx_right), int(sy_right) + 1, int(
+            sx_tip), int(sy_tip) + 1, Color.YELLOW)
+
+    def _road_point_at_sd(self, road: RoadModel, s: float, d: float) -> tuple[float, float]:
+        cx, cy = road.sample_centerline_interp(s)
+        dir_x, dir_y = road.direction_at_interp(s)
+        nrm_x = -dir_y
+        nrm_y = dir_x
+        return (cx + nrm_x * d, cy + nrm_y * d)

@@ -79,13 +79,12 @@ class PoiScene:
         if go_result:
             if message is None:
                 message = "POI FAILED"
-            self._state.vibe_run_failed()
+            self._state.vibe_fail()
             self._state.rollback_to_last_save(message, False)
             self._nav.go(SceneId.RESULT, ResultEnterParams("RUN FAILED"))
             return
 
         run.ensure_return_from_active_outbound()
-        self._state.vibe_begin_return()
         self._nav.go(SceneId.DRIVE, DriveEnterParams("extract"))
 
     def _start_leave_summary(self) -> None:
@@ -113,10 +112,6 @@ class PoiScene:
                 run.add_fuel(self._loot_fuel)
                 delta.add_fuel_gained(self._loot_fuel)
 
-        if self._loot_scrap > 0 or self._loot_fuel > 0:
-            self._state.vibe_pickup()
-        else:
-            self._state.vibe_ui_confirm()
         self._mode = self.MODE_LOOT_SUMMARY
 
     def _interact_lines(self) -> list[tuple[str, int]]:
@@ -194,10 +189,12 @@ class PoiScene:
     def _update_interact(self, dt: float, confirm_released: bool, cancel_released: bool) -> None:
         self.timer = max(0.0, self.timer - dt)
         if confirm_released:
+            self._state.vibe_ui_button()
             self._start_loot_summary()
             self._ui.reset_footer()
             return
         if cancel_released:
+            self._state.vibe_ui_button()
             self._start_leave_summary()
             self._ui.reset_footer()
             return
@@ -207,8 +204,8 @@ class PoiScene:
 
     def update(self, dt: float) -> None:
         self._ui.poll_mouse()
-        confirm_released = self._ui.poll_action(self._state.controls, Action.CONFIRM)
-        cancel_released = self._ui.poll_action(self._state.controls, Action.CANCEL)
+        confirm_released = self._ui.poll_confirm(self._state, self._state.controls)
+        cancel_released = self._ui.poll_cancel(self._state, self._state.controls)
         if self._mode == self.MODE_LOOT_SUMMARY:
             layout, slots, slot_confirm = ui_overlay_flow_single_action(
                 self.OVERLAY_LAYOUT_SPEC,
@@ -217,7 +214,7 @@ class PoiScene:
                 "BEGIN RETURN"
             )
             released_slot = self._ui.poll_footer_release(layout, slots)
-            if confirm_released or released_slot == slot_confirm:
+            if confirm_released or self._ui.footer_button_released(self._state, released_slot, slot_confirm):
                 self._ui.reset_footer()
                 self._leave("loot")
             return
@@ -229,7 +226,7 @@ class PoiScene:
                 "BEGIN RETURN"
             )
             released_slot = self._ui.poll_footer_release(layout, slots)
-            if confirm_released or released_slot == slot_confirm:
+            if confirm_released or self._ui.footer_button_released(self._state, released_slot, slot_confirm):
                 self._ui.reset_footer()
                 self._leave("leave")
             return

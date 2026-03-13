@@ -180,6 +180,12 @@ class DriveObjects:
         zone_len = d.zone_length
         if zone_len < road.ds:
             zone_len = road.ds
+        zone_radius = d.zone_radius
+        if zone_radius < 0.0:
+            zone_radius = 0.0
+        max_d_zone = max_d_base - zone_radius
+        if max_d_zone < 0.0:
+            max_d_zone = 0.0
 
         zone_s_max = total - zone_len
         if zone_s_max < safe:
@@ -189,7 +195,7 @@ class DriveObjects:
             attempts += 1
             s_start = rng_base.uniform(safe, zone_s_max)
             s_end = s_start + zone_len
-            d_center = rng_base.uniform(-max_d_base, max_d_base) if max_d_base > 0.0 else 0.0
+            d_center = rng_base.uniform(-max_d_zone, max_d_zone) if max_d_zone > 0.0 else 0.0
 
             ok = True
             j = 0
@@ -206,7 +212,7 @@ class DriveObjects:
                     s_start,
                     s_end,
                     d_center,
-                    d.zone_radius,
+                    zone_radius,
                     d.zone_grip_mult
                 ))
                 i += 1

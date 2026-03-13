@@ -26,7 +26,7 @@ class DriveUi:
         fuel_max = float(TUNING.PROFILE.start_garage_fuel)
         if fuel_max <= 0.0:
             fuel_max = 1.0
-        spd_max = float(TUNING.DRIVE.max_speed)
+        spd_max = float(TUNING.DRIVE.feedback_speed_ref)
         if spd_max <= 0.0:
             spd_max = 1.0
 

@@ -6,7 +6,6 @@ if TYPE_CHECKING:
 
     from ...contracts import PursuerVariantIdValue
     from ...contracts import PursuerVariantTuning
-    from ...core.palette import Color
     from ...data.tuning import TUNING
     from ...systems.drive.drive_fx import TopdownProjector
     from ...systems.drive.drive_logic_core import DriveLogic
@@ -139,7 +138,7 @@ class DriveTopdownRenderer:
         road: RoadModel,
         logic: DriveLogic,
         objects: DriveObjects,
-        active_zone: DriveZone | None,
+        active_zone: DriveZone | None = None,
         pursuer_archetype: PursuerArchetype | None = None,
         pursuer_state: PursuerState | None = None,
         pursuer_s: float = 0.0,
@@ -189,27 +188,11 @@ class DriveTopdownRenderer:
         self._road_draw.draw_road_edges_and_zones(
             road,
             zones,
+            active_zone,
             start_idx,
             end_idx,
             proj
         )
-
-        if TUNING.DRIVE.debug_zones_enabled:
-            i = 0
-            while i < len(zones):
-                z = zones[i]
-                color = Color.GREEN
-                if active_zone is not None and z is active_zone:
-                    color = Color.WHITE
-                self._road_draw.draw_zone_outline(
-                    road,
-                    z,
-                    start_idx,
-                    end_idx,
-                    proj,
-                    color
-                )
-                i += 1
 
         obstacles = objects.obstacles_items()
         self._obstacles_draw.draw(

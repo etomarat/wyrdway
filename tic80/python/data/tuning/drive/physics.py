@@ -32,7 +32,12 @@ TUNING.DRIVE.slip_eps_speed = 5.0
 # - порогов ручника и т.п.
 #
 # Жёсткий предохранитель скорости задаётся отдельно: `speed_cap`.
-TUNING.DRIVE.max_speed = 110.0
+TUNING.DRIVE.max_speed = 100.0
+
+# Отдельная опорная скорость для UI и haptics.
+# Не влияет на физику: нужна только для нормализации “ощущения скорости”
+# в HUD и вибрации.
+TUNING.DRIVE.feedback_speed_ref = 115.0
 
 # speed_cap — жёсткий предохранитель v_forward (чтобы симуляция не улетала).
 #

@@ -73,6 +73,12 @@ TUNING.DRIVE.zone_radius = 5.0
 # Длина зоны по s.
 TUNING.DRIVE.zone_length = 60.0
 
+# Визуал бустера:
+# - `zone_chevron_length` задаёт фиксированную длину одного шеврона вдоль дороги;
+# - `zone_chevron_gap` задаёт зазор между шевронами и тем самым их плотность.
+TUNING.DRIVE.zone_chevron_length = 3.0
+TUNING.DRIVE.zone_chevron_gap = 6.0
+
 # Зоны на дороге (m1.5):
 # Сейчас используем их как “ускорялки” (boost pads), потому что визуально они читаются
 # как дорожная разметка/панели ускорения.

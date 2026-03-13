@@ -14,9 +14,6 @@ TUNING.DRIVE.debug_vectors_heading_len = 20.0
 TUNING.DRIVE.debug_vectors_vel_scale = 0.35
 TUNING.DRIVE.debug_vectors_accel_scale = 0.2
 
-# Визуализация активной зоны (контур) для проверки коллизии зон с хитбоксами.
-TUNING.DRIVE.debug_zones_enabled = False
-
 # Визуализация хитбоксов машины (для настройки коллизий).
 TUNING.DRIVE.debug_hitboxes_enabled = False
 

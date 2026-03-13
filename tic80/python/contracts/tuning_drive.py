@@ -16,6 +16,7 @@ class DriveTuning:
         "straight_max_curvature",
         "ramp_fraction",
         "max_speed",
+        "feedback_speed_ref",
         "speed_cap",
         "max_reverse_speed",
         "accel",
@@ -90,7 +91,6 @@ class DriveTuning:
         "debug_vectors_heading_len",
         "debug_vectors_vel_scale",
         "debug_vectors_accel_scale",
-        "debug_zones_enabled",
         "debug_hitboxes_enabled",
         "hitbox_rear_px",
         "hitbox_rear_py",
@@ -117,6 +117,8 @@ class DriveTuning:
         "obstacle_damage_max",
         "zone_radius",
         "zone_length",
+        "zone_chevron_length",
+        "zone_chevron_gap",
         "zone_grip_mult",
         "zone_grip_floor",
         "zone_boost_forward_accel",
@@ -182,6 +184,7 @@ class DriveTuning:
         self.straight_max_curvature = 0.0
         self.ramp_fraction = 0.0
         self.max_speed = 0.0
+        self.feedback_speed_ref = 0.0
         self.speed_cap = 0.0
         self.max_reverse_speed = 0.0
         self.accel = 0.0
@@ -256,7 +259,6 @@ class DriveTuning:
         self.debug_vectors_heading_len = 0.0
         self.debug_vectors_vel_scale = 0.0
         self.debug_vectors_accel_scale = 0.0
-        self.debug_zones_enabled = False
         self.debug_hitboxes_enabled = False
         self.hitbox_rear_px = 0.0
         self.hitbox_rear_py = 0.0
@@ -283,6 +285,8 @@ class DriveTuning:
         self.obstacle_damage_max = 0.0
         self.zone_radius = 0.0
         self.zone_length = 0.0
+        self.zone_chevron_length = 0.0
+        self.zone_chevron_gap = 0.0
         self.zone_grip_mult = 0.0
         self.zone_grip_floor = 0.0
         self.zone_boost_forward_accel = 0.0
@@ -334,5 +338,3 @@ class DriveTuning:
         self.fx_exhaust_r_max = 0.0
         self.fx_exhaust_color_a: ColorId = 0
         self.fx_exhaust_color_b: ColorId = 0
-
-
