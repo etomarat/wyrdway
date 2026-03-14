@@ -36,7 +36,7 @@ def read_drive_input(controls: Controls, allow_dash: bool) -> DriveInput:
 
     a_pressed = controls.pressed(Action.CONFIRM)
     dash_pressed = False
-    if allow_dash and controls.pressed(Action.SKILL):
+    if allow_dash and controls.pressed(Action.MODULE):
         dash_pressed = True
 
     return DriveInput(steer, throttle, brake, handbrake, a_pressed, dash_pressed)

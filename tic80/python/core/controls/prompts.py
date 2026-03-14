@@ -161,7 +161,7 @@ def prompt_glyphs_for_action(action: int, device: InputDeviceModeId) -> list[int
         key = [PromptGlyph.KEY_SPACE, PromptGlyph.KEY_X]
         return _select_device(device, pad, key)
 
-    if action == Action.SKILL:
+    if action == Action.MODULE:
         pad = [PromptGlyph.PAD_NORTH, PromptGlyph.PAD_RB]
         key = [PromptGlyph.KEY_Z]
         return _select_device(device, pad, key)

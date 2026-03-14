@@ -4,8 +4,12 @@ if TYPE_CHECKING:
     from tic80 import circb, line, print, rect, rectb
 
     from ...contracts import PursuerVariantTuning
+    from ...core.controls.actions import Action
+    from ...core.game_state import GameState
     from ...core.palette import Color
     from ...core.run_state import RunState
+    from ...core.ui.prompts import ui_prompt_for_action, ui_prompt_gap_join
+    from ...core.ui.rich_text import ui_rich_has_glyph_tokens, ui_rich_print, ui_rich_text_width
     from ...core.text_layout import text_center_x, text_max_chars, text_trim, text_width
     from ...data.tuning import TUNING
     from ...systems.drive.drive_logic_core import DriveLogic
@@ -37,9 +41,9 @@ class DriveUi:
             n = 0.0
         if n > 1.0:
             n = 1.0
-        rectb(x, y, w, h, Color.WHITE)
-        rect(x + 1, y + 1, int((w - 2) * n), h - 2, Color.CYAN)
-        print("spd " + self.fmt2(spd), x + w + 4, y, Color.WHITE)
+        rectb(x, y, w, h, Color.GREY)
+        rect(x + 1, y + 1, int((w - 2) * n), h - 2, Color.BLUE)
+        print("spd " + self.fmt2(spd), x + w + 4, y, Color.LIGHT_GREY)
         y += h + gap
 
         # FUEL
@@ -49,9 +53,9 @@ class DriveUi:
             n = 0.0
         if n > 1.0:
             n = 1.0
-        rectb(x, y, w, h, Color.WHITE)
-        rect(x + 1, y + 1, int((w - 2) * n), h - 2, Color.YELLOW)
-        print("fuel " + self.fmt2(fuel), x + w + 4, y, Color.WHITE)
+        rectb(x, y, w, h, Color.GREY)
+        rect(x + 1, y + 1, int((w - 2) * n), h - 2, Color.ORANGE)
+        print("fuel " + self.fmt2(fuel), x + w + 4, y, Color.LIGHT_GREY)
         y += h + gap
 
         # HP
@@ -61,9 +65,9 @@ class DriveUi:
             n = 0.0
         if n > 1.0:
             n = 1.0
-        rectb(x, y, w, h, Color.WHITE)
+        rectb(x, y, w, h, Color.GREY)
         rect(x + 1, y + 1, int((w - 2) * n), h - 2, Color.RED)
-        print("hp  " + self.fmt2(hp), x + w + 4, y, Color.WHITE)
+        print("hp  " + self.fmt2(hp), x + w + 4, y, Color.LIGHT_GREY)
 
     def hud_bars_layout(self) -> tuple[int, int, int, int, int]:
         """Возвращает расположение нижних баров (spd/fuel/hp) в HUD.
@@ -117,7 +121,7 @@ class DriveUi:
         - рядом показываем `steer x..`, чтобы было очевидно, почему на скорости рулится хуже.
         """
         x, y, r = self.hud_wheel_layout()
-        color = Color.WHITE
+        color = Color.GREY
         circb(x, y, r, color)
 
         steer = logic.steer_input
@@ -155,7 +159,7 @@ class DriveUi:
         else:
             line(x, y, x, y - spoke, color)
 
-        print("steer x" + self.fmt2(scale), x + 12, y - 4, Color.WHITE)
+        print("steer x" + self.fmt2(scale), x + 12, y - 4, Color.LIGHT_GREY)
 
     def draw_slip_bar(self, logic: DriveLogic) -> None:
         """Рисует двусторонний индикатор заноса (slip) рядом с рулём в HUD.
@@ -189,19 +193,91 @@ class DriveUi:
             slip = 1.0
 
         # Основа шкалы.
-        line(x0, y0, x0 + w, y0, Color.WHITE)
-        line(cx, y0 - 2, cx, y0 + 2, Color.WHITE)
+        line(x0, y0, x0 + w, y0, Color.GREY)
+        line(cx, y0 - 2, cx, y0 + 2, Color.GREY)
 
         # Заполнение: влево/вправо по знаку заноса.
         fill = int(half * slip)
         if fill < 0:
             fill = 0
         if v_side < 0.0:
-            line(cx, y0, cx - fill, y0, Color.LIGHT_BLUE)
+            line(cx, y0, cx - fill, y0, Color.BLUE)
         elif v_side > 0.0:
             line(cx, y0, cx + fill, y0, Color.RED)
 
-        print("slip", x0, y0 - 8, Color.WHITE)
+        print("slip", x0, y0 - 8, Color.LIGHT_GREY)
+
+    def draw_controls_panel(self, state: GameState, logic: DriveLogic) -> None:
+        x = self.hud_controls_right_x()
+        rows = self._control_rows(state, logic)
+        i = 0
+        while i < len(rows):
+            prompt, label, pressed, enabled = rows[i]
+            self._draw_control_row(x, self.hud_controls_row_y(i), prompt, label, pressed, enabled)
+            i += 1
+
+    def hud_controls_right_x(self) -> int:
+        return 238
+
+    def hud_controls_row_y(self, row_index: int) -> int:
+        _, bars_y, _, _, _ = self.hud_bars_layout()
+        start_y = bars_y - 16
+        if start_y < 18:
+            start_y = 18
+        return start_y + row_index * 8
+
+    def _control_rows(self, state: GameState, logic: DriveLogic) -> list[tuple[str, str, bool, bool]]:
+        steer_prompt = (
+            ui_prompt_for_action(state, Action.NAV_LEFT)
+            + "{sep}"
+            + ui_prompt_for_action(state, Action.NAV_RIGHT)
+        )
+        steer_pressed = (
+            state.controls.down(Action.NAV_LEFT)
+            or state.controls.down(Action.NAV_RIGHT)
+        )
+        throttle_pressed = state.controls.down(Action.THROTTLE)
+        brake_pressed = state.controls.down(Action.BRAKE)
+        handbrake_pressed = state.controls.down(Action.HANDBRAKE)
+        module_enabled = float(TUNING.DRIVE.dash_impulse) > 0.0 and not logic.finished()
+        module_pressed = False
+        if module_enabled:
+            module_pressed = state.controls.down(Action.MODULE)
+        return [
+            (steer_prompt, "steer", steer_pressed, True),
+            (ui_prompt_for_action(state, Action.THROTTLE), "throttle", throttle_pressed, True),
+            (ui_prompt_for_action(state, Action.BRAKE), "brake", brake_pressed, True),
+            (ui_prompt_for_action(state, Action.HANDBRAKE), "handbrake", handbrake_pressed, True),
+            (ui_prompt_for_action(state, Action.MODULE), "module", module_pressed, module_enabled)
+        ]
+
+    def _draw_control_row(
+        self,
+        right_x: int,
+        row_y: int,
+        prompt: str,
+        label: str,
+        pressed: bool,
+        enabled: bool
+    ) -> None:
+        gap = 3
+        prompt_w = ui_rich_text_width(prompt)
+        label_w = text_width(label, 6)
+        prompt_x = right_x - prompt_w
+        label_x = prompt_x - gap - label_w
+        prompt_color = Color.GREY
+        label_color = Color.LIGHT_GREY
+        if pressed:
+            prompt_color = Color.WHITE
+            label_color = Color.WHITE
+        elif not enabled:
+            prompt_color = Color.DARK_GREY
+            label_color = Color.DARK_GREY
+        prompt_has_glyphs = ui_rich_has_glyph_tokens(prompt)
+        ui_rich_print(prompt, prompt_x, row_y, prompt_color, not prompt_has_glyphs)
+        print(label, label_x, row_y, label_color)
+        if not enabled:
+            line(label_x, row_y + 3, right_x, row_y + 3, Color.GREY)
 
     def draw_pursuer_hud(
         self,

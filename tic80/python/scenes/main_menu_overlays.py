@@ -1027,7 +1027,7 @@ class MainMenuControlsOverlayFlow(MainMenuOverlayFlow):
             ("THROTTLE", self._prompt_for_action(Action.THROTTLE)),
             ("BRAKE", self._prompt_for_action(Action.BRAKE)),
             ("HANDBRAKE", self._prompt_for_action(Action.HANDBRAKE)),
-            ("SKILL", self._prompt_for_action(Action.SKILL))
+            ("MODULE", self._prompt_for_action(Action.MODULE))
         ]
         left_sections: list[tuple[str, list[tuple[str, str]]]] = []
         if len(system_rows) > 0:
@@ -1073,8 +1073,8 @@ class MainMenuControlsOverlayFlow(MainMenuOverlayFlow):
                 "HANDBRAKE"
             ),
             ui_prompt_with_text(
-                self._prompt_for_action(Action.SKILL),
-                "SKILL"
+                self._prompt_for_action(Action.MODULE),
+                "MODULE"
             )
         ])
         lines = [

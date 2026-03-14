@@ -28,4 +28,4 @@ class Action:
     THROTTLE: ActionId = 20
     BRAKE: ActionId = 21
     HANDBRAKE: ActionId = 22
-    SKILL: ActionId = 23
+    MODULE: ActionId = 23

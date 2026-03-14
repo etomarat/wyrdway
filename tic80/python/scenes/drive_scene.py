@@ -9,8 +9,6 @@ if TYPE_CHECKING:
     from ..core.run_state import RunState
     from ..core.scene_ids import SceneId
     from ..core.ui.prompts import ui_prompt_for_action
-    from ..core.ui.prompts import ui_prompt_gap_join
-    from ..core.ui.prompts import ui_prompt_for_nav_hint
     from ..core.ui.prompts import ui_prompt_with_text
     from ..core.ui.rich_text import ui_rich_print
     from ..data.tuning import TUNING
@@ -76,7 +74,7 @@ class DriveScene:
                 Action.THROTTLE,
                 Action.BRAKE,
                 Action.HANDBRAKE,
-                Action.SKILL
+                Action.MODULE
             ],
             True
         )
@@ -380,6 +378,7 @@ class DriveScene:
         self._ui.draw_stats(run, logic)
         self._ui.draw_steer_wheel(logic)
         self._ui.draw_slip_bar(logic)
+        self._ui.draw_controls_panel(self._state, logic)
         if self._pursuer.active:
             self._ui.draw_pursuer_hud(
                 run.run_scrap(),
@@ -393,13 +392,6 @@ class DriveScene:
         self._draw_popups()
         if logic.finished():
             ui_rich_print(ui_prompt_with_text(ui_prompt_for_action(self._state, Action.CONFIRM), "CONTINUE"), 2, 128, Color.WHITE)
-        else:
-            hint = ui_prompt_gap_join([
-                ui_prompt_for_nav_hint(self._state),
-                "+",
-                ui_prompt_for_action(self._state, Action.HANDBRAKE)
-            ])
-            ui_rich_print(hint, 2, 128, Color.WHITE)
         if self._state.debug_enabled:
             lines = drive_debug_lines(road, logic, run, objects, TUNING)
             if self._pursuer.active:

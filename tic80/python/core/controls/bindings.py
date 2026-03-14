@@ -115,6 +115,6 @@ def make_default_bindings() -> ActionBindings:
         Action.HANDBRAKE,
         [btn_ref(Button.X), key_ref(KeyCode.SPACE), key_ref(KeyCode.X)]
     )
-    b.bind_pressed(Action.SKILL, [btn_ref(Button.Y), key_ref(KeyCode.Z)])
+    b.bind_pressed(Action.MODULE, [btn_ref(Button.Y), key_ref(KeyCode.Z)])
 
     return b
