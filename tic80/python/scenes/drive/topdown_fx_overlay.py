@@ -31,6 +31,7 @@ class TopdownFxOverlay:
         self._fx_seed = 1
         self._hit_events: list[tuple[float, float, float, float, float, float]] = []
         self._finish_events: list[tuple[float, float, float, float, float]] = []
+        self._finish_gate_spark_phase = -1
         self._exhaust_strength = 0.0
 
     def notify_obstacle_hit(
@@ -86,6 +87,32 @@ class TopdownFxOverlay:
         speed: float
     ) -> None:
         self._finish_events.append((wx, wy, dir_x, dir_y, speed))
+
+    def emit_finish_gate_sparks(
+        self,
+        road: RoadModel,
+        start_idx: int,
+        end_idx: int,
+        proj: TopdownProjector,
+        anim_t: float
+    ) -> None:
+        seam_s = road.segment_total_length
+        margin = road.ds * 4.0
+        s_vis0 = start_idx * road.ds
+        s_vis1 = end_idx * road.ds
+        if seam_s < s_vis0 - margin or seam_s > s_vis1 + margin:
+            self._finish_gate_spark_phase = -1
+            return
+        phase = int(anim_t * 22.0) & 3
+        if phase == self._finish_gate_spark_phase:
+            return
+        self._finish_gate_spark_phase = phase
+        if phase == 1:
+            return
+        half = road.width_at(seam_s) * 0.5
+        outer = half + 18.0
+        self._emit_finish_gate_spark_source(road, proj, seam_s - 1.0, outer, -1.0, -0.5, 5.5)
+        self._emit_finish_gate_spark_source(road, proj, seam_s - 1.0, outer, 1.0, -0.5, 5.5)
 
     def draw_under_car(self) -> None:
         self._drive_fx.draw(0)
@@ -315,6 +342,89 @@ class TopdownFxOverlay:
             self._offroad_smoke.spawn_dust_down_color(x_l2, y_l2, r2, c2)
             self._offroad_smoke.spawn_dust_down_color(x_r2, y_r2, r2, c2)
             i += 1
+
+    def _road_point_at_sd(self, road: RoadModel, s: float, d: float) -> tuple[float, float]:
+        total = road.segment_total_length
+        cx = 0.0
+        cy = 0.0
+        dir_x = 1.0
+        dir_y = 0.0
+        if s <= 0.0:
+            cx, cy = road.sample_centerline_interp(0.0)
+            dir_x, dir_y = road.direction_at_interp(0.0)
+            cx += dir_x * s
+            cy += dir_y * s
+        elif s >= total:
+            cx, cy = road.sample_centerline_interp(total)
+            dir_x, dir_y = road.direction_at_interp(total)
+            extra = s - total
+            cx += dir_x * extra
+            cy += dir_y * extra
+        else:
+            cx, cy = road.sample_centerline_interp(s)
+            dir_x, dir_y = road.direction_at_interp(s)
+        nrm_x = -dir_y
+        nrm_y = dir_x
+        return (cx + nrm_x * d, cy + nrm_y * d)
+
+    def _emit_finish_gate_spark_source(
+        self,
+        road: RoadModel,
+        proj: TopdownProjector,
+        s: float,
+        outer: float,
+        side: float,
+        start_off: float,
+        end_off: float
+    ) -> None:
+        r = self._next_fx_seed()
+        t = (r % 1000) / 1000.0
+        u = ((r // 1000) % 1000) / 1000.0
+        s0 = s + (t - 0.5) * 6.0
+        start0 = start_off + (u - 0.5) * 4.0
+        end0 = end_off + (t - 0.5) * 5.0
+        wx, wy = self._road_point_at_sd(road, s0, side * (outer + start0))
+        tx, ty = self._road_point_at_sd(road, s0 - 1.5, side * (outer + end0))
+        sx, sy = proj.world_to_screen(wx, wy)
+        ex, ey = proj.world_to_screen(tx, ty)
+        vx = ex - sx
+        vy = ey - sy
+        l2 = vx * vx + vy * vy
+        if l2 <= 0.0:
+            return
+        inv = 1.0 / (l2 ** 0.5)
+        vx *= inv
+        vy *= inv
+        px = -vy
+        py = vx
+        j = 0
+        while j < 4:
+            fan = j - 1.5
+            drift = (-1.1 + j * 0.75) * side
+            svx = vx + px * drift
+            svy = vy + py * drift
+            sl2 = svx * svx + svy * svy
+            if sl2 > 0.0:
+                inv = 1.0 / (sl2 ** 0.5)
+                svx *= inv
+                svy *= inv
+            seg = 3.2 + j * 0.8
+            color = Color.CYAN
+            if (j & 1) != 0:
+                color = Color.LIGHT_BLUE
+            if j == 3:
+                color = Color.WHITE
+            self._fx_finish.spawn(
+                sx + fan * 1.4 + (u - 0.5) * 4.0,
+                sy + fan * side * 1.2 + (t - 0.5) * 2.0,
+                svx * seg,
+                svy * seg,
+                svx * (56.0 + j * 10.0),
+                svy * (56.0 + j * 10.0),
+                7 + j,
+                color
+            )
+            j += 1
 
     def _emit_exhaust_smoke_vand(
         self,

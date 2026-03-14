@@ -211,6 +211,13 @@ class DriveTopdownRenderer:
             end_idx,
             proj
         )
+        self._road_draw.draw_finish_gate_back(
+            road,
+            start_idx,
+            end_idx,
+            proj,
+            self._pursuer_anim_t
+        )
 
         obstacles = objects.obstacles_items()
         self._obstacles_draw.draw(
@@ -232,6 +239,13 @@ class DriveTopdownRenderer:
             skid_slip_threshold,
             skid_min_speed
         )
+        self._fx_overlay.emit_finish_gate_sparks(
+            road,
+            start_idx,
+            end_idx,
+            proj,
+            self._pursuer_anim_t
+        )
 
         # Следы шин должны быть ПОД пылью/дымом.
         self._fx_overlay.draw_world()
@@ -251,6 +265,13 @@ class DriveTopdownRenderer:
             pursuer_s,
             strike_flash,
             screen_glitch_active
+        )
+        self._road_draw.draw_finish_gate_front(
+            road,
+            start_idx,
+            end_idx,
+            proj,
+            self._pursuer_anim_t
         )
 
         if TUNING.DRIVE.debug_vectors_enabled:

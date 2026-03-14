@@ -82,6 +82,8 @@ class TopdownRoadDraw:
             prev_rsy = rsy
             i += 1
 
+        self._draw_start_road_tail(road, start_idx, end_idx, proj)
+
         s_vis0 = start_idx * road.ds
         s_vis1 = end_idx * road.ds
         i = 0
@@ -104,6 +106,261 @@ class TopdownRoadDraw:
                 proj
             )
             i += 1
+
+    def draw_finish_gate_back(
+        self,
+        road: RoadModel,
+        start_idx: int,
+        end_idx: int,
+        proj: DriveFxProjector,
+        anim_t: float
+    ) -> None:
+        seam_s, inner, outer = self._finish_gate_layout(road, start_idx, end_idx)
+        if seam_s < 0.0:
+            return
+        self._draw_road_tail(road, seam_s, 1.0, proj)
+        self._draw_finish_gate_posts(
+            road,
+            seam_s + 4.0,
+            inner + 2.0,
+            outer + 2.0,
+            proj,
+            Color.DARK_GREY,
+            Color.GREY
+        )
+
+    def draw_finish_gate_front(
+        self,
+        road: RoadModel,
+        start_idx: int,
+        end_idx: int,
+        proj: DriveFxProjector,
+        anim_t: float
+    ) -> None:
+        seam_s, inner, outer = self._finish_gate_layout(road, start_idx, end_idx)
+        if seam_s < 0.0:
+            return
+        self._draw_finish_gate_crossbar(road, seam_s + 5.5, inner, outer, proj)
+        self._draw_finish_gate_field(road, seam_s, outer, proj, anim_t)
+
+    def _finish_gate_layout(
+        self,
+        road: RoadModel,
+        start_idx: int,
+        end_idx: int
+    ) -> tuple[float, float, float]:
+        seam_s = road.segment_total_length
+        margin = road.ds * 4.0
+        s_vis0 = start_idx * road.ds
+        s_vis1 = end_idx * road.ds
+        if seam_s < s_vis0 - margin or seam_s > s_vis1 + margin:
+            return -1.0, 0.0, 0.0
+        half = road.width_at(seam_s) * 0.5
+        return seam_s, half + 8.0, half + 18.0
+
+    def _draw_finish_gate_posts(
+        self,
+        road: RoadModel,
+        s: float,
+        inner: float,
+        outer: float,
+        proj: DriveFxProjector,
+        shade_a: int,
+        shade_b: int
+    ) -> None:
+        side = -1.0
+        while side <= 1.0:
+            self._draw_world_segment(
+                proj,
+                self._road_point_at_sd(road, s - 20.0, side * outer),
+                self._road_point_at_sd(road, s + 15.0, side * outer),
+                shade_a
+            )
+            self._draw_world_segment(
+                proj,
+                self._road_point_at_sd(road, s - 20.0, side * (outer - 4.0)),
+                self._road_point_at_sd(road, s + 15.0, side * (outer - 4.0)),
+                shade_b
+            )
+            self._draw_world_segment(
+                proj,
+                self._road_point_at_sd(road, s - 12.0, side * (outer - 4.0)),
+                self._road_point_at_sd(road, s - 1.5, side * inner),
+                shade_a
+            )
+            self._draw_world_segment(
+                proj,
+                self._road_point_at_sd(road, s + 5.0, side * (outer - 4.0)),
+                self._road_point_at_sd(road, s + 1.0, side * inner),
+                shade_b
+            )
+            self._draw_world_segment(
+                proj,
+                self._road_point_at_sd(road, s - 20.0, side * (outer + 2.5)),
+                self._road_point_at_sd(road, s - 13.0, side * (outer + 8.0)),
+                shade_a
+            )
+            side += 2.0
+
+    def _draw_finish_gate_crossbar(
+        self,
+        road: RoadModel,
+        s: float,
+        inner: float,
+        outer: float,
+        proj: DriveFxProjector
+    ) -> None:
+        left = self._road_point_at_sd(road, s, -outer - 1.0)
+        right = self._road_point_at_sd(road, s, outer + 1.0)
+        sx0, sy0 = proj.world_to_screen(left[0], left[1])
+        sx1, sy1 = proj.world_to_screen(right[0], right[1])
+        x0 = int(sx0)
+        y0 = int(sy0)
+        x1 = int(sx1)
+        y1 = int(sy1)
+        line(x0, y0 - 1, x1, y1 - 1, Color.DARK_GREY)
+        line(x0, y0, x1, y1, Color.GREY)
+        line(x0, y0 + 1, x1, y1 + 1, Color.LIGHT_GREY)
+
+    def _draw_finish_gate_field(
+        self,
+        road: RoadModel,
+        s: float,
+        outer: float,
+        proj: DriveFxProjector,
+        anim_t: float
+    ) -> None:
+        frame = int(anim_t * 60.0)
+        i = 0
+        while i < 3:
+            strand_s = s - 4.2 + i * 4.2
+            color = Color.LIGHT_BLUE
+            if (i & 1) != 0:
+                color = Color.WHITE
+            if i == 2:
+                color = Color.CYAN
+            self._draw_gate_strand(road, proj, road.seed, frame, i, strand_s, outer - 5.5, color)
+            i += 1
+
+    def _draw_gate_strand(
+        self,
+        road: RoadModel,
+        proj: DriveFxProjector,
+        seed: int,
+        frame: int,
+        strand_i: int,
+        s: float,
+        d: float,
+        color: int
+    ) -> None:
+        j0 = self._gate_strand_jitter(seed, frame, strand_i, 0) * 0.35
+        j1 = self._gate_strand_jitter(seed, frame, strand_i, 1)
+        j2 = self._gate_strand_jitter(seed, frame, strand_i, 2)
+        j3 = self._gate_strand_jitter(seed, frame, strand_i, 3) * 0.35
+        p0 = self._road_point_at_sd(road, s + j0, -d)
+        p1 = self._road_point_at_sd(road, s + j1, -d * 0.34)
+        p2 = self._road_point_at_sd(road, s + j2, d * 0.34)
+        p3 = self._road_point_at_sd(road, s + j3, d)
+        self._draw_world_segment(proj, p0, p1, color)
+        self._draw_world_segment(proj, p1, p2, color)
+        self._draw_world_segment(proj, p2, p3, color)
+
+    def _gate_strand_jitter(self, seed: int, frame: int, strand_i: int, point_i: int) -> float:
+        h = (seed * 13 + frame * (strand_i * 9 + point_i * 7 + 5) + strand_i * 31 + point_i * 17) & 15
+        return (h - 7.5) * 0.52
+
+    def _draw_start_road_tail(
+        self,
+        road: RoadModel,
+        start_idx: int,
+        end_idx: int,
+        proj: DriveFxProjector
+    ) -> None:
+        margin = road.ds * 4.0
+        s_vis0 = start_idx * road.ds
+        if 0.0 < s_vis0 - margin:
+            return
+        self._draw_road_tail(road, 0.0, -1.0, proj)
+
+    def _draw_road_tail(
+        self,
+        road: RoadModel,
+        seam_s: float,
+        dir_sign: float,
+        proj: DriveFxProjector
+    ) -> None:
+        stable_len = 16.0
+        fade_len = 22.0
+        dot_len = 14.0
+        step = 3.8
+        s = 0.0
+        while s < stable_len:
+            self._draw_tail_span(
+                road,
+                seam_s + dir_sign * s,
+                seam_s + dir_sign * (s + step),
+                proj
+            )
+            s += step
+        s = stable_len
+        while s < stable_len + fade_len:
+            t = (s - stable_len) / fade_len
+            seg = step * (1.0 - t * 0.90)
+            if seg > 0.45:
+                self._draw_tail_span(
+                    road,
+                    seam_s + dir_sign * s,
+                    seam_s + dir_sign * (s + seg),
+                    proj
+                )
+            s += step * 1.08
+        s = stable_len + fade_len
+        while s < stable_len + fade_len + dot_len:
+            self._draw_tail_dot(road, seam_s + dir_sign * s, proj)
+            s += step * 1.20
+
+    def _draw_tail_span(
+        self,
+        road: RoadModel,
+        s0: float,
+        s1: float,
+        proj: DriveFxProjector
+    ) -> None:
+        width0 = road.width_at(s0) * 0.5
+        width1 = road.width_at(s1) * 0.5
+        left0 = self._road_point_at_sd(road, s0, -width0)
+        left1 = self._road_point_at_sd(road, s1, -width1)
+        right0 = self._road_point_at_sd(road, s0, width0)
+        right1 = self._road_point_at_sd(road, s1, width1)
+        self._draw_world_segment(proj, left0, left1, Color.LIGHT_GREEN)
+        self._draw_world_segment(proj, right0, right1, Color.LIGHT_GREEN)
+
+    def _draw_tail_dot(self, road: RoadModel, s: float, proj: DriveFxProjector) -> None:
+        width = road.width_at(s) * 0.5
+        left = self._road_point_at_sd(road, s, -width)
+        right = self._road_point_at_sd(road, s, width)
+        self._draw_world_point(proj, left, Color.LIGHT_GREEN)
+        self._draw_world_point(proj, right, Color.LIGHT_GREEN)
+
+    def _draw_world_segment(
+        self,
+        proj: DriveFxProjector,
+        a: tuple[float, float],
+        b: tuple[float, float],
+        color: int
+    ) -> None:
+        sx0, sy0 = proj.world_to_screen(a[0], a[1])
+        sx1, sy1 = proj.world_to_screen(b[0], b[1])
+        line(int(sx0), int(sy0), int(sx1), int(sy1), color)
+
+    def _draw_world_point(
+        self,
+        proj: DriveFxProjector,
+        a: tuple[float, float],
+        color: int
+    ) -> None:
+        sx, sy = proj.world_to_screen(a[0], a[1])
+        line(int(sx), int(sy), int(sx), int(sy), color)
 
     def _draw_booster_lane_edges(
         self,
@@ -256,8 +513,25 @@ class TopdownRoadDraw:
             sx_tip), int(sy_tip) + 1, Color.YELLOW)
 
     def _road_point_at_sd(self, road: RoadModel, s: float, d: float) -> tuple[float, float]:
-        cx, cy = road.sample_centerline_interp(s)
-        dir_x, dir_y = road.direction_at_interp(s)
+        total = road.segment_total_length
+        cx = 0.0
+        cy = 0.0
+        dir_x = 1.0
+        dir_y = 0.0
+        if s <= 0.0:
+            cx, cy = road.sample_centerline_interp(0.0)
+            dir_x, dir_y = road.direction_at_interp(0.0)
+            cx += dir_x * s
+            cy += dir_y * s
+        elif s >= total:
+            cx, cy = road.sample_centerline_interp(total)
+            dir_x, dir_y = road.direction_at_interp(total)
+            extra = s - total
+            cx += dir_x * extra
+            cy += dir_y * extra
+        else:
+            cx, cy = road.sample_centerline_interp(s)
+            dir_x, dir_y = road.direction_at_interp(s)
         nrm_x = -dir_y
         nrm_y = dir_x
         return (cx + nrm_x * d, cy + nrm_y * d)
