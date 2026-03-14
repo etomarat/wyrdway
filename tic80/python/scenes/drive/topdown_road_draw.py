@@ -14,10 +14,7 @@ class TopdownRoadDraw:
     def clamp_center_y(self, y: int) -> int:
         y0 = int(TUNING.DRIVE.view_center_y_min)
         y1 = int(TUNING.DRIVE.view_center_y_max)
-        if y < y0:
-            y = y0
-        if y > y1:
-            y = y1
+        y = max(y0, min(y1, y))
         return y
 
     def visible_index_range(
@@ -39,10 +36,8 @@ class TopdownRoadDraw:
         end_s = p_s + fwd
         start = int(start_s / road.ds)
         end = int(end_s / road.ds)
-        if start < 0:
-            start = 0
-        if end > n - 1:
-            end = n - 1
+        start = max(0, start)
+        end = min(n - 1, end)
         return start, end
 
     def draw_road_edges_and_zones(
@@ -121,10 +116,8 @@ class TopdownRoadDraw:
     ) -> None:
         s0 = z.s_start
         s1 = z.s_end
-        if s0 < s_vis0:
-            s0 = s_vis0
-        if s1 > s_vis1:
-            s1 = s_vis1
+        s0 = max(s_vis0, s0)
+        s1 = min(s_vis1, s1)
         if s1 <= s0:
             return
 
@@ -132,8 +125,7 @@ class TopdownRoadDraw:
         d1 = z.d_center + z.radius
 
         step = road.ds * 0.5
-        if step < 1.0:
-            step = 1.0
+        step = max(1.0, step)
 
         prev0x = None
         prev0y = None
@@ -181,11 +173,9 @@ class TopdownRoadDraw:
             return
 
         chevron_len = TUNING.DRIVE.zone_chevron_length
-        if chevron_len < 3.0:
-            chevron_len = 3.0
+        chevron_len = max(3.0, chevron_len)
         gap_len = TUNING.DRIVE.zone_chevron_gap
-        if gap_len < 0.0:
-            gap_len = 0.0
+        gap_len = max(0.0, gap_len)
         pitch = chevron_len + gap_len
         if pitch <= 0.0:
             return
@@ -196,8 +186,7 @@ class TopdownRoadDraw:
 
         used_len = chevron_len + float(chevrons_n - 1) * pitch
         lead_in = (zone_len - used_len) * 0.5
-        if lead_in < 0.0:
-            lead_in = 0.0
+        lead_in = max(0.0, lead_in)
         center_s = zone.s_start + lead_in + chevron_len * 0.5
         i = 0
         while i < chevrons_n:
@@ -225,14 +214,8 @@ class TopdownRoadDraw:
         half = road.width_at(center_s) * 0.5
         d0 = zone.d_center - zone.radius
         d1 = zone.d_center + zone.radius
-        if d0 < -half:
-            d0 = -half
-        if d0 > half:
-            d0 = half
-        if d1 < -half:
-            d1 = -half
-        if d1 > half:
-            d1 = half
+        d0 = max(-half, min(half, d0))
+        d1 = max(-half, min(half, d1))
 
         span_width = d1 - d0
         if span_width <= 2.0:
@@ -241,10 +224,7 @@ class TopdownRoadDraw:
         center_d = (d0 + d1) * 0.5
         back_len = chevron_len * 0.32
         arm_half = span_width * 0.34
-        if arm_half < 2.0:
-            arm_half = 2.0
-        if arm_half > 4.0:
-            arm_half = 4.0
+        arm_half = max(2.0, min(4.0, arm_half))
 
         tail_s = center_s - back_len
         tip_s = center_s + chevron_len

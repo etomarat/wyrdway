@@ -99,8 +99,7 @@ class TopdownFxOverlay:
         if self._offroad_transition_cooldown <= 0.0:
             return
         self._offroad_transition_cooldown -= dt
-        if self._offroad_transition_cooldown < 0.0:
-            self._offroad_transition_cooldown = 0.0
+        self._offroad_transition_cooldown = max(0.0, self._offroad_transition_cooldown)
 
     def _maybe_start_move(self, logic: DriveLogic, pose: CarPose2D) -> bool:
         """Запускает стартовый дым/букс при переходе из «стоим» в «поехали».
@@ -175,13 +174,9 @@ class TopdownFxOverlay:
         speed_factor = logic.speed / d.feedback_speed_ref
         over = speed_factor - d.fx_exhaust_min_speed_factor
         ramp = float(d.fx_exhaust_ramp_speed_factor)
-        if ramp < 0.01:
-            ramp = 0.01
+        ramp = max(0.01, ramp)
         strength = over / ramp
-        if strength < 0.0:
-            strength = 0.0
-        if strength > 1.0:
-            strength = 1.0
+        strength = max(0.0, min(1.0, strength))
         strength = strength * strength
         if strength <= 0.0:
             return
@@ -253,10 +248,7 @@ class TopdownFxOverlay:
 
         d = TUNING.DRIVE
         s = float(strength)
-        if s < 0.0:
-            s = 0.0
-        if s > 1.0:
-            s = 1.0
+        s = max(0.0, min(1.0, s))
 
         base_x, base_back = pose.local_from_center_reference(
             float(d.fx_exhaust_dx_px),
@@ -280,8 +272,7 @@ class TopdownFxOverlay:
             s_jx = (t - 0.5) * 0.8
             s_jy = (u - 0.5) * 0.35
             sr = r0 * (0.70 + t * 0.40) * (0.85 + 0.35 * s)
-            if sr < 1.2:
-                sr = 1.2
+            sr = max(1.2, sr)
             x1, y1 = pose.local_to_screen(base_x + s_jx, base_back + s_jy)
             x2, y2 = pose.local_to_screen(base_x - s_jx * 0.55, base_back + s_jy * 0.55)
             self._exhaust_smoke.spawn_dust_down_two_tone_life(x1, y1, sr, c0, c1, 18)
@@ -289,8 +280,7 @@ class TopdownFxOverlay:
 
             m_back = base_back + 3.0 + u * 4.0
             mr = (r0 + (r1 - r0) * (0.25 + t * 0.20)) * (0.80 + 0.55 * s)
-            if mr < sr:
-                mr = sr
+            mr = max(sr, mr)
             mid_life = 14 + int(s * 8.0)
             x3, y3 = pose.local_to_screen(base_x + (u - 0.5) * 1.6, m_back)
             x4, y4 = pose.local_to_screen(base_x - (u - 0.5) * 1.2, m_back + 1.2)
@@ -299,8 +289,7 @@ class TopdownFxOverlay:
 
             tail_back = base_back + 5.0 + u * 6.0
             tail_r = r1 * (0.85 + t * 0.35) * (0.70 + 0.70 * s)
-            if tail_r < mr:
-                tail_r = mr
+            tail_r = max(mr, tail_r)
             tail_life = 18 + int(s * 10.0)
             x5, y5 = pose.local_to_screen(base_x + (t - 0.5) * 2.8, tail_back)
             x6, y6 = pose.local_to_screen(base_x + (u - 0.5) * 2.2 + 1.2, tail_back + 1.6)
@@ -335,13 +324,11 @@ class TopdownFxOverlay:
         spd = logic.speed
         min_spd = float(d.fx_transition_sparks_min_speed)
         ramp = float(d.fx_transition_sparks_ramp_speed)
-        if ramp < 0.01:
-            ramp = 0.01
+        ramp = max(0.01, ramp)
         strength = (spd - min_spd) / ramp
         if strength <= 0.0:
             return
-        if strength > 1.0:
-            strength = 1.0
+        strength = min(1.0, strength)
 
         n_base = 4 + int(spd * 0.04)
         n = int(n_base * strength)
@@ -349,22 +336,17 @@ class TopdownFxOverlay:
             n = int(n * 1.7)
         if n < 1:
             return
-        if n > 20:
-            n = 20
+        n = min(20, n)
 
         speed = 55.0 + spd * 1.1
-        if speed > 180.0:
-            speed = 180.0
+        speed = min(180.0, speed)
         speed *= 0.65 + 0.35 * strength
 
         life = 12 + int(spd * 0.012)
         if not entering_offroad:
             life += 3
         life = int(life * (0.60 + 0.60 * strength))
-        if life < 7:
-            life = 7
-        if life > 26:
-            life = 26
+        life = max(7, min(26, life))
 
         wheel_dx, back = pose.local_from_center_reference(
             float(d.fx_transition_sparks_wheel_dx_px),
@@ -379,10 +361,7 @@ class TopdownFxOverlay:
         )
 
         n_front = int(n * 0.6)
-        if n_front < 3:
-            n_front = 3
-        if n_front > n:
-            n_front = n
+        n_front = max(3, min(n, n_front))
 
         self._edge_spark_burst(
             rear_x,
@@ -446,8 +425,7 @@ class TopdownFxOverlay:
         mx /= d1
         my /= d1
         cross = abs(mx * sx + my * sy)
-        if cross > 1.0:
-            cross = 1.0
+        cross = min(1.0, cross)
 
         wn = 0.45 + 1.10 * cross
         wt = 1.10

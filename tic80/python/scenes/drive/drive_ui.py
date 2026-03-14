@@ -37,10 +37,7 @@ class DriveUi:
         # SPEED
         spd = float(logic.speed)
         n = spd / spd_max
-        if n < 0.0:
-            n = 0.0
-        if n > 1.0:
-            n = 1.0
+        n = max(0.0, min(1.0, n))
         rectb(x, y, w, h, Color.GREY)
         rect(x + 1, y + 1, int((w - 2) * n), h - 2, Color.BLUE)
         print("spd " + self.fmt2(spd), x + w + 4, y, Color.LIGHT_GREY)
@@ -49,10 +46,7 @@ class DriveUi:
         # FUEL
         fuel = float(run.car_fuel)
         n = fuel / fuel_max
-        if n < 0.0:
-            n = 0.0
-        if n > 1.0:
-            n = 1.0
+        n = max(0.0, min(1.0, n))
         rectb(x, y, w, h, Color.GREY)
         rect(x + 1, y + 1, int((w - 2) * n), h - 2, Color.ORANGE)
         print("fuel " + self.fmt2(fuel), x + w + 4, y, Color.LIGHT_GREY)
@@ -61,10 +55,7 @@ class DriveUi:
         # HP
         hp = float(run.car_hp)
         n = hp / hp_max
-        if n < 0.0:
-            n = 0.0
-        if n > 1.0:
-            n = 1.0
+        n = max(0.0, min(1.0, n))
         rectb(x, y, w, h, Color.GREY)
         rect(x + 1, y + 1, int((w - 2) * n), h - 2, Color.RED)
         print("hp  " + self.fmt2(hp), x + w + 4, y, Color.LIGHT_GREY)
@@ -86,8 +77,7 @@ class DriveUi:
 
         # Экран TIC-80: 240x136.
         y = 120 - total_h - 2
-        if y < 0:
-            y = 0
+        y = max(0, y)
         return x, y, w, h, gap
 
     def hud_wheel_layout(self) -> tuple[int, int, int]:
@@ -102,8 +92,7 @@ class DriveUi:
         # Руль чуть выше баров, а slip рисуем над рулём (в одну колонку).
         x = 12
         y = bars_y - (r + 6)
-        if y < r + 2:
-            y = r + 2
+        y = max(r + 2, y)
         return x, y, r
 
     def draw_steer_wheel(self, logic: DriveLogic) -> None:
@@ -126,20 +115,14 @@ class DriveUi:
 
         steer = logic.steer_input
         scale = logic.dbg_steer_scale
-        if scale < 0.0:
-            scale = 0.0
-        if scale > 1.0:
-            scale = 1.0
+        scale = max(0.0, min(1.0, scale))
 
         d = TUNING.DRIVE
         denom = d.steer_scale_max - d.steer_scale_min
         n = 0.0
         if denom > 0.0001:
             n = (scale - d.steer_scale_min) / denom
-        if n < 0.0:
-            n = 0.0
-        if n > 1.0:
-            n = 1.0
+        n = max(0.0, min(1.0, n))
 
         # Даже на высокой скорости руль не должен выглядеть “мертвым”.
         # Поэтому нормализованный множитель (0..1) переводим в визуальный диапазон:
@@ -178,8 +161,7 @@ class DriveUi:
         w = 46
         half = int(w / 2)
         x0 = wheel_x - half
-        if x0 < 2:
-            x0 = 2
+        x0 = max(2, x0)
         y0 = wheel_y - wheel_r - 8
         half = int(w / 2)
         cx = x0 + half
@@ -189,8 +171,7 @@ class DriveUi:
 
         denom = abs(v_fwd) + TUNING.DRIVE.slip_eps_speed
         slip = abs(v_side) / denom
-        if slip > 1.0:
-            slip = 1.0
+        slip = min(1.0, slip)
 
         # Основа шкалы.
         line(x0, y0, x0 + w, y0, Color.GREY)
@@ -198,8 +179,7 @@ class DriveUi:
 
         # Заполнение: влево/вправо по знаку заноса.
         fill = int(half * slip)
-        if fill < 0:
-            fill = 0
+        fill = max(0, fill)
         if v_side < 0.0:
             line(cx, y0, cx - fill, y0, Color.BLUE)
         elif v_side > 0.0:
@@ -222,8 +202,7 @@ class DriveUi:
     def hud_controls_row_y(self, row_index: int) -> int:
         _, bars_y, _, _, _ = self.hud_bars_layout()
         start_y = bars_y - 16
-        if start_y < 18:
-            start_y = 18
+        start_y = max(18, start_y)
         return start_y + row_index * 8
 
     def _control_rows(self, state: GameState, logic: DriveLogic) -> list[tuple[str, str, bool, bool]]:
@@ -294,14 +273,11 @@ class DriveUi:
         strike = float(profile.strike_begin_dist_s)
 
         d = float(pursuer_dist_s) - strike
-        if d < 0.0:
-            d = 0.0
+        d = max(0.0, d)
         show_eff = show - strike
         near_eff = near - strike
-        if show_eff < 0.0:
-            show_eff = 0.0
-        if near_eff < 0.0:
-            near_eff = 0.0
+        show_eff = max(0.0, show_eff)
+        near_eff = max(0.0, near_eff)
 
         fill_n = 0.0
         if show_eff > near_eff:
@@ -309,10 +285,7 @@ class DriveUi:
                 fill_n = 1.0
             elif d < show_eff:
                 fill_n = (show_eff - d) / (show_eff - near_eff)
-        if fill_n < 0.0:
-            fill_n = 0.0
-        if fill_n > 1.0:
-            fill_n = 1.0
+        fill_n = max(0.0, min(1.0, fill_n))
 
         # DIST: большой верхний бар по центру.
         dist_w = 120
@@ -334,15 +307,13 @@ class DriveUi:
             rect(dist_x + 1, dist_y + 1, fill_w, dist_h - 2, color)
         char_w = 6
         shown_dist_m = int(d + 0.5)
-        if shown_dist_m < 0:
-            shown_dist_m = 0
+        shown_dist_m = max(0, shown_dist_m)
         title_prefix = "ANOMALY//"
         name_text = str(pursuer_name).strip()
         title_suffix = "//" + str(shown_dist_m) + "m"
         max_chars = text_max_chars(240, char_w, 2)
         name_max = max_chars - len(title_prefix) - len(title_suffix)
-        if name_max < 1:
-            name_max = 1
+        name_max = max(1, name_max)
         name_text = text_trim(name_text, name_max, True)
         title_text = title_prefix + name_text + title_suffix
         title_x = text_center_x(title_text, 240, char_w, 2)
@@ -363,10 +334,7 @@ class DriveUi:
         scrap_n = 0.0
         if scrap_start > 0:
             scrap_n = float(scrap_now) / float(scrap_start)
-        if scrap_n < 0.0:
-            scrap_n = 0.0
-        if scrap_n > 1.0:
-            scrap_n = 1.0
+        scrap_n = max(0.0, min(1.0, scrap_n))
         scrap_fill_w = int((bars_w - 2) * scrap_n)
         if scrap_fill_w > 0:
             rect(bars_x + 1, scrap_y + 1, scrap_fill_w,

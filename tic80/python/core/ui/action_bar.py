@@ -94,17 +94,13 @@ def ui_action_bar_panel_height(
     pad_y: int = 0
 ) -> int:
     n = int(row_count)
-    if n < 1:
-        n = 1
+    n = max(1, n)
     h = int(row_h)
-    if h < 8:
-        h = 8
+    h = max(8, h)
     gap = int(row_gap)
-    if gap < 0:
-        gap = 0
+    gap = max(0, gap)
     py = int(pad_y)
-    if py < 0:
-        py = 0
+    py = max(0, py)
     return n * h + (n - 1) * gap + py * 2
 
 
@@ -149,17 +145,14 @@ def ui_action_bar_build_row_layouts(
     layouts: list[OverlayLayout] = []
     y = int(panel_y) + int(pad_y)
     h = int(row_h)
-    if h < 8:
-        h = 8
+    h = max(8, h)
     gap = int(row_gap)
-    if gap < 0:
-        gap = 0
+    gap = max(0, gap)
     i = 0
     while i < len(row_specs):
         spec = row_specs[i]
         slot_count = int(spec[0])
-        if slot_count < 1:
-            slot_count = 1
+        slot_count = max(1, slot_count)
         slot_weights = spec[1]
         layouts.append(
             {
@@ -179,8 +172,7 @@ def ui_action_bar_build_row_layouts(
 def ui_action_bar_make_mouse_states(row_count: int) -> list[OverlayFooterMouseState]:
     states: list[OverlayFooterMouseState] = []
     n = int(row_count)
-    if n < 1:
-        n = 1
+    n = max(1, n)
     i = 0
     while i < n:
         states.append(OverlayFooterMouseState())
@@ -206,16 +198,10 @@ def ui_action_bar_row_positions(
     line_y = y + int(line_offset_y)
     text_y = y + int(text_offset_y)
 
-    if h < 8:
-        h = 8
-    if text_y > y + h - 6:
-        text_y = y + h - 6
-    if text_y < y + 1:
-        text_y = y + 1
-    if line_y >= text_y:
-        line_y = text_y - 1
-    if line_y < y - 1:
-        line_y = y - 1
+    h = max(8, h)
+    text_y = max(y + 1, min(y + h - 6, text_y))
+    line_y = min(text_y - 1, line_y)
+    line_y = max(y - 1, line_y)
     return int(line_y), int(text_y)
 
 
@@ -497,8 +483,7 @@ def ui_action_bar_rows_draw(
         else:
             auto_x, auto_y, auto_w, auto_h = ui_action_bar_layout_bounds(layouts)
             border_outset = int(panel_border_outset)
-            if border_outset < 0:
-                border_outset = 0
+            border_outset = max(0, border_outset)
             border_x = auto_x - border_outset
             border_y = auto_y - border_outset
             border_w = auto_w + border_outset * 2

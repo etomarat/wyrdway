@@ -109,34 +109,25 @@ class RoadModel:
         rng = Rng(self.seed)
 
         i = int(self.safe_start_length / ds)
-        if i < 0:
-            i = 0
-        if i > n:
-            i = n
+        i = max(0, min(n, i))
 
         cur = 0.0
         while i < n:
             piece_len = rng.uniform(self._min_piece_length, self._max_piece_length)
             piece_n = int(piece_len / ds)
-            if piece_n < 1:
-                piece_n = 1
+            piece_n = max(1, piece_n)
 
             end = i + piece_n
-            if end > n:
-                end = n
+            end = min(n, end)
 
             target = self._pick_target_curvature(rng)
 
             ramp_n = int(piece_n * self._ramp_fraction)
-            if ramp_n < 1:
-                ramp_n = 1
-            if ramp_n > piece_n:
-                ramp_n = piece_n
+            ramp_n = max(1, min(piece_n, ramp_n))
 
             j = i
             ramp_end = i + ramp_n
-            if ramp_end > end:
-                ramp_end = end
+            ramp_end = min(end, ramp_end)
             while j < ramp_end:
                 t = (j - i + 1) / ramp_n
                 self._curv[j] = cur + (target - cur) * t
@@ -163,17 +154,13 @@ class RoadModel:
             full = -full
 
         p = self._straight_piece_chance
-        if p < 0.0:
-            p = 0.0
-        if p > 1.0:
-            p = 1.0
+        p = max(0.0, min(1.0, p))
 
         if p > 0.0 and rng.rand01() < p:
             m = self._straight_max_curvature
             if m < 0.0:
                 m = -m
-            if m > full:
-                m = full
+            m = min(full, m)
             return rng.uniform(-m, m)
 
         return rng.uniform(-full, full)
@@ -270,8 +257,7 @@ class RoadModel:
         if s <= 0:
             return self._curv[0]
         idx = int(s / self.ds)
-        if idx < 0:
-            idx = 0
+        idx = max(0, idx)
         if idx >= len(self._curv):
             idx = len(self._curv) - 1
         return self._curv[idx]
@@ -287,8 +273,7 @@ class RoadModel:
     def sample_centerline(self, s: float) -> tuple[float, float]:
         """Возвращает (x, y) центра дороги в точке `s`."""
         idx = int(s / self.ds)
-        if idx < 0:
-            idx = 0
+        idx = max(0, idx)
         if idx >= len(self._center_x):
             idx = len(self._center_x) - 1
         return self._center_x[idx], self._center_y[idx]
@@ -296,8 +281,7 @@ class RoadModel:
     def direction_at(self, s: float) -> tuple[float, float]:
         """Возвращает unit-направление forward (dir_x, dir_y) вдоль дороги в `s`."""
         idx = int(s / self.ds)
-        if idx < 0:
-            idx = 0
+        idx = max(0, idx)
         if idx >= len(self._dir_x):
             idx = len(self._dir_x) - 1
         return self._dir_x[idx], self._dir_y[idx]
@@ -342,10 +326,7 @@ class RoadModel:
         if idx >= count - 1:
             return (count - 1, count - 1, 0.0)
         t = pos - float(idx)
-        if t < 0.0:
-            t = 0.0
-        if t > 1.0:
-            t = 1.0
+        t = max(0.0, min(1.0, t))
         return (idx, idx + 1, t)
 
     def center_points_len(self) -> int:
@@ -362,8 +343,7 @@ class RoadModel:
         Индекс соответствует дискретизации `ds`:
         - `s = idx * ds`
         """
-        if idx < 0:
-            idx = 0
+        idx = max(0, idx)
         if idx >= len(self._center_x):
             idx = len(self._center_x) - 1
         return (

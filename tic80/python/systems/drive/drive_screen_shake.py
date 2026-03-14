@@ -50,10 +50,7 @@ class _ShakeChannel:
                 self._target_y = dy * amplitude
 
         alpha = smooth_rate * dt
-        if alpha < 0.0:
-            alpha = 0.0
-        if alpha > 1.0:
-            alpha = 1.0
+        alpha = max(0.0, min(1.0, alpha))
         self._x += (self._target_x - self._x) * alpha
         self._y += (self._target_y - self._y) * alpha
         return (self._x, self._y)
@@ -97,8 +94,7 @@ class DriveScreenShake:
         max_t = float(d.shake_hit_trauma_max)
         if max_t <= 0.0:
             max_t = 1.0
-        if self._hit_trauma > max_t:
-            self._hit_trauma = max_t
+        self._hit_trauma = min(max_t, self._hit_trauma)
 
     def update(
         self,
@@ -116,13 +112,11 @@ class DriveScreenShake:
         if offroad:
             rate = float(d.shake_offroad_ramp_up)
             self._offroad_level += rate * dt
-            if self._offroad_level > 1.0:
-                self._offroad_level = 1.0
+            self._offroad_level = min(1.0, self._offroad_level)
         else:
             rate = float(d.shake_offroad_ramp_down)
             self._offroad_level -= rate * dt
-            if self._offroad_level < 0.0:
-                self._offroad_level = 0.0
+            self._offroad_level = max(0.0, self._offroad_level)
 
         # Оффроуд: амплитуда = сила * уровень (0..1).
         offroad_amp = self._offroad_level * float(d.shake_offroad_strength)
@@ -131,28 +125,22 @@ class DriveScreenShake:
         decay = float(d.shake_hit_decay_per_sec)
         if decay > 0.0:
             self._hit_trauma -= decay * dt
-            if self._hit_trauma < 0.0:
-                self._hit_trauma = 0.0
+            self._hit_trauma = max(0.0, self._hit_trauma)
 
         # Удар: амплитуда от травмы (квадрат — мягче на малых значениях).
         hit_amp = float(d.shake_hit_strength) * (self._hit_trauma * self._hit_trauma)
 
         # Выхлоп: целевой уровень (0..1) берём из визуального эффекта дыма.
         target_exhaust = float(exhaust_strength)
-        if target_exhaust < 0.0:
-            target_exhaust = 0.0
-        if target_exhaust > 1.0:
-            target_exhaust = 1.0
+        target_exhaust = max(0.0, min(1.0, target_exhaust))
         if target_exhaust > self._exhaust_level:
             rate = float(d.shake_exhaust_ramp_up)
             self._exhaust_level += rate * dt
-            if self._exhaust_level > target_exhaust:
-                self._exhaust_level = target_exhaust
+            self._exhaust_level = min(target_exhaust, self._exhaust_level)
         else:
             rate = float(d.shake_exhaust_ramp_down)
             self._exhaust_level -= rate * dt
-            if self._exhaust_level < target_exhaust:
-                self._exhaust_level = target_exhaust
+            self._exhaust_level = max(target_exhaust, self._exhaust_level)
 
         # Выхлоп: плавный дрейф камеры (чем сильнее дым, тем выше амплитуда).
         exhaust_amp = self._exhaust_level * float(d.shake_exhaust_strength)
@@ -162,14 +150,12 @@ class DriveScreenShake:
             chance = float(d.shake_exhaust_pulse_chance_per_sec) * self._exhaust_level
             if chance > 0.0 and rng.rand01() < chance * dt:
                 self._exhaust_pulse_trauma += 1.0
-                if self._exhaust_pulse_trauma > 1.0:
-                    self._exhaust_pulse_trauma = 1.0
+                self._exhaust_pulse_trauma = min(1.0, self._exhaust_pulse_trauma)
 
         pulse_decay = float(d.shake_exhaust_pulse_decay_per_sec)
         if pulse_decay > 0.0:
             self._exhaust_pulse_trauma -= pulse_decay * dt
-            if self._exhaust_pulse_trauma < 0.0:
-                self._exhaust_pulse_trauma = 0.0
+            self._exhaust_pulse_trauma = max(0.0, self._exhaust_pulse_trauma)
 
         pulse_amp = float(d.shake_exhaust_pulse_strength)
         pulse_amp *= (self._exhaust_pulse_trauma * self._exhaust_pulse_trauma)

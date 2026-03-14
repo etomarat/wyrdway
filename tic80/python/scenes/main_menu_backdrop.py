@@ -61,8 +61,7 @@ class SimpleRoadBackdrop(MainMenuBackdrop):
         self._init_world(self._seed)
 
     def update(self, dt: float) -> None:
-        if dt < 0.0:
-            dt = 0.0
+        dt = max(0.0, dt)
         road = self._road
         logic = self._logic
         if road is None or logic is None:
@@ -85,8 +84,7 @@ class SimpleRoadBackdrop(MainMenuBackdrop):
             speed_now -= self._MENU_SPEED_DECEL_PER_SEC * dt
             if speed_now < target_speed:
                 speed_now = target_speed
-        if speed_now < 0.0:
-            speed_now = 0.0
+        speed_now = max(0.0, speed_now)
         self._speed_now = speed_now
         self._progress_s += speed_now * dt
         if self._progress_s > road.segment_total_length - 160.0:
@@ -110,8 +108,7 @@ class SimpleRoadBackdrop(MainMenuBackdrop):
         wy = cy + right_y * desired_d
 
         s_ahead = s + 28.0
-        if s_ahead > road.segment_total_length:
-            s_ahead = road.segment_total_length
+        s_ahead = min(road.segment_total_length, s_ahead)
         cx2, cy2, dir2_x, dir2_y = self._sample_centerline_and_dir(road, s_ahead)
         right2_x = -dir2_y
         right2_y = dir2_x
@@ -211,8 +208,7 @@ class SimpleRoadBackdrop(MainMenuBackdrop):
 
         pos = s / ds
         i0 = int(pos)
-        if i0 < 0:
-            i0 = 0
+        i0 = max(0, i0)
         if i0 >= n - 1:
             i0 = n - 1
         i1 = i0 + 1
@@ -220,10 +216,7 @@ class SimpleRoadBackdrop(MainMenuBackdrop):
             i1 = n - 1
 
         t = pos - float(i0)
-        if t < 0.0:
-            t = 0.0
-        if t > 1.0:
-            t = 1.0
+        t = max(0.0, min(1.0, t))
 
         x0, y0, d0x, d0y = road.center_point_at_index(i0)
         x1, y1, d1x, d1y = road.center_point_at_index(i1)
@@ -252,14 +245,10 @@ class SimpleRoadBackdrop(MainMenuBackdrop):
     def _build_menu_road(self, seed: int) -> RoadModel:
         d = TUNING.DRIVE
         max_curv = float(d.max_curvature) * 0.44 * 1.30
-        if max_curv > float(d.max_curvature):
-            max_curv = float(d.max_curvature)
-        if max_curv < 0.0007:
-            max_curv = 0.0007
+        max_curv = max(0.0007, min(float(d.max_curvature), max_curv))
         self._menu_max_curv = max_curv
         straight_curv = max_curv * 0.50
-        if straight_curv < 0.00025:
-            straight_curv = 0.00025
+        straight_curv = max(0.00025, straight_curv)
         return RoadModel(
             seed,
             6400.0,
@@ -292,13 +281,9 @@ class SimpleRoadBackdrop(MainMenuBackdrop):
         if c < 0.0:
             c = -c
         ref = self._menu_max_curv
-        if ref < 0.0001:
-            ref = 0.0001
+        ref = max(0.0001, ref)
         n = c / ref
-        if n < 0.0:
-            n = 0.0
-        if n > 1.0:
-            n = 1.0
+        n = max(0.0, min(1.0, n))
         return n
 
     def _target_speed_for_curvature(self, curvature: float) -> float:
@@ -310,18 +295,12 @@ class SimpleRoadBackdrop(MainMenuBackdrop):
         speed = base * (1.0 + pulse * pulse_amp)
         if turn_n > 0.75:
             speed -= (turn_n - 0.75) * (self._speed_max - self._speed_min) * 0.35
-        if speed < self._speed_min:
-            speed = self._speed_min
-        if speed > self._speed_max:
-            speed = self._speed_max
+        speed = max(self._speed_min, min(self._speed_max, speed))
         return speed
 
     def _menu_side_ratio(self, turn_n: float) -> float:
         side_slip_n = (turn_n - self._MENU_SIDE_TURN_START_N) / (1.0 - self._MENU_SIDE_TURN_START_N)
-        if side_slip_n < 0.0:
-            side_slip_n = 0.0
-        if side_slip_n > 1.0:
-            side_slip_n = 1.0
+        side_slip_n = max(0.0, min(1.0, side_slip_n))
         if side_slip_n <= 0.0:
             return 0.0
         # Keep menu skid close to in-game look: mild side slip, no extreme drift.
