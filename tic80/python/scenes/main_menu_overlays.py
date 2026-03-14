@@ -200,10 +200,10 @@ class MainMenuNewGameFlow:
         self.seed_snapshot = seed
 
     def mode_label(self) -> str:
-        mode = int(self.mode_draft)
-        if mode == int(InputDeviceMode.KEYBOARD):
+        mode = self.mode_draft
+        if mode == InputDeviceMode.KEYBOARD:
             return "KEYBOARD"
-        if mode == int(InputDeviceMode.GAMEPAD):
+        if mode == InputDeviceMode.GAMEPAD:
             return "GAMEPAD"
         return "DUAL INPUT"
 
@@ -330,7 +330,7 @@ class MainMenuNewGameFlow:
             return 0
         if idx >= len(seed):
             return len(seed) - 1
-        return int(idx)
+        return idx
 
     @staticmethod
     def info_lines() -> list[str]:
@@ -475,11 +475,11 @@ class MainMenuNewGameFlow:
         state.set_input_device_mode(self.mode_draft)
         state.set_drive_preset_id(self.preset_draft)
         rumble_supported = state.refresh_rumble_support()
-        mode = int(self.mode_draft)
-        if mode == int(InputDeviceMode.KEYBOARD):
+        mode = self.mode_draft
+        if mode == InputDeviceMode.KEYBOARD:
             state.set_prompt_show_shoulders(False)
             state.set_vibration_enabled(False)
-        elif mode == int(InputDeviceMode.BOTH):
+        elif mode == InputDeviceMode.BOTH:
             state.set_prompt_show_shoulders(False)
             if not state.options_vibration_configured:
                 state.set_vibration_enabled(rumble_supported)
@@ -604,7 +604,7 @@ class MainMenuNewGameFlow:
 
     def _setup_nav_arrow(self, scene: MainMenuScene, action_id: ActionId) -> str:
         glyphs = prompt_glyphs_for_action(action_id, self.mode_draft)
-        if len(glyphs) <= 0:
+        if not glyphs:
             return ""
         return format_prompt([glyphs[0]], scene._state.prompt_glyph_detail)
 
@@ -627,7 +627,7 @@ class MainMenuNewGameSetupOverlayFlow(MainMenuOverlayFlow):
 
     def on_open(self, scene: MainMenuScene, prev_overlay_id: int) -> None:
         self.reset_mouse_state()
-        if int(prev_overlay_id) == self._seed_overlay_id:
+        if prev_overlay_id == self._seed_overlay_id:
             return
         self._flow.reset_draft(
             scene._state.input_device_mode,
@@ -721,7 +721,7 @@ class MainMenuNewGameSetupOverlayFlow(MainMenuOverlayFlow):
             _label, _value, row_id = rows[i]
             row_y = body_top + i * self._ROW_STEP
             if my >= row_y - 2 and my < row_y + 7:
-                return int(row_id)
+                return row_id
             i += 1
         return -1
 
@@ -992,7 +992,7 @@ class MainMenuControlsOverlayFlow(MainMenuOverlayFlow):
             return False
         if not enabled:
             return False
-        return bool(
+        return (
             scene._overlay_down(Action.NAV_LEFT)
             or scene._overlay_down(Action.NAV_RIGHT)
         )
@@ -1030,7 +1030,7 @@ class MainMenuControlsOverlayFlow(MainMenuOverlayFlow):
             ("MODULE", self._prompt_for_action(Action.MODULE))
         ]
         left_sections: list[tuple[str, list[tuple[str, str]]]] = []
-        if len(system_rows) > 0:
+        if system_rows:
             left_sections.append(("SYSTEM", system_rows))
         left_sections.append(("MENU", left_rows))
         right_sections: list[tuple[str, list[tuple[str, str]]]] = [
@@ -1118,7 +1118,7 @@ class MainMenuControlsOverlayFlow(MainMenuOverlayFlow):
 
     def _keyboard_nav_arrow(self, action_id: int) -> str:
         glyphs = prompt_glyphs_for_action(action_id, self._options.mode_draft)
-        if len(glyphs) <= 0:
+        if not glyphs:
             return ""
         return format_prompt([glyphs[0]], self._state.prompt_glyph_detail)
 

@@ -80,7 +80,7 @@ def ui_options_bindings_sections_column_draw(
     row_color: int,
     line_color: int
 ) -> None:
-    if len(sections) <= 0:
+    if not sections:
         return
     section_gap = 4
     section_title_y = int(title_y)

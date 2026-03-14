@@ -190,7 +190,7 @@ class MainMenuScene:
         pass
 
     def _has_continue(self) -> bool:
-        return bool(self._state.profile_loaded)
+        return self._state.profile_loaded
 
     def _update_overlay_input(self) -> None:
         nav_up_released, nav_down_released, nav_left_released, nav_right_released, confirm_released, cancel_released = self._poll_overlay_release_events()
@@ -401,7 +401,7 @@ class MainMenuScene:
         )
 
     def _overlay_nav_any_down(self) -> bool:
-        return bool(
+        return (
             self._overlay_ui.down(self._state.controls, Action.NAV_UP)
             or self._overlay_ui.down(self._state.controls, Action.NAV_DOWN)
             or self._overlay_ui.down(self._state.controls, Action.NAV_LEFT)

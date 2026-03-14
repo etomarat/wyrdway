@@ -56,12 +56,12 @@ class UiOptionsOverlayState:
         self._gamepad_vibration_draft = bool(self._rumble_supported)
         self._both_vibration_draft = bool(self._rumble_supported)
 
-        mode_i = int(self.mode_draft)
-        if mode_i == int(self._MODE_GAMEPAD):
+        mode_i = self.mode_draft
+        if mode_i == self._MODE_GAMEPAD:
             self._gamepad_shoulders_draft = bool(shoulders_enabled)
             if self._rumble_supported:
                 self._gamepad_vibration_draft = bool(vibration_enabled)
-        elif mode_i == int(self._MODE_BOTH):
+        elif mode_i == self._MODE_BOTH:
             if self._rumble_supported:
                 self._both_vibration_draft = bool(vibration_enabled)
 
@@ -93,10 +93,10 @@ class UiOptionsOverlayState:
         return not self.vibration_supported()
 
     def shoulders_touched(self) -> bool:
-        return bool(self._shoulders_touched)
+        return self._shoulders_touched
 
     def vibration_touched(self) -> bool:
-        return bool(self._vibration_touched)
+        return self._vibration_touched
 
     def input_mode_label(self) -> str:
         if self.mode_draft == self._MODE_KEYBOARD:
@@ -228,25 +228,25 @@ class UiOptionsOverlayState:
         self._clamp_focus()
 
     def _store_mode_draft_values(self) -> None:
-        mode_i = int(self.mode_draft)
-        if mode_i == int(self._MODE_GAMEPAD):
+        mode_i = self.mode_draft
+        if mode_i == self._MODE_GAMEPAD:
             self._gamepad_shoulders_draft = bool(self.shoulders_draft)
             if self._rumble_supported:
                 self._gamepad_vibration_draft = bool(self.vibration_draft)
-        elif mode_i == int(self._MODE_BOTH):
+        elif mode_i == self._MODE_BOTH:
             if self._rumble_supported:
                 self._both_vibration_draft = bool(self.vibration_draft)
 
     def _sync_drafts_from_mode(self) -> None:
-        mode_i = int(self.mode_draft)
-        if mode_i == int(self._MODE_GAMEPAD):
+        mode_i = self.mode_draft
+        if mode_i == self._MODE_GAMEPAD:
             self.shoulders_draft = bool(self._gamepad_shoulders_draft)
             if self._rumble_supported:
                 self.vibration_draft = bool(self._gamepad_vibration_draft)
             else:
                 self.vibration_draft = False
             return
-        if mode_i == int(self._MODE_BOTH):
+        if mode_i == self._MODE_BOTH:
             self.shoulders_draft = False
             if self._rumble_supported:
                 self.vibration_draft = bool(self._both_vibration_draft)

@@ -22,7 +22,7 @@ class UiInputLayer:
 
     @property
     def context_token(self) -> int:
-        return int(self._context_token)
+        return self._context_token
 
     @property
     def mouse(self) -> UiMouseState:
@@ -43,7 +43,7 @@ class UiInputLayer:
         )
         if reset_footer:
             self.runtime.reset_footer()
-        return int(self._context_token)
+        return self._context_token
 
     def poll_mouse(self) -> None:
         self.runtime.poll_mouse()
@@ -75,7 +75,7 @@ class UiInputLayer:
         )
 
     def down(self, controls: Controls, action: ActionId) -> bool:
-        return bool(controls.down_for(action, self._context_token))
+        return controls.down_for(action, self._context_token)
 
     def pressed(
         self,
@@ -84,13 +84,11 @@ class UiInputLayer:
         hold: int = -1,
         period: int = -1
     ) -> bool:
-        return bool(
-            controls.pressed_for(
-                action,
-                self._context_token,
-                hold,
-                period
-            )
+        return controls.pressed_for(
+            action,
+            self._context_token,
+            hold,
+            period
         )
 
     def poll_action(self, controls: Controls, action: ActionId) -> bool:

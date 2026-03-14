@@ -35,7 +35,7 @@ class Controls:
             self._allowed_actions = allowed
         if swallow_held:
             self.swallow_held_inputs()
-        return int(self._context_token)
+        return self._context_token
 
     def swallow_held_inputs(self) -> None:
         self._refresh_blocked_refs()
@@ -71,7 +71,7 @@ class Controls:
         return False
 
     def down_for(self, action: "ActionId", context_token: int) -> bool:
-        if int(context_token) != int(self._context_token):
+        if context_token != self._context_token:
             return False
         return self.down(action)
 
@@ -82,7 +82,7 @@ class Controls:
         hold: int = -1,
         period: int = -1
     ) -> bool:
-        if int(context_token) != int(self._context_token):
+        if context_token != self._context_token:
             return False
         return self.pressed(action, hold, period)
 
@@ -107,7 +107,7 @@ class Controls:
         return bool(keyp(ref.code, hold, period))
 
     def _refresh_blocked_refs(self) -> None:
-        if len(self._blocked_refs) <= 0:
+        if not self._blocked_refs:
             return
         i = 0
         while i < len(self._all_refs):

@@ -42,7 +42,7 @@ def ui_options_settings_draw(
     while row < len(labels):
         row_y = body_top + row * line_step
         enabled = bool(enabled_rows[row]) if row < len(enabled_rows) else False
-        selected = row == int(selected_row)
+        selected = row == selected_row
         row_active = bool(active_rows[row]) if row < len(active_rows) else False
 
         if row_active:

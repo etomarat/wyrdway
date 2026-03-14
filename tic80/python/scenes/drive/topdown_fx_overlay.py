@@ -130,7 +130,7 @@ class TopdownFxOverlay:
 
     def _flush_hit_events(self, proj: TopdownProjector) -> None:
         """Сбрасывает очередь попаданий препятствий в `DriveFx` текущего кадра."""
-        if len(self._hit_events) <= 0:
+        if not self._hit_events:
             return
         i = 0
         while i < len(self._hit_events):

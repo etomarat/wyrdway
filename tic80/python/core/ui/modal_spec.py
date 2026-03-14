@@ -68,7 +68,7 @@ def ui_modal_nav_enabled(nav_mode: int, has_scroll: bool) -> bool:
         return True
     if mode == int(UiModalNavMode.NEVER):
         return False
-    return bool(has_scroll)
+    return has_scroll
 
 
 def ui_modal_footer_slots(

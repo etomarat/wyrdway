@@ -67,7 +67,7 @@ class PerfOverlay:
     def draw(self, x: int = 1, y: int = 1, color: int = 12) -> None:
         if not self._enabled:
             return
-        if len(self._lines) <= 0:
+        if not self._lines:
             return
         i = 0
         while i < len(self._lines):

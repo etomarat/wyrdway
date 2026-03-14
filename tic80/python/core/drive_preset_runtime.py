@@ -120,10 +120,10 @@ class DrivePresetRuntime:
         _apply_pursuer_baseline(ENTITY_PURSUER_PROFILE, entity_baseline)
         _apply_pursuer_baseline(PRIME_ENTITY_PURSUER_PROFILE, prime_baseline)
 
-        if pid == int(DrivePresetIdValues.NORMAL):
+        if pid == DrivePresetIdValues.NORMAL:
             _apply_overrides(TUNING.DRIVE, _DRIVE_OVERRIDES_NORMAL)
             return
-        if pid == int(DrivePresetIdValues.EASY):
+        if pid == DrivePresetIdValues.EASY:
             _apply_overrides(TUNING.DRIVE, _DRIVE_OVERRIDES_EASY)
             active = _resolve_active_pursuer_profile()
             _apply_overrides(active, _PURSUER_OVERRIDES_EASY)

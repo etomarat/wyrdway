@@ -295,7 +295,7 @@ class DrivePresetScene:
         i = 0
         selected_id = drive_preset_clamp(int(self._state.drive_preset_id))
         while i < len(self._presets):
-            if int(self._presets[i].option_id) == int(selected_id):
+            if self._presets[i].option_id == selected_id:
                 return i
             i += 1
         return 0
@@ -308,7 +308,7 @@ class DrivePresetScene:
         self._state.set_drive_preset_id(drive_preset_clamp(int(preset.option_id)))
         self._state.save_options()
         trace("drive preset: " + preset.name)
-        if len(diffs) == 0:
+        if not diffs:
             trace("drive preset: no changes")
         else:
             for line in diffs:

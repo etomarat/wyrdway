@@ -106,15 +106,15 @@ class GameState:
 
     @property
     def run_index(self) -> int:
-        return int(self._run_index)
+        return self._run_index
 
     @property
     def campaign_seed_text(self) -> str:
-        return str(self._campaign_seed_text)
+        return self._campaign_seed_text
 
     @property
     def campaign_seed_u32(self) -> int:
-        return int(self._campaign_seed_u32)
+        return self._campaign_seed_u32
 
     @property
     def debug_overlay_enabled(self) -> bool:
@@ -122,7 +122,7 @@ class GameState:
 
     @property
     def debug_enabled(self) -> bool:
-        return bool(TUNING.DEBUG.debug_enabled)
+        return TUNING.DEBUG.debug_enabled
 
     @property
     def input_device_mode(self) -> InputDeviceModeId:
@@ -130,7 +130,7 @@ class GameState:
 
     def set_input_device_mode(self, mode: InputDeviceModeId) -> None:
         self._input_device_mode = mode
-        if int(mode) == int(InputDeviceMode.KEYBOARD):
+        if mode == InputDeviceMode.KEYBOARD:
             self._haptics.clear()
 
     @property
@@ -142,14 +142,14 @@ class GameState:
 
     @property
     def prompt_show_shoulders(self) -> bool:
-        return bool(self._prompt_show_shoulders)
+        return self._prompt_show_shoulders
 
     def set_prompt_show_shoulders(self, enabled: bool) -> None:
         self._prompt_show_shoulders = bool(enabled)
 
     @property
     def vibration_enabled(self) -> bool:
-        return bool(self._vibration_enabled)
+        return self._vibration_enabled
 
     def set_vibration_enabled(self, enabled: bool) -> None:
         self._vibration_enabled = bool(enabled)
@@ -158,13 +158,13 @@ class GameState:
 
     @property
     def rumble_supported(self) -> bool:
-        return bool(self._rumble_supported)
+        return self._rumble_supported
 
     def refresh_rumble_support(self) -> bool:
         self._rumble_supported = rumble_supported()
         if not self._rumble_supported:
             self._haptics.clear()
-        return bool(self._rumble_supported)
+        return self._rumble_supported
 
     @property
     def haptics(self) -> Haptics:
@@ -173,10 +173,10 @@ class GameState:
     def vibration_allowed(self) -> bool:
         if not self._rumble_supported:
             return False
-        if int(self._input_device_mode) == int(InputDeviceMode.KEYBOARD):
+        if self._input_device_mode == InputDeviceMode.KEYBOARD:
             return False
         if self._options_vibration_configured:
-            return bool(self._vibration_enabled)
+            return self._vibration_enabled
         return True
 
     def vibrate(self, weak: int, strong: int, duration: int = 120) -> bool:

@@ -411,7 +411,7 @@ class DriveScene:
         return
 
     def _draw_popups(self) -> None:
-        if len(self._popups) <= 0:
+        if not self._popups:
             return
         base_x = 96
         base_y = int(TUNING.DRIVE.view_center_y) - 18

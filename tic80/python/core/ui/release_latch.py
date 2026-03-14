@@ -73,5 +73,5 @@ class UiReleaseLatch:
         context_token: int
     ) -> bool:
         if int(context_token) != 0:
-            return bool(controls.down_for(action, context_token))
-        return bool(controls.down(action))
+            return controls.down_for(action, context_token)
+        return controls.down(action)

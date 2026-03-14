@@ -17,26 +17,26 @@ class DrivePresetIdValues:
 def drive_preset_is_valid(preset_id: int) -> bool:
     pid = int(preset_id)
     return (
-        pid == int(DrivePresetIdValues.HARD)
-        or pid == int(DrivePresetIdValues.NORMAL)
-        or pid == int(DrivePresetIdValues.EASY)
+        pid == DrivePresetIdValues.HARD
+        or pid == DrivePresetIdValues.NORMAL
+        or pid == DrivePresetIdValues.EASY
     )
 
 
 def drive_preset_clamp(preset_id: int) -> DrivePresetId:
     pid = int(preset_id)
-    if pid == int(DrivePresetIdValues.NORMAL):
+    if pid == DrivePresetIdValues.NORMAL:
         return DrivePresetIdValues.NORMAL
-    if pid == int(DrivePresetIdValues.EASY):
+    if pid == DrivePresetIdValues.EASY:
         return DrivePresetIdValues.EASY
     return DrivePresetIdValues.HARD
 
 
 def drive_preset_label(preset_id: DrivePresetId) -> str:
     pid = drive_preset_clamp(int(preset_id))
-    if pid == int(DrivePresetIdValues.NORMAL):
+    if pid == DrivePresetIdValues.NORMAL:
         return "NORMAL"
-    if pid == int(DrivePresetIdValues.EASY):
+    if pid == DrivePresetIdValues.EASY:
         return "EASY"
     return "HARD"
 
@@ -51,7 +51,7 @@ def drive_preset_cycle(preset_id: DrivePresetId, forward: bool) -> DrivePresetId
     i = 0
     current = drive_preset_clamp(int(preset_id))
     while i < len(order):
-        if int(order[i]) == int(current):
+        if order[i] == current:
             idx = i
             break
         i += 1
