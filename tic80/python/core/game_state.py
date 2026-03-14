@@ -345,6 +345,14 @@ class GameState:
         self._set_pursuer_variant_for_next_run()
         self._save.save_runtime_flags(False, False)
 
+    def cancel_pending_run(self) -> None:
+        run = self._run
+        if run is None:
+            return
+        if self._run_index > 0 and run.node_id is None:
+            self._run_index -= 1
+        self.end_run()
+
     def mark_run_active(self) -> None:
         self._save.save_runtime_flags(True, False)
 

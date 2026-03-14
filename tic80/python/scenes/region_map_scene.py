@@ -9,14 +9,13 @@ if TYPE_CHECKING:
     from ..core.poi_text import poi_type_label
     from ..core.run_state import RunState
     from ..core.scene_ids import SceneId
-    from ..core.ui.footer_slots import (
-        ui_footer_slot_indices,
-        ui_footer_slots_standard
-    )
+    from ..core.ui.footer_slots import ui_footer_slots_standard
     from ..core.ui.input_layer import UiInputLayer
     from ..core.ui.overlay_layout import ui_overlay_layout_centered_by_spec
     from ..core.ui.overlay_screen import ui_overlay_screen_draw
     from ..data.tuning import TUNING
+
+
 class RegionMapScene:
     SCENE_ID = SceneId.REGION_MAP
     OVERLAY_W = 228
@@ -38,6 +37,14 @@ class RegionMapScene:
         self._nav = nav
         self._state = nav.state
         self._ui = UiInputLayer()
+        self._layout = ui_overlay_layout_centered_by_spec(
+            self.OVERLAY_LAYOUT_SPEC,
+            3,
+            (1, 1, 1),
+            0,
+            2,
+            1
+        )
         self.selected_node = 1
         self.node_count = 5
 
@@ -54,7 +61,8 @@ class RegionMapScene:
             Action.NAV_DOWN,
             Action.NAV_LEFT,
             Action.NAV_RIGHT,
-            Action.CONFIRM
+            Action.CONFIRM,
+            Action.CANCEL
         ]
         self._ui.activate(self._state.controls, actions, swallow_held)
 
@@ -64,29 +72,24 @@ class RegionMapScene:
         nav_down_released = self._ui.poll_action(self._state.controls, Action.NAV_DOWN)
         confirm_released = self._ui.poll_confirm(
             self._state, self._state.controls)
-        slot_count = 2
-        slot_weights = (1, 1)
-        layout = ui_overlay_layout_centered_by_spec(
-            self.OVERLAY_LAYOUT_SPEC,
-            slot_count,
-            slot_weights,
-            0,
-            1,
-            slot_count - 1
-        )
-        slot_nav, slot_confirm, _slot_cancel = ui_footer_slot_indices(layout, slot_count)
+        cancel_released = self._ui.poll_action(self._state.controls, Action.CANCEL)
         slots = self._footer_slots()
-        released_slot = self._ui.poll_footer_release(layout, slots)
+        released_slot = self._ui.poll_footer_release(self._layout, slots)
 
         if nav_up_released:
             self.selected_node = max(1, self.selected_node - 1)
         if nav_down_released:
             self.selected_node = min(self.node_count, self.selected_node + 1)
-        if self._ui.footer_button_released(self._state, released_slot, slot_nav):
+        if self._ui.footer_button_released(self._state, released_slot, 0):
             self.selected_node += 1
             if self.selected_node > self.node_count:
                 self.selected_node = 1
-        if confirm_released or self._ui.footer_button_released(self._state, released_slot, slot_confirm):
+        if cancel_released or self._ui.footer_button_released(self._state, released_slot, 1):
+            self._state.cancel_pending_run()
+            self._ui.reset_footer()
+            self._nav.go(SceneId.GARAGE)
+            return
+        if confirm_released or self._ui.footer_button_released(self._state, released_slot, 2):
             run = self._state.require_run()
             run.ensure_outbound_segment(
                 self.selected_node,
@@ -131,49 +134,30 @@ class RegionMapScene:
         )
 
     def _footer_slots(self) -> list[str]:
-        slot_count = 2
-        slot_weights = (1, 1)
-        layout = ui_overlay_layout_centered_by_spec(
-            self.OVERLAY_LAYOUT_SPEC,
-            slot_count,
-            slot_weights,
-            0,
-            1,
-            slot_count - 1
-        )
         return ui_footer_slots_standard(
-            layout,
-            slot_count,
+            self._layout,
+            3,
             self._state,
             Action.CONFIRM,
-            Action.CONFIRM,
+            Action.CANCEL,
             True,
             "NAV",
             "GO",
-            ""
+            "BACK"
         )
 
     def draw(self) -> None:
         cls(Color.BLACK)
         run = self._state.run
-        slot_count = 2
-        slot_weights = (1, 1)
-        layout = ui_overlay_layout_centered_by_spec(
-            self.OVERLAY_LAYOUT_SPEC,
-            slot_count,
-            slot_weights,
-            0,
-            1,
-            slot_count - 1
-        )
         slots = self._footer_slots()
         keyboard_active = [
             self._nav_down(),
+            self._ui.down(self._state.controls, Action.CANCEL),
             self._ui.down(self._state.controls, Action.CONFIRM)
         ]
         box_x, _box_y, _box_w, _box_h, body_top, _footer_line_y, _footer_text_y = ui_overlay_screen_draw(
             self._ui.runtime,
-            layout,
+            self._layout,
             "REGION MAP",
             [],
             slots,
