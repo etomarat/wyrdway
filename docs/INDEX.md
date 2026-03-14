@@ -21,6 +21,7 @@ docs/
 1) **Текущий этап / планы**
 - `00_spec/1_roadmap.md` — актуальный roadmap под текущий code budget и ближайший релиз.
 - `10_milestones/m1_9/m_1_9_release_scope_plan.md` — что делаем в следующем публичном билде и что сознательно откладываем.
+- `10_milestones/m1_9/m_1_9_release_prep.md` — черновик релизных заметок и зафиксированный диапазон коммитов для следующего апдейта.
 - `10_milestones/m1_8/m_1_8_pursuer_chase_v_0_plan.md` — текущее as-is по погоне на return.
 - `10_milestones/m1_7/m_1_7_playable_loop_v_0_plan.md` — исторический план минимальной петли с route/return.
 - `10_milestones/m1/m1_report.md` — отчёт по базовой замкнутой петле.

@@ -52,6 +52,128 @@
 
 Это нужно, чтобы последующая поломка воспринималась как подготовленное событие, а не как случайный обман.
 
+### 2.0 Draft intro popup copy
+
+Ниже фиксируем текущий рабочий драфт интро-попапов для **начала новой игры**.
+Это не финальный locked copy, но это текущий фаворит по тону и смыслу.
+
+Продуктовые заметки:
+- подача: **внутренний монолог героя**, без прямых инструкций игроку;
+- тон: привычка к ненормальному, тревога без “объяснения мира в лоб”;
+- `КРАСНЫЕ ПРЫЩИ` выделяются `RED`;
+- `РУЧНИК НА ИСХОДЕ` выделяется `YELLOW` или `ORANGE`;
+- попапы рассчитываются под обычный крупный overlay формата примерно `220x112`.
+
+#### Русский драфт
+
+**Попап 1**
+
+> Раньше я эти дороги знал.  
+> Не по карте, просто знал.  
+> Только память здесь больше не помогает.  
+> Каждый раз дорога решает по-своему.
+
+**Попап 2**
+
+> Вокруг всё выглядит знакомо.  
+> Только я давно перестал  
+> верить глазам.
+
+**Попап 3**
+
+> Иногда думаю,  
+> что живых вокруг уже нет.  
+> С каждым выездом  
+> думать так всё проще.
+
+**Попап 4**
+
+> Пока просто держишься дороги,  
+> всё ещё похоже на обычную трассу.  
+> Но на точках тишина всегда другая.  
+> Будто там заранее знают, что ты приедешь.
+
+**Попап 5**
+
+> Стоит что-то взять,  
+> и оно узнает.  
+> Что это такое, я не знаю.  
+> Да и знать, наверное, не надо.
+
+**Попап 6**
+
+> КРАСНЫЕ ПРЫЩИ  
+> /\ /\ /\
+>
+> Эту дрянь видно издалека.  
+> Налетишь на такую,  
+> машине мало не покажется.
+
+**Попап 7**
+
+> Ладно.  
+> Пора выезжать.
+>
+> РУЧНИК НА ИСХОДЕ
+>
+> Ещё один раз, может, выдержит.
+
+#### English draft
+
+This is a **tone-preserving draft**, not a literal line-by-line translation.
+
+**Popup 1**
+
+> I used to know these roads.  
+> Not from a map. I just knew them.  
+> Memory does not help much here anymore.  
+> Every road has a mind of its own now.
+
+**Popup 2**
+
+> Everything around me still looks familiar.  
+> I stopped trusting my eyes  
+> a long time ago.
+
+**Popup 3**
+
+> Sometimes I think  
+> there is no one left alive out here.  
+> Every trip makes that  
+> a little easier to believe.
+
+**Popup 4**
+
+> As long as you stay on the road,  
+> it can still pass for an ordinary highway.  
+> But the silence at the sites is never the same.  
+> Like they know you are coming.
+
+**Popup 5**
+
+> The moment you take something,  
+> it knows.  
+> I do not know what it is.  
+> Maybe I do not need to.
+
+**Popup 6**
+
+> RED ZITS  
+> /\ /\ /\
+>
+> You can spot that filth from far away.  
+> Hit one of those,  
+> and the car will feel it for a long time.
+
+**Popup 7**
+
+> Right.  
+> Time to go.
+>
+> HANDBRAKE NEAR FAILURE
+>
+> Maybe it'll last one more run.
+
 ### Шаг 1. Первый короткий выезд
 `Garage -> Route -> Drive -> POI -> Return`
 
