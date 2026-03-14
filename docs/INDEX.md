@@ -19,20 +19,23 @@ docs/
 ## Куда смотреть в первую очередь
 
 1) **Текущий этап / планы**
-- `10_milestones/m1/m1_plan.md`
-- `10_milestones/m1/m1_report.md`
+- `00_spec/1_roadmap.md` — актуальный roadmap под текущий code budget и ближайший релиз.
+- `10_milestones/m1_9/m_1_9_release_scope_plan.md` — что делаем в следующем публичном билде и что сознательно откладываем.
+- `10_milestones/m1_8/m_1_8_pursuer_chase_v_0_plan.md` — текущее as-is по погоне на return.
+- `10_milestones/m1_7/m_1_7_playable_loop_v_0_plan.md` — исторический план минимальной петли с route/return.
+- `10_milestones/m1/m1_report.md` — отчёт по базовой замкнутой петле.
 - `10_milestones/m1_5/m_1_5_plan.md`
 - `10_milestones/m1_5/m_1_5_drive_physics_tuning_plan.md` — план улучшения управления/физики DRIVE.
 - `10_milestones/m1_6/m_1_6_drift_readability_plan.md` — план экспериментов по читаемости дрифта.
 - `10_milestones/m1_6/m_1_6_drift_readability_log.md` — журнал решений и результатов по веткам `drift/*`.
-- `10_milestones/m1_7/m_1_7_playable_loop_v_0_plan.md` — минимальная петля с route/return.
-- `10_milestones/m1_8/m_1_8_pursuer_chase_v_0_plan.md` — погоня на return, варианты сущности, текущий HUD/FX.
 - Если при запуске сразу попадаешь в `DRIVE_PRESET`, проверь `IS_DRIVE_PLAYTEST` в `tic80/python/main.py`.
 
 2) **Спека (источник правды по системам)**
-- `00_spec/0_gdd_v0.md` — GDD v0 (общая картина).
+- `00_spec/0_gdd_v0.md` — целевое видение с пометками о сужении ближайшего scope.
 - `00_spec/2_architecture.md` — сцены/поток/правила владения кадром.
 - `00_spec/3_runstate.md` — контракт данных (Profile/Run и т.п.).
+- `00_spec/11_progression_and_intro.md` — интро с поломкой ручника, обычный loop после интро, правила босс-наград и уровней апгрейдов.
+- `00_spec/12_segment_map_and_upgrade_pool.md` — форма карты сегмента, рост длины `3 -> 4 -> 5`, обычные награды, ранний пул апгрейдов и отложенные зависимые апгрейды.
 - `00_spec/10_controls.md` — управление (клавиатура/геймпад) + планы по LT/RT.
 - `00_spec/8_drive_physics.md` — DRIVE (m1.5): world-space физика и связь с дорогой.
 - `00_spec/9_drive_playtest_camera.md` — DRIVE (m1.6): плейтест, камера и читаемость заноса.
@@ -63,6 +66,8 @@ docs/
   соответствующую спеку.
 - **`10_milestones/` — рабочие артефакты разработки.** Здесь лежат планы,
   чеклисты, отчёты и заметки плейтеста.
+- Если общий курс проекта поменялся, сначала обновляем `00_spec/1_roadmap.md`
+  и актуальный milestone-план, а уже потом расширяем старые спеки.
 - **`20_tech/` — всё про рантайм/ограничения/пайплайн.** Если выяснили ограничение
   PocketPy или TIC-80 — фиксируем здесь.
 - **`30_style/` — визуальные правила и примеры.** Можно класть палитры, UI‑гайд,
