@@ -897,10 +897,7 @@ class MainMenuControlsOverlayFlow(MainMenuOverlayFlow):
             and self._options.shoulders_enabled()
         )
         self._state.set_prompt_show_shoulders(show_shoulders)
-        vibration_enabled = (
-            self._options.vibration_draft
-            and self._options.vibration_enabled()
-        )
+        vibration_enabled = self._options.vibration_draft
         self._state.set_vibration_enabled(vibration_enabled)
         self._state.mark_options_configured(
             self._options.shoulders_touched(),

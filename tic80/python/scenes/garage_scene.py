@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from tic80 import cls, line, print, rect, time
+    from tic80 import circb, cls, line, print, rect, time
 
     from ..contracts import SceneEnterParams, SceneNavigator
     from ..core.controls.actions import Action, ActionId
@@ -25,7 +25,11 @@ if TYPE_CHECKING:
         ui_meter_draw_labeled,
         ui_meter_fill_ratio
     )
-    from ..core.ui.overlay_flow import ui_overlay_flow_single_action
+    from ..core.ui.overlay_flow import (
+        ui_overlay_flow_confirm_cancel,
+        ui_overlay_flow_single_action
+    )
+    from ..core.ui.overlay_layout import ui_overlay_layout_centered_by_spec
     from ..core.ui.overlay_screen import ui_overlay_screen_draw
     from ..core.ui.overlay_theme import ui_overlay_theme_warning
     from ..core.ui.panel import ui_panel_draw
@@ -68,6 +72,68 @@ class GarageScene:
         MODAL_H,
         MODAL_HEADER_TEXT_OFFSET_Y,
         MODAL_BODY_TOP_OFFSET_Y
+    )
+    INTRO_MODAL_W = 240
+    INTRO_MODAL_H = 88
+    INTRO_MODAL_TALL_H = 112
+    INTRO_MODAL_HEADER_TEXT_OFFSET_Y = 9
+    INTRO_MODAL_BODY_TOP_OFFSET_Y = 24
+    INTRO_MODAL_TITLE = "GARAGE NOTES"
+    INTRO_MODAL_LINE_STEP = 8
+    INTRO_ZITS_ART_H = 18
+    INTRO_ZITS_POPUP_INDEX = 5
+    INTRO_TALL_POPUP_INDEXES = (3, 5, 6)
+    INTRO_POPUPS = (
+        (
+            ("I used to know these roads.", Color.LIGHT_GREY),
+            ("Not from a map. I just knew them.", Color.LIGHT_GREY),
+            ("Memory does not help much here anymore.", Color.LIGHT_GREY),
+            ("Every road has a mind of its own now.", Color.LIGHT_GREY)
+        ),
+        (
+            ("Everything around me", Color.LIGHT_GREY),
+            ("still looks familiar.", Color.LIGHT_GREY),
+            ("I stopped trusting my eyes", Color.LIGHT_GREY),
+            ("a long time ago.", Color.LIGHT_GREY)
+        ),
+        (
+            ("Sometimes I think", Color.LIGHT_GREY),
+            ("there is no one left alive out here.", Color.LIGHT_GREY),
+            ("Every trip makes that", Color.LIGHT_GREY),
+            ("a little easier to believe.", Color.LIGHT_GREY)
+        ),
+        (
+            ("As long as you stay on the road,", Color.LIGHT_GREY),
+            ("it can still pass for", Color.LIGHT_GREY),
+            ("an ordinary highway.", Color.LIGHT_GREY),
+            ("But the silence at the sites", Color.LIGHT_GREY),
+            ("is never the same.", Color.LIGHT_GREY),
+            ("Like they know you are coming.", Color.LIGHT_GREY)
+        ),
+        (
+            ("The moment you take something,", Color.LIGHT_GREY),
+            ("it knows.", Color.LIGHT_GREY),
+            ("I do not know what it is.", Color.LIGHT_GREY),
+            ("Maybe I do not need to.", Color.LIGHT_GREY)
+        ),
+        (
+            ("RED ZITS", Color.RED),
+            ("", Color.WHITE),
+            ("You can spot that filth", Color.LIGHT_GREY),
+            ("from far away.", Color.LIGHT_GREY),
+            ("Hit one of those,", Color.LIGHT_GREY),
+            ("and the car will feel it", Color.LIGHT_GREY),
+            ("for a long time.", Color.LIGHT_GREY),
+            ("", Color.WHITE)
+        ),
+        (
+            ("Right.", Color.LIGHT_GREY),
+            ("Time to go.", Color.LIGHT_GREY),
+            ("", Color.WHITE),
+            ("HANDBRAKE NEAR FAILURE", Color.ORANGE),
+            ("", Color.WHITE),
+            ("Maybe it'll last one more run.", Color.LIGHT_GREY)
+        )
     )
     ACTION_BAR_PANEL_X = 8
     ACTION_BAR_SCREEN_H = 136
@@ -141,11 +207,14 @@ class GarageScene:
         self._rollback_modal_open = False
         self._rollback_modal_reason = ""
         self._rollback_modal_gain = 0
+        self._intro_modal_open = False
+        self._intro_popup_index = 0
         self._header_text = self.HOME_HEADER_TEXT
         self._header_roll = 0
 
     def enter(self, params: SceneEnterParams = None) -> None:
-        self._state.drive_preset_runtime.apply_by_id(self._state.drive_preset_id)
+        self._state.drive_preset_runtime.apply_by_id(
+            self._state.drive_preset_id)
         self._base_ui.reset_footer()
         self._modal_ui.reset_footer()
         self._reset_action_bar_mouse()
@@ -155,6 +224,8 @@ class GarageScene:
         self._rollback_modal_open = reason is not None
         self._rollback_modal_reason = "" if reason is None else str(reason)
         self._rollback_modal_gain = int(gain)
+        self._intro_modal_open = self._state.consume_new_campaign_intro()
+        self._intro_popup_index = 0
         self._pick_header_text()
         self._apply_input_context(True)
 
@@ -170,6 +241,13 @@ class GarageScene:
         ]
         if self._rollback_modal_open:
             actions = [Action.CANCEL]
+            self._modal_ui.activate(
+                self._state.controls,
+                actions,
+                swallow_held
+            )
+        elif self._intro_modal_open:
+            actions = [Action.CONFIRM, Action.CANCEL]
             self._modal_ui.activate(
                 self._state.controls,
                 actions,
@@ -459,8 +537,91 @@ class GarageScene:
             body_line_step=10
         )
 
+    def _intro_popup_confirm_label(self) -> str:
+        if self._intro_popup_index >= len(self.INTRO_POPUPS) - 1:
+            return "CONTINUE"
+        return "NEXT"
+
+    def _intro_popup_layout_spec(self) -> tuple[int, int, int, int]:
+        box_h = self.INTRO_MODAL_H
+        i = 0
+        while i < len(self.INTRO_TALL_POPUP_INDEXES):
+            if self.INTRO_TALL_POPUP_INDEXES[i] == self._intro_popup_index:
+                box_h = self.INTRO_MODAL_TALL_H
+                break
+            i += 1
+        return (
+            self.INTRO_MODAL_W,
+            box_h,
+            self.INTRO_MODAL_HEADER_TEXT_OFFSET_Y,
+            self.INTRO_MODAL_BODY_TOP_OFFSET_Y
+        )
+
+    def _draw_intro_popup_zits(self, box_x: int, box_w: int, y: int) -> None:
+        cx = box_x + int(box_w * 0.5)
+        circb(cx - 22, y + 10, 1, Color.RED)
+        circb(cx - 6, y + 6, 1, Color.RED)
+        circb(cx + 11, y + 11, 2, Color.RED)
+        circb(cx + 28, y + 7, 2, Color.RED)
+
+    def _draw_intro_popup(self) -> None:
+        if not self._intro_modal_open:
+            return
+        layout_spec = self._intro_popup_layout_spec()
+        layout = ui_overlay_layout_centered_by_spec(
+            layout_spec,
+            2,
+            (1, 1),
+            0,
+            1,
+            0
+        )
+        slots = [
+            ui_prompt_with_text(ui_prompt_for_action(
+                self._state, Action.CANCEL), "SKIP"),
+            ui_prompt_with_text(ui_prompt_for_action(
+                self._state, Action.CONFIRM), self._intro_popup_confirm_label())
+        ]
+        box_x, box_y, box_w, _box_h, body_top, _footer_line_y, _footer_text_y = ui_overlay_screen_draw(
+            self._modal_ui.runtime,
+            layout,
+            self.INTRO_MODAL_TITLE,
+            [],
+            slots,
+            [
+                self._modal_ui.down(self._state.controls, Action.CANCEL),
+                self._modal_ui.down(self._state.controls, Action.CONFIRM)
+            ],
+            body_line_step=10
+        )
+        page_text = str(self._intro_popup_index + 1) + \
+            "/" + str(len(self.INTRO_POPUPS))
+        print(page_text, box_x + box_w - 28, box_y + 9, Color.LIGHT_GREY, True)
+        popup_lines = self.INTRO_POPUPS[self._intro_popup_index]
+        content_h = len(popup_lines) * self.INTRO_MODAL_LINE_STEP
+        if self._intro_popup_index == self.INTRO_ZITS_POPUP_INDEX:
+            content_h += self.INTRO_ZITS_ART_H - self.INTRO_MODAL_LINE_STEP
+        body_bottom = _footer_line_y - 4
+        body_h = body_bottom - body_top
+        draw_y = body_top + int((body_h - content_h) * 0.5)
+        if draw_y < body_top:
+            draw_y = body_top
+        i = 0
+        while i < len(popup_lines):
+            text, color = popup_lines[i]
+            if self._intro_popup_index == self.INTRO_ZITS_POPUP_INDEX and i == 1:
+                self._draw_intro_popup_zits(box_x, box_w, draw_y)
+                draw_y += self.INTRO_ZITS_ART_H
+                i += 1
+                continue
+            if text != "":
+                print(text, text_center_x(text, screen_w=box_w,
+                      margin_x=0) + box_x, draw_y, color, True)
+            draw_y += self.INTRO_MODAL_LINE_STEP
+            i += 1
+
     def update(self, dt: float) -> None:
-        if self._rollback_modal_open or self._upgrades_modal_open:
+        if self._rollback_modal_open or self._intro_modal_open or self._upgrades_modal_open:
             self._modal_ui.poll_mouse()
         else:
             self._base_ui.poll_mouse()
@@ -480,6 +641,47 @@ class GarageScene:
             self._state.controls,
             Action.HELP
         )
+
+        if self._intro_modal_open:
+            confirm_released = self._modal_ui.poll_confirm(
+                self._state,
+                self._state.controls
+            )
+            cancel_released = self._modal_ui.poll_cancel(
+                self._state,
+                self._state.controls
+            )
+            layout_spec = self._intro_popup_layout_spec()
+            layout = ui_overlay_layout_centered_by_spec(
+                layout_spec,
+                2,
+                (1, 1),
+                0,
+                1,
+                0
+            )
+            slots = [
+                ui_prompt_with_text(ui_prompt_for_action(
+                    self._state, Action.CANCEL), "SKIP"),
+                ui_prompt_with_text(ui_prompt_for_action(
+                    self._state, Action.CONFIRM), self._intro_popup_confirm_label())
+            ]
+            released_slot = self._modal_ui.poll_footer_release(layout, slots)
+            if confirm_released or self._modal_ui.footer_button_released(self._state, released_slot, 1):
+                self._state.vibe_ui_button()
+                self._intro_popup_index += 1
+                if self._intro_popup_index >= len(self.INTRO_POPUPS):
+                    self._intro_modal_open = False
+                    self._intro_popup_index = 0
+                    self._modal_ui.reset_footer()
+                    self._apply_input_context(True)
+            elif cancel_released or self._modal_ui.footer_button_released(self._state, released_slot, 0):
+                self._state.vibe_ui_button()
+                self._intro_modal_open = False
+                self._intro_popup_index = 0
+                self._modal_ui.reset_footer()
+                self._apply_input_context(True)
+            return
 
         if self._rollback_modal_open:
             cancel_released = self._modal_ui.poll_cancel(
@@ -580,6 +782,9 @@ class GarageScene:
 
     def draw(self) -> None:
         cls(Color.BLACK)
+        if self._intro_modal_open:
+            self._draw_intro_popup()
+            return
         self._draw_background()
         self._draw_header()
         self._draw_vehicle_panel()

@@ -43,6 +43,7 @@ class GameState:
         "_profile_loaded",
         "_profile_tuning_mismatch",
         "_profile_tuning_version",
+        "_pending_new_campaign_intro",
         "_debug_lines",
         "_debug_overlay_enabled",
         "_last_rollback_reason",
@@ -75,6 +76,7 @@ class GameState:
         self._profile_loaded = False
         self._profile_tuning_mismatch = False
         self._profile_tuning_version: int | None = None
+        self._pending_new_campaign_intro = False
         self._debug_lines: list[str] = []
         self._debug_overlay_enabled = False
         self._last_rollback_reason: str | None = None
@@ -84,8 +86,9 @@ class GameState:
         self._input_device_mode: InputDeviceModeId = InputDeviceMode.BOTH
         self._prompt_glyph_detail: PromptGlyphDetailId = PromptGlyphDetail.ALL
         self._rumble_supported = rumble_supported()
+        self._rumble_probe_wait_s = 0.0
         self._prompt_show_shoulders = False
-        self._vibration_enabled = bool(self._rumble_supported)
+        self._vibration_enabled = True
         self._options_shoulders_configured = False
         self._options_vibration_configured = False
         self._drive_preset_id: DrivePresetId = DrivePresetIdValues.NORMAL
@@ -359,6 +362,11 @@ class GameState:
     def rollback_notice(self) -> tuple[str | None, int]:
         return (self._last_rollback_reason, self._last_rollback_theseus_gain)
 
+    def consume_new_campaign_intro(self) -> bool:
+        pending = bool(self._pending_new_campaign_intro)
+        self._pending_new_campaign_intro = False
+        return pending
+
     def apply_run_results(self) -> None:
         run = self._run
         if run is None:
@@ -416,6 +424,7 @@ class GameState:
             self._profile_loaded = False
             self._profile_tuning_mismatch = False
             self._profile_tuning_version = None
+            self._pending_new_campaign_intro = False
             return
         self._profile.apply_save(
             data.scrap,
@@ -432,6 +441,7 @@ class GameState:
         self._profile_tuning_mismatch = (
             data.tuning_version != int(TUNING.tuning_version)
         )
+        self._pending_new_campaign_intro = False
         trace(
             "save loaded: scrap="
             + str(data.scrap)
@@ -506,6 +516,7 @@ class GameState:
         self._set_pursuer_variant_for_next_run()
         self._last_rollback_reason = None
         self._last_rollback_theseus_gain = 0
+        self._pending_new_campaign_intro = True
         self.end_run()
         self.save_profile()
 

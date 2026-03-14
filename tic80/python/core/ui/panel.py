@@ -19,7 +19,6 @@ def ui_panel_draw(
     rect(x + 1, y + 1, w - 2, h - 2, inner_color)
     rectb(x, y, w, h, border_color)
 
-
 def ui_panel_draw_split_actions(
     x: int,
     y: int,
