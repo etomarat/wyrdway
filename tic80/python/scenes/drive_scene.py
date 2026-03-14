@@ -8,9 +8,6 @@ if TYPE_CHECKING:
     from ..core.palette import Color
     from ..core.run_state import RunState
     from ..core.scene_ids import SceneId
-    from ..core.ui.prompts import ui_prompt_for_action
-    from ..core.ui.prompts import ui_prompt_with_text
-    from ..core.ui.rich_text import ui_rich_print
     from ..data.tuning import TUNING
     from ..systems.drive.drive_input import read_drive_input
     from ..systems.drive.drive_logic_core import DriveLogic
@@ -41,6 +38,13 @@ class _DrivePopup:
 
 class DriveScene:
     SCENE_ID = SceneId.DRIVE
+    _STOP_SPEED = 0.5
+    _FINISH_MIN_SETTLE = 0.15
+    _FINISH_SKID_SLIP = 0.12
+    _FINISH_SKID_MIN_SPEED = 16.0
+    _FINISH_TURN_MIN_SPEED = 36.0
+    _FINISH_TURN_THROTTLE_SECONDS = 0.22
+    _FINISH_TURN_BRAKE_SECONDS = 0.60
 
     def __init__(self, nav: SceneNavigator) -> None:
         self._nav = nav
@@ -62,13 +66,14 @@ class DriveScene:
         self._pursuer_archetype: PursuerArchetype = create_active_pursuer_archetype()
         self._popups: list[_DrivePopup] = []
         self._pursuer_fx_time = 0.0
+        self._finish_post_t = -1.0
+        self._finish_turn_dir = 1
 
     def enter(self, params: SceneEnterParams = None) -> None:
         if not isinstance(params, DriveEnterParams):
             raise TypeError("DriveScene.enter expects DriveEnterParams")
         self._state.controls.enter_context(
             [
-                Action.CONFIRM,
                 Action.NAV_LEFT,
                 Action.NAV_RIGHT,
                 Action.THROTTLE,
@@ -88,6 +93,8 @@ class DriveScene:
         self._active_zone = None
         self._popups = []
         self._pursuer_fx_time = 0.0
+        self._finish_post_t = -1.0
+        self._finish_turn_dir = 1
 
         run = self._state.require_run()
         self._state.mark_run_active()
@@ -135,44 +142,77 @@ class DriveScene:
         run = self._state.run
         if run is None:
             return
-        if self._logic is None:
+        logic = self._logic
+        road = self._road
+        objects = self._objects
+        if logic is None:
             return
-        if self._road is None:
+        if road is None:
             return
-        if self._objects is None:
+        if objects is None:
             return
-        zones = self._objects.zones_items()
-        z_before = zone_at_hitboxes(self._logic, zones)
-        apply_zone_effects(self._logic, z_before, TUNING)
+        finished_before = logic.finished()
+        inp = None
+        if finished_before:
+            self._active_zone = None
+            steer, throttle, brake, handbrake = self._finish_post_input(logic, dt)
+            logic.update_post_finish(dt, steer, throttle, brake, handbrake)
+            self._pursuer.disable()
+        else:
+            zones = objects.zones_items()
+            z_before = zone_at_hitboxes(logic, zones)
+            apply_zone_effects(logic, z_before, TUNING)
 
-        allow_dash = not self._logic.finished()
-        inp = read_drive_input(self._state.controls, allow_dash)
-        was_offroad = self._logic.offroad
-        self._logic.update(dt, inp.steer, inp.throttle, inp.brake, inp.handbrake, inp.dash_pressed)
-        self._update_offroad_transition_haptics(was_offroad)
-        z_after = zone_at_hitboxes(self._logic, zones)
-        self._active_zone = z_after if z_after is not None else z_before
-        self._update_booster_enter_haptics(z_before, z_after)
-
-        self._apply_obstacle_hits(run)
-        self._update_pursuer(dt, run, z_before, z_after)
-        self._update_popups(dt)
-
-        # Обновляем эффекты зон для СЛЕДУЮЩЕГО кадра (без 1-кадрового “залипания”).
-        apply_zone_effects(self._logic, z_after, TUNING)
-        if self._telemetry is not None:
-            self._telemetry.after_update(
+            inp = read_drive_input(self._state.controls)
+            was_offroad = logic.offroad
+            logic.update(
                 dt,
                 inp.steer,
                 inp.throttle,
                 inp.brake,
                 inp.handbrake,
-                inp.dash_pressed,
+                inp.dash_pressed
+            )
+            finished_now = logic.finished()
+            if finished_now:
+                self._active_zone = None
+                self._pursuer.disable()
+                self._start_finish_sequence(logic, road)
+            else:
+                self._update_offroad_transition_haptics(was_offroad)
+                z_after = zone_at_hitboxes(logic, zones)
+                self._active_zone = z_after if z_after is not None else z_before
+                self._update_booster_enter_haptics(z_before, z_after)
+                self._apply_obstacle_hits(run)
+                self._update_pursuer(dt, run, z_before, z_after)
+
+                # Обновляем эффекты зон для СЛЕДУЮЩЕГО кадра (без 1-кадрового “залипания”).
+                apply_zone_effects(logic, z_after, TUNING)
+        self._update_popups(dt)
+        if self._telemetry is not None:
+            steer = 0
+            throttle = False
+            brake = False
+            handbrake = False
+            dash_pressed = False
+            if inp is not None:
+                steer = inp.steer
+                throttle = inp.throttle
+                brake = inp.brake
+                handbrake = inp.handbrake
+                dash_pressed = inp.dash_pressed
+            self._telemetry.after_update(
+                dt,
+                steer,
+                throttle,
+                brake,
+                handbrake,
+                dash_pressed,
                 run,
-                self._logic
+                logic
             )
 
-        if not self._evacuated:
+        if not self._evacuated and not logic.finished():
             if run.car_fuel <= 0:
                 self._evacuate("OUT OF FUEL")
                 return
@@ -180,14 +220,12 @@ class DriveScene:
                 self._evacuate("CAR DESTROYED")
                 return
 
-        if self._logic.finished() and inp.a_pressed:
-            if self._telemetry is not None:
-                self._telemetry.dump("finish")
-            if self._mode == "travel":
-                self._nav.go(SceneId.POI)
-                return
-
-            self._nav.go(SceneId.RESULT, ResultEnterParams("EXTRACT OK"))
+        if (
+            logic.finished()
+            and self._finish_post_t >= self._FINISH_MIN_SETTLE
+            and logic.speed <= self._STOP_SPEED
+        ):
+            self._complete_segment()
 
     def _apply_obstacle_hits(self, run: RunState) -> None:
         road = self._road
@@ -357,7 +395,9 @@ class DriveScene:
             pursuer_state,
             pursuer_s,
             strike_flash,
-            screen_glitch_active
+            screen_glitch_active,
+            skid_slip_threshold=self._finish_skid_slip_threshold(logic),
+            skid_min_speed=self._finish_skid_min_speed(logic)
         )
         self._state.vibe_drive_feedback(
             self._drive_gravel_strength(logic),
@@ -378,7 +418,8 @@ class DriveScene:
         self._ui.draw_stats(run, logic)
         self._ui.draw_steer_wheel(logic)
         self._ui.draw_slip_bar(logic)
-        self._ui.draw_controls_panel(self._state, logic)
+        if not logic.finished():
+            self._ui.draw_controls_panel(self._state, logic)
         if self._pursuer.active:
             self._ui.draw_pursuer_hud(
                 run.run_scrap(),
@@ -390,8 +431,6 @@ class DriveScene:
                 int(self._pursuer_archetype.profile.name_color)
         )
         self._draw_popups()
-        if logic.finished():
-            ui_rich_print(ui_prompt_with_text(ui_prompt_for_action(self._state, Action.CONFIRM), "CONTINUE"), 2, 128, Color.WHITE)
         if self._state.debug_enabled:
             lines = drive_debug_lines(road, logic, run, objects, TUNING)
             if self._pursuer.active:
@@ -426,6 +465,55 @@ class DriveScene:
 
     def exit(self) -> None:
         self._state.clear_drive_feedback()
+
+    def _start_finish_sequence(self, logic: DriveLogic, road: RoadModel) -> None:
+        self._finish_post_t = 0.0
+        self._finish_turn_dir = self._pick_finish_turn_dir(logic, road)
+        self._renderer.notify_finish_cross(logic)
+
+    def _pick_finish_turn_dir(self, logic: DriveLogic, road: RoadModel) -> int:
+        curve = road.curvature_at(logic.road_s)
+        if curve > 0.001:
+            return 1
+        if curve < -0.001:
+            return -1
+        if (road.seed & 1) == 0:
+            return -1
+        return 1
+
+    def _finish_post_input(self, logic: DriveLogic, dt: float) -> tuple[int, bool, bool, bool]:
+        if self._finish_post_t < 0.0:
+            return 0, False, False, False
+        self._finish_post_t += dt
+        if logic.speed < self._FINISH_TURN_MIN_SPEED:
+            return 0, False, False, False
+        if self._finish_post_t < self._FINISH_TURN_THROTTLE_SECONDS:
+            return self._finish_turn_dir, True, False, True
+        if self._finish_post_t < self._FINISH_TURN_BRAKE_SECONDS:
+            return self._finish_turn_dir, False, True, True
+        return 0, False, False, False
+
+    def _finish_skid_slip_threshold(self, logic: DriveLogic) -> float | None:
+        if not logic.finished():
+            return None
+        if self._finish_post_t < 0.0:
+            return None
+        return self._FINISH_SKID_SLIP
+
+    def _finish_skid_min_speed(self, logic: DriveLogic) -> float | None:
+        if not logic.finished():
+            return None
+        if self._finish_post_t < 0.0:
+            return None
+        return self._FINISH_SKID_MIN_SPEED
+
+    def _complete_segment(self) -> None:
+        if self._telemetry is not None:
+            self._telemetry.dump("finish")
+        if self._mode == "travel":
+            self._nav.go(SceneId.POI)
+            return
+        self._nav.go(SceneId.RESULT, ResultEnterParams("EXTRACT OK"))
 
     def _evacuate(self, reason: str) -> None:
         self._evacuated = True

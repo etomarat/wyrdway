@@ -392,6 +392,87 @@ class DriveLogic:
         drive_logic_apply_fuel(self, dt, throttle)
         drive_logic_apply_offroad_damage(self, dt)
 
+    def update_post_finish(
+        self,
+        dt: float,
+        steer_input: int = 0,
+        throttle: bool = False,
+        brake: bool = False,
+        handbrake: bool = False
+    ) -> None:
+        """Advance car motion after finish without run costs or post-finish damage."""
+        self._steer_input = steer_input
+        self._dbg_handbrake_decel = 0.0
+        self._dbg_side_recovery = 0.0
+
+        offroad_before = self._offroad
+        speed = self.speed
+        self._dbg_speed_factor = drive_logic_speed_factor(
+            speed,
+            self._tuning.DRIVE.max_speed
+        )
+        drive_logic_apply_steering(
+            self,
+            dt,
+            steer_input,
+            throttle,
+            handbrake,
+            offroad_before,
+            speed,
+            self._dbg_speed_factor
+        )
+
+        fwd_x = self._fwd_x
+        fwd_y = self._fwd_y
+        right_x = -fwd_y
+        right_y = fwd_x
+
+        v_fwd = self._vx * fwd_x + self._vy * fwd_y
+        v_side = self._vx * right_x + self._vy * right_y
+        v_fwd = drive_logic_apply_longitudinal(
+            self,
+            dt,
+            v_fwd,
+            throttle,
+            brake,
+            handbrake,
+            steer_input,
+            self._dbg_speed_factor
+        )
+        v_fwd = drive_logic_clamp_v_fwd(self, v_fwd)
+        effective_grip = drive_logic_effective_grip(self, handbrake, offroad_before)
+        v_side_before = v_side
+        v_side = drive_logic_apply_lateral_damping(
+            self,
+            dt,
+            v_side,
+            effective_grip,
+            self._dbg_speed_factor
+        )
+        v_side = drive_logic_apply_zone_antislip(self, dt, v_side)
+        v_fwd = drive_logic_apply_side_recovery(
+            self,
+            v_fwd,
+            v_side_before,
+            v_side,
+            throttle,
+            self._dbg_speed_factor
+        )
+        v_fwd = drive_logic_clamp_v_fwd(self, v_fwd)
+        if dt > 0.0:
+            self._dbg_side_accel = (v_side - v_side_before) / dt
+        else:
+            self._dbg_side_accel = 0.0
+
+        self._vx = fwd_x * v_fwd + right_x * v_side
+        self._vy = fwd_y * v_fwd + right_y * v_side
+        self._x += self._vx * dt
+        self._y += self._vy * dt
+
+        drive_update_road_projection(self)
+        drive_logic_apply_drag(self, dt)
+        self._dbg_fuel_per_sec = 0.0
+
     def finished(self) -> bool:
         """True, если игрок доехал по дороге до конца сегмента."""
         return self._road_s >= self._road.segment_total_length

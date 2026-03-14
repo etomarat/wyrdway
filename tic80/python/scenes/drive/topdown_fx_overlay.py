@@ -16,6 +16,7 @@ class TopdownFxOverlay:
     def __init__(self) -> None:
         # Вспышки искр при переходе “дорога <-> оффроад” должны читаться поверх пыли.
         self._fx_transition = Particles2D(40)
+        self._fx_finish = Particles2D(64)
         self._drive_fx = DriveFx(TUNING)
         self._offroad_smoke = VandParticles(1337)
         self._exhaust_smoke = VandParticles(2469)
@@ -29,6 +30,7 @@ class TopdownFxOverlay:
         self._fx_spawn_accum_exhaust = 0.0
         self._fx_seed = 1
         self._hit_events: list[tuple[float, float, float, float, float, float]] = []
+        self._finish_events: list[tuple[float, float, float, float, float]] = []
         self._exhaust_strength = 0.0
 
     def notify_obstacle_hit(
@@ -57,6 +59,7 @@ class TopdownFxOverlay:
         self._update_world_particles(dt, world_dx, world_dy)
         self._update_transition_cooldown(dt)
         self._flush_hit_events(proj)
+        self._flush_finish_events(proj)
         start_move = self._maybe_start_move(logic, pose)
         self._update_offroad_side_sign(logic)
         self._maybe_emit_transition_sparks(road, logic, proj, pose)
@@ -69,9 +72,20 @@ class TopdownFxOverlay:
         return self._exhaust_strength
 
     def draw_world(self) -> None:
+        self._fx_finish.draw()
         self._offroad_smoke.draw()
         self._exhaust_smoke.draw()
         self._fx_transition.draw()
+
+    def notify_finish_cross(
+        self,
+        wx: float,
+        wy: float,
+        dir_x: float,
+        dir_y: float,
+        speed: float
+    ) -> None:
+        self._finish_events.append((wx, wy, dir_x, dir_y, speed))
 
     def draw_under_car(self) -> None:
         self._drive_fx.draw(0)
@@ -90,6 +104,7 @@ class TopdownFxOverlay:
         оставаться локальным эффектом у колёс и не «плыть» вбок.
         """
         self._fx_transition.update(dt, 0.0, 0.0)
+        self._fx_finish.update(dt, world_dx, world_dy)
         self._drive_fx.update(dt, world_dx, world_dy)
         self._offroad_smoke.update(dt, world_dx, world_dy)
         self._exhaust_smoke.update(dt, world_dx, world_dy)
@@ -140,6 +155,72 @@ class TopdownFxOverlay:
             i += 1
         self._hit_events = []
 
+    def _flush_finish_events(self, proj: TopdownProjector) -> None:
+        if not self._finish_events:
+            return
+        d = TUNING.DRIVE
+        i = 0
+        while i < len(self._finish_events):
+            wx, wy, dir_x, dir_y, speed = self._finish_events[i]
+            sx, sy = proj.world_to_screen(wx, wy)
+            fx_vx, fx_vy = proj.world_vec_to_screen(dir_x, dir_y)
+            l2 = fx_vx * fx_vx + fx_vy * fx_vy
+            if l2 > 0.0:
+                inv = 1.0 / (l2 ** 0.5)
+                fx_vx *= inv
+                fx_vy *= inv
+            else:
+                fx_vx = 0.0
+                fx_vy = -1.0
+            perp_x = -fx_vy
+            perp_y = fx_vx
+            n = 8 + int(speed * 0.10)
+            if n > 22:
+                n = 22
+            life = 10 + int(speed * 0.05)
+            if life > 20:
+                life = 20
+            burst_speed = 28.0 + speed * 0.85
+            color_a = d.fx_start_dust_color_a
+            color_b = d.fx_start_dust_color_b
+            color_c = d.fx_offroad_dust_color_a
+            j = 0
+            while j < n:
+                r0 = self._next_fx_seed()
+                r1 = self._next_fx_seed()
+                t0 = (r0 % 1000) / 1000.0
+                t1 = (r1 % 1000) / 1000.0
+                side = (t0 - 0.5) * 2.2
+                back = t1 * 1.3
+                out_x = perp_x * side - fx_vx * back
+                out_y = perp_y * side - fx_vy * back
+                ol2 = out_x * out_x + out_y * out_y
+                if ol2 > 0.0:
+                    inv = 1.0 / (ol2 ** 0.5)
+                    out_x *= inv
+                    out_y *= inv
+                sp = burst_speed * (0.65 + t1 * 0.65)
+                seg = 1.0 + t0 * 3.0
+                color = color_a
+                if (r0 & 3) == 1:
+                    color = color_b
+                elif (r0 & 3) >= 2:
+                    color = color_c
+                self._fx_finish.spawn(
+                    sx + (t1 - 0.5) * 8.0,
+                    sy + (t0 - 0.5) * 5.0,
+                    out_x * seg,
+                    out_y * seg,
+                    out_x * sp,
+                    out_y * sp,
+                    life,
+                    color
+                )
+                j += 1
+            self._drive_fx.start_move(int(sx), int(sy), self._next_fx_seed())
+            i += 1
+        self._finish_events = []
+
     def _maybe_emit_transition_sparks(
         self,
         road: RoadModel,
@@ -154,7 +235,7 @@ class TopdownFxOverlay:
         spd = logic.speed
         if spd > d.fx_dust_min_speed and self._offroad_transition_cooldown <= 0.0:
             self._emit_offroad_transition_sparks(logic.offroad, road, logic, proj, pose)
-            self._offroad_transition_cooldown = float(TUNING.DRIVE.fx_transition_cooldown_seconds)
+            self._offroad_transition_cooldown = TUNING.DRIVE.fx_transition_cooldown_seconds
         self._prev_offroad = logic.offroad
 
     def _maybe_emit_offroad_dust(self, logic: DriveLogic, dt: float, pose: CarPose2D) -> None:

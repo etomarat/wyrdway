@@ -12,18 +12,16 @@ class DriveInput:
         throttle: bool,
         brake: bool,
         handbrake: bool,
-        a_pressed: bool,
         dash_pressed: bool
     ) -> None:
         self.steer = steer
         self.throttle = throttle
         self.brake = brake
         self.handbrake = handbrake
-        self.a_pressed = a_pressed
         self.dash_pressed = dash_pressed
 
 
-def read_drive_input(controls: Controls, allow_dash: bool) -> DriveInput:
+def read_drive_input(controls: Controls) -> DriveInput:
     steer = 0
     if controls.down(Action.NAV_LEFT):
         steer -= 1
@@ -34,9 +32,6 @@ def read_drive_input(controls: Controls, allow_dash: bool) -> DriveInput:
     brake = controls.down(Action.BRAKE)
     handbrake = controls.down(Action.HANDBRAKE)
 
-    a_pressed = controls.pressed(Action.CONFIRM)
-    dash_pressed = False
-    if allow_dash and controls.pressed(Action.MODULE):
-        dash_pressed = True
+    dash_pressed = controls.pressed(Action.MODULE)
 
-    return DriveInput(steer, throttle, brake, handbrake, a_pressed, dash_pressed)
+    return DriveInput(steer, throttle, brake, handbrake, dash_pressed)

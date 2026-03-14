@@ -128,6 +128,19 @@ class DriveTopdownRenderer:
             hit_r
         )
 
+    def notify_finish_cross(self, logic: DriveLogic) -> None:
+        speed = logic.speed
+        intensity = 12.0 + speed * 0.12
+        self._shake.notify_hit(intensity, TUNING)
+        self._skid_marks.trigger_start(0.9)
+        self._fx_overlay.notify_finish_cross(
+            logic.x,
+            logic.y,
+            logic.fwd_x,
+            logic.fwd_y,
+            speed
+        )
+
     def exhaust_strength(self) -> float:
         return self._fx_overlay.exhaust_strength()
 
