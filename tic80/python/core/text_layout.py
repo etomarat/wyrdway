@@ -57,7 +57,7 @@ def rich_text_width(
             continue
         w += cw
         i = next_i
-    return int(w)
+    return w
 
 
 def text_max_chars(screen_w: int = 240, char_w: int = 6, margin_x: int = 0) -> int:

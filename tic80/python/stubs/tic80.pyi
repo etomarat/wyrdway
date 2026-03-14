@@ -1,6 +1,5 @@
 from typing import Callable
 
-
 def btn(id: int) -> bool:
     """Эта функция позволяет читать состояние одной из кнопок, подключенных к TIC.
     Функция возвращает true, если клавиша с указанным id сейчас нажата.
@@ -156,7 +155,7 @@ def key(code: int = -1) -> bool:
     ...
 
 
-def keyp(code: int = -1, hold: int = -1, period: int = -17) -> int:
+def keyp(code: int = -1, hold: int = -1, period: int = -17) -> bool:
     """Эта функция возвращает true, если указанная клавиша нажата, но в предыдущем кадре не была нажата.
     Подробности о параметрах hold и period см. в `btnp()`.
 

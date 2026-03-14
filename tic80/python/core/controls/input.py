@@ -95,16 +95,16 @@ class Controls:
         if ref.kind == InputKind.BTN:
             if Controls._btn_is_shadowed_by_keyboard(ref.code):
                 return False
-            return bool(btn(ref.code))
-        return bool(key(ref.code))
+            return btn(ref.code)
+        return key(ref.code)
 
     @staticmethod
     def _pressed_ref(ref: InputRef, hold: int, period: int) -> bool:
         if ref.kind == InputKind.BTN:
             if Controls._btn_is_shadowed_by_keyboard(ref.code):
                 return False
-            return bool(btnp(ref.code, hold, period))
-        return bool(keyp(ref.code, hold, period))
+            return btnp(ref.code, hold, period)
+        return keyp(ref.code, hold, period)
 
     def _refresh_blocked_refs(self) -> None:
         if not self._blocked_refs:
@@ -121,7 +121,7 @@ class Controls:
         allowed = self._allowed_actions
         if allowed is None:
             return True
-        return bool(allowed.get(int(action), False))
+        return allowed.get(int(action), False)
 
     def _ref_available(self, ref: InputRef) -> bool:
         return not self._blocked_refs.get(input_ref_token(ref), False)
@@ -138,13 +138,13 @@ class Controls:
         """
         code = int(btn_code)
         if code == 4:  # Button.A
-            return bool(key(KeyCode.Z))
+            return key(KeyCode.Z)
         if code == 5:  # Button.B
-            return bool(key(KeyCode.X))
+            return key(KeyCode.X)
         if code == 6:  # Button.X
-            return bool(key(KeyCode.A))
+            return key(KeyCode.A)
         if code == 7:  # Button.Y
-            return bool(key(KeyCode.S))
+            return key(KeyCode.S)
         return False
 
     @staticmethod

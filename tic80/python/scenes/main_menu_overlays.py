@@ -222,7 +222,8 @@ class MainMenuNewGameFlow:
             return self.ACTION_NONE
         self.focus_row = row
         if row == self.ROW_DIFFICULTY:
-            self.preset_draft = drive_preset_cycle(self.preset_draft, not reverse)
+            self.preset_draft = drive_preset_cycle(
+                self.preset_draft, not reverse)
             return self.ACTION_NONE
         if row == self.ROW_MODE:
             self._cycle_mode(not reverse)
@@ -818,7 +819,8 @@ class MainMenuControlsOverlayFlow(MainMenuOverlayFlow):
             self._options.update_from_nav(False, True, False, False)
         self._poll_mouse_setting_release(scene)
         if int(self._options.mode_draft) != prev_mode:
-            self._options.set_rumble_supported(self._state.refresh_rumble_support())
+            self._options.set_rumble_supported(
+                self._state.refresh_rumble_support())
         if cancel_released:
             scene._close_overlay()
             return

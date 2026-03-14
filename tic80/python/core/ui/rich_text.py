@@ -52,7 +52,7 @@ def ui_rich_text_width(text: str, scale: int = 1) -> int:
             continue
         w += 6 * sc
         i = next_i
-    return int(w)
+    return w
 
 
 def ui_rich_text_center_x(
@@ -142,7 +142,7 @@ def ui_rich_print(
                 spr(spr_id, cx, base_y, _PROMPT_GLYPH_COLORKEY, sc)
                 cx += 8 * sc
             else:
-                label = str(glyph_label(glyph))
+                label = glyph_label(glyph)
                 if glyph >= 20:
                     fallback = "[" + label + "]"
                 else:
@@ -159,4 +159,4 @@ def ui_rich_print(
         print(buf, cx, cy, color, fixed_font, sc)
         cx += len(buf) * 6 * sc
 
-    return int(cx - int(x))
+    return cx - x

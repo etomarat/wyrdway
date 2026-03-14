@@ -440,7 +440,7 @@ class DriveScene:
     def _drive_gravel_strength(logic: DriveLogic) -> float:
         if not logic.offroad:
             return 0.0
-        speed_n = float(logic.dbg_speed_factor)
+        speed_n = logic.dbg_speed_factor
         if speed_n <= 0.08:
             return 0.0
         strength = (speed_n - 0.08) / 0.40
@@ -448,19 +448,19 @@ class DriveScene:
             return 0.0
         if strength >= 1.0:
             return 1.0
-        return float(strength)
+        return strength
 
     @staticmethod
     def _drive_drift_strength(logic: DriveLogic) -> float:
-        min_speed = float(TUNING.DRIVE.skid_min_speed)
-        speed = float(logic.speed)
+        min_speed = TUNING.DRIVE.skid_min_speed
+        speed = logic.speed
         if speed <= min_speed:
             return 0.0
         denom = abs(logic.v_forward) + TUNING.DRIVE.slip_eps_speed
         slip = abs(logic.v_side) / denom
         if slip > 1.0:
             slip = 1.0
-        slip_threshold = float(TUNING.DRIVE.skid_slip_threshold)
+        slip_threshold = TUNING.DRIVE.skid_slip_threshold
         drift_n = (slip - slip_threshold) / 0.55
         if drift_n <= 0.0 and logic.dbg_handbrake_decel <= 0.0:
             return 0.0
@@ -478,7 +478,7 @@ class DriveScene:
         strength = drift_n * speed_n
         if strength >= 1.0:
             return 1.0
-        return float(strength)
+        return strength
 
 
 def make_drive_scene(nav: SceneNavigator) -> DriveScene:

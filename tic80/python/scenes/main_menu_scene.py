@@ -663,7 +663,7 @@ class MainMenuScene:
                             1013904223) & 0xFFFFFFFF
         if self._watch_seed == 0:
             self._watch_seed = 1
-        return int(self._watch_seed)
+        return self._watch_seed
 
     def _draw_overlay(self) -> None:
         if self._overlay == self._OVERLAY_NONE:
@@ -937,7 +937,7 @@ class MainMenuScene:
             i += 1
         if last_fit <= 0:
             return 1
-        return int(last_fit)
+        return last_fit
 
     def _overlay_max_scroll(
         self,
