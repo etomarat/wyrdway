@@ -117,6 +117,7 @@ def TIC() -> None:
 
     SCENE_MANAGER.state.clear_debug_lines()
     _update_debug_input()
+    SCENE_MANAGER.state.update_rumble_support(dt)
     SCENE_MANAGER.state.haptics.update(dt)
     SCENE_MANAGER.update(dt)
     SCENE_MANAGER.draw()

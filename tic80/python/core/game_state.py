@@ -52,6 +52,7 @@ class GameState:
         "_prompt_show_shoulders",
         "_vibration_enabled",
         "_rumble_supported",
+        "_rumble_probe_wait_s",
         "_options_shoulders_configured",
         "_options_vibration_configured",
         "_drive_preset_id",
@@ -162,9 +163,17 @@ class GameState:
 
     def refresh_rumble_support(self) -> bool:
         self._rumble_supported = rumble_supported()
+        self._rumble_probe_wait_s = 0.5
         if not self._rumble_supported:
             self._haptics.clear()
         return self._rumble_supported
+
+    def update_rumble_support(self, dt: float) -> bool:
+        wait_s = self._rumble_probe_wait_s - float(dt)
+        if wait_s > 0.0:
+            self._rumble_probe_wait_s = wait_s
+            return self._rumble_supported
+        return self.refresh_rumble_support()
 
     @property
     def haptics(self) -> Haptics:
@@ -478,9 +487,6 @@ class GameState:
         self._options_vibration_configured = bool(data.vibration_configured)
         self._drive_preset_id = drive_preset_clamp(int(data.drive_preset_id))
         self.refresh_rumble_support()
-        if not self._rumble_supported:
-            self._vibration_enabled = False
-            self._haptics.clear()
 
     def save_options(self) -> None:
         self._save.save_options(

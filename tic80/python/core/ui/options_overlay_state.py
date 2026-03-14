@@ -46,30 +46,27 @@ class UiOptionsOverlayState:
         rumble_supported: bool
     ) -> None:
         self.mode_draft = mode
-        self.drive_preset_draft = drive_preset_clamp(int(drive_preset))
+        self.drive_preset_draft = drive_preset_clamp(drive_preset)
         self.focus_row = 0
         self._shoulders_touched = False
         self._vibration_touched = False
-        self._rumble_supported = bool(rumble_supported)
+        self._rumble_supported = rumble_supported
 
-        self._gamepad_shoulders_draft = bool(self._rumble_supported)
-        self._gamepad_vibration_draft = bool(self._rumble_supported)
-        self._both_vibration_draft = bool(self._rumble_supported)
+        self._gamepad_shoulders_draft = self._rumble_supported
+        self._gamepad_vibration_draft = vibration_enabled
+        self._both_vibration_draft = vibration_enabled
 
         mode_i = self.mode_draft
         if mode_i == self._MODE_GAMEPAD:
-            self._gamepad_shoulders_draft = bool(shoulders_enabled)
-            if self._rumble_supported:
-                self._gamepad_vibration_draft = bool(vibration_enabled)
+            self._gamepad_shoulders_draft = shoulders_enabled
         elif mode_i == self._MODE_BOTH:
-            if self._rumble_supported:
-                self._both_vibration_draft = bool(vibration_enabled)
+            self._both_vibration_draft = vibration_enabled
 
         self._sync_drafts_from_mode()
         self._normalize_state()
 
     def set_rumble_supported(self, rumble_supported: bool) -> None:
-        self._rumble_supported = bool(rumble_supported)
+        self._rumble_supported = rumble_supported
         self._sync_drafts_from_mode()
 
     def row_count(self) -> int:
@@ -87,7 +84,7 @@ class UiOptionsOverlayState:
         return self._rumble_supported
 
     def vibration_enabled(self) -> bool:
-        return self.vibration_supported()
+        return self.vibration_draft
 
     def vibration_unsupported(self) -> bool:
         return not self.vibration_supported()
@@ -126,7 +123,7 @@ class UiOptionsOverlayState:
                 return "ON"
             return "OFF"
         if self.vibration_unsupported():
-            return "UNSUPPORTED"
+            return "UNAVAILABLE"
         if self.vibration_draft:
             return "ON"
         return "OFF"
@@ -139,7 +136,7 @@ class UiOptionsOverlayState:
         if row == self._ROW_SHOULDERS:
             return self.shoulders_enabled()
         if row == self._ROW_VIBRATION:
-            return self.vibration_enabled()
+            return not self.vibration_unsupported()
         return False
 
     def update_from_nav(
@@ -174,15 +171,15 @@ class UiOptionsOverlayState:
             return
         if row == self._ROW_SHOULDERS and self.shoulders_enabled():
             self.shoulders_draft = not self.shoulders_draft
-            self._gamepad_shoulders_draft = bool(self.shoulders_draft)
+            self._gamepad_shoulders_draft = self.shoulders_draft
             self._shoulders_touched = True
             return
-        if row == self._ROW_VIBRATION and self.vibration_enabled():
+        if row == self._ROW_VIBRATION and not self.vibration_unsupported():
             self.vibration_draft = not self.vibration_draft
             if self.mode_draft == self._MODE_GAMEPAD:
-                self._gamepad_vibration_draft = bool(self.vibration_draft)
+                self._gamepad_vibration_draft = self.vibration_draft
             elif self.mode_draft == self._MODE_BOTH:
-                self._both_vibration_draft = bool(self.vibration_draft)
+                self._both_vibration_draft = self.vibration_draft
             self._vibration_touched = True
 
     def _cycle_mode(self, forward: bool) -> None:
@@ -223,35 +220,27 @@ class UiOptionsOverlayState:
             self.focus_row = 0
 
     def _normalize_state(self) -> None:
-        self.drive_preset_draft = drive_preset_clamp(int(self.drive_preset_draft))
+        self.drive_preset_draft = drive_preset_clamp(self.drive_preset_draft)
         self._sync_drafts_from_mode()
         self._clamp_focus()
 
     def _store_mode_draft_values(self) -> None:
         mode_i = self.mode_draft
         if mode_i == self._MODE_GAMEPAD:
-            self._gamepad_shoulders_draft = bool(self.shoulders_draft)
-            if self._rumble_supported:
-                self._gamepad_vibration_draft = bool(self.vibration_draft)
+            self._gamepad_shoulders_draft = self.shoulders_draft
+            self._gamepad_vibration_draft = self.vibration_draft
         elif mode_i == self._MODE_BOTH:
-            if self._rumble_supported:
-                self._both_vibration_draft = bool(self.vibration_draft)
+            self._both_vibration_draft = self.vibration_draft
 
     def _sync_drafts_from_mode(self) -> None:
         mode_i = self.mode_draft
         if mode_i == self._MODE_GAMEPAD:
-            self.shoulders_draft = bool(self._gamepad_shoulders_draft)
-            if self._rumble_supported:
-                self.vibration_draft = bool(self._gamepad_vibration_draft)
-            else:
-                self.vibration_draft = False
+            self.shoulders_draft = self._gamepad_shoulders_draft
+            self.vibration_draft = self._gamepad_vibration_draft
             return
         if mode_i == self._MODE_BOTH:
             self.shoulders_draft = False
-            if self._rumble_supported:
-                self.vibration_draft = bool(self._both_vibration_draft)
-            else:
-                self.vibration_draft = False
+            self.vibration_draft = self._both_vibration_draft
             return
         self.shoulders_draft = False
         self.vibration_draft = False

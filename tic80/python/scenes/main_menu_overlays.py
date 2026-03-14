@@ -479,20 +479,11 @@ class MainMenuNewGameFlow:
         mode = self.mode_draft
         if mode == InputDeviceMode.KEYBOARD:
             state.set_prompt_show_shoulders(False)
-            state.set_vibration_enabled(False)
         elif mode == InputDeviceMode.BOTH:
             state.set_prompt_show_shoulders(False)
-            if not state.options_vibration_configured:
-                state.set_vibration_enabled(rumble_supported)
-            if not rumble_supported:
-                state.set_vibration_enabled(False)
         else:
             if not state.options_shoulders_configured:
                 state.set_prompt_show_shoulders(rumble_supported)
-            if not state.options_vibration_configured:
-                state.set_vibration_enabled(rumble_supported)
-            if not rumble_supported:
-                state.set_vibration_enabled(False)
         state.save_options()
         state.start_new_campaign(seed)
 
@@ -807,8 +798,8 @@ class MainMenuControlsOverlayFlow(MainMenuOverlayFlow):
         secondary_released: bool,
         mouse_nav_released: bool
     ) -> None:
-        prev_mode = int(self._options.mode_draft)
         self._update_mouse_state(scene)
+        self._options.set_rumble_supported(self._state.rumble_supported)
         self._options.update_from_nav(
             nav_up_released,
             nav_down_released,
@@ -818,9 +809,6 @@ class MainMenuControlsOverlayFlow(MainMenuOverlayFlow):
         if mouse_nav_released:
             self._options.update_from_nav(False, True, False, False)
         self._poll_mouse_setting_release(scene)
-        if int(self._options.mode_draft) != prev_mode:
-            self._options.set_rumble_supported(
-                self._state.refresh_rumble_support())
         if cancel_released:
             scene._close_overlay()
             return

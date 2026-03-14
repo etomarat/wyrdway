@@ -239,8 +239,6 @@ class SaveSystem:
 
         if mode != int(InputDeviceMode.GAMEPAD):
             show_shoulders = False
-        if mode == int(InputDeviceMode.KEYBOARD):
-            vibration_enabled = False
         return SaveOptionsData(
             mode,
             show_shoulders,
@@ -266,8 +264,6 @@ class SaveSystem:
             shoulders_int = 0
 
         vibration_int = 1 if bool(vibration_enabled) else 0
-        if mode == int(InputDeviceMode.KEYBOARD):
-            vibration_int = 0
 
         pmem(PMEM_OPTIONS_MAGIC_SLOT, OPTIONS_MAGIC)
         pmem(PMEM_OPTIONS_SCHEMA_SLOT, OPTIONS_SCHEMA_VERSION)
