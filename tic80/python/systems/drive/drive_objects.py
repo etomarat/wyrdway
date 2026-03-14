@@ -144,7 +144,7 @@ class DriveObjects:
 
                 radius_int = -1
                 weights = d.obstacle_radius_weights
-                if weights is not None and len(weights) > 0:
+                if weights:
                     idx = rng_threats.choice_weighted_index(weights)
                     if idx >= 0:
                         radius_int = idx

@@ -16,7 +16,7 @@ class PursuerArchetype:
         self.profile = profile
 
     def display_name(self) -> str:
-        return str(self.profile.name)
+        return self.profile.name
 
     def draw_body(
         self,

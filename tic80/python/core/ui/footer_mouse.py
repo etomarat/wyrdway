@@ -78,8 +78,8 @@ class OverlayFooterMouseState:
     def is_slot_active(self, slot_index: int, mouse_state: UiMouseState) -> bool:
         return (
             mouse_state.left_down
-            and self.down_slot == int(slot_index)
-            and self.hover_slot == int(slot_index)
+            and self.down_slot == slot_index
+            and self.hover_slot == slot_index
         )
 
 

@@ -202,7 +202,7 @@ def ui_action_bar_row_positions(
     text_y = max(y + 1, min(y + h - 6, text_y))
     line_y = min(text_y - 1, line_y)
     line_y = max(y - 1, line_y)
-    return int(line_y), int(text_y)
+    return line_y, text_y
 
 
 def ui_action_bar_row_poll_release(
@@ -297,7 +297,7 @@ def ui_action_bar_row_draw(
 
 
 def ui_action_bar_layout_bounds(layouts: list[OverlayLayout]) -> tuple[int, int, int, int]:
-    if len(layouts) <= 0:
+    if not layouts:
         return 0, 0, 0, 0
     x0 = ui_overlay_layout_int(layouts[0], "box_x", 0)
     y0 = ui_overlay_layout_int(layouts[0], "box_y", 0)

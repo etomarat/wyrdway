@@ -289,7 +289,7 @@ class Haptics:
 
     def _start_pattern(self, steps: list[tuple[int, int, int, int]]) -> None:
         self._clear_pattern()
-        if len(steps) <= 0:
+        if not steps:
             return
         self._steps = list(steps)
         self._active = True
@@ -299,8 +299,8 @@ class Haptics:
     def _play_step(self, step_index: int) -> bool:
         weak, strong, duration, wait_ms = self._steps[step_index]
         self._set_pulse(weak, strong, duration)
-        self._step_index = int(step_index)
-        self._step_wait_s = float(wait_ms) / 1000.0
+        self._step_index = step_index
+        self._step_wait_s = wait_ms / 1000.0
         return self._flush_rumble(True)
 
     def _set_pulse(self, weak: int, strong: int, duration: int) -> None:
@@ -312,7 +312,7 @@ class Haptics:
             return
         self._pulse_weak = self._clamp_motor(weak)
         self._pulse_strong = self._clamp_motor(strong)
-        self._pulse_time_s = float(duration_ms) / 1000.0
+        self._pulse_time_s = duration_ms / 1000.0
 
     def _flush_rumble(self, force: bool) -> bool:
         weak = self._combined_weak()
@@ -365,16 +365,16 @@ class Haptics:
         pulse_n = self._clamp01(pulse_n)
         self._engine_pulse_weak = self._scale_int(700, 1600, pulse_n)
         self._engine_pulse_strong = self._scale_int(2600, 7200, pulse_n)
-        self._engine_pulse_time_s = float(self._scale_int(20, 34, pulse_n)) / 1000.0
-        self._engine_cycle_time_s = float(self._scale_int(230, 120, pulse_n)) / 1000.0
+        self._engine_pulse_time_s = self._scale_int(20, 34, pulse_n) / 1000.0
+        self._engine_cycle_time_s = self._scale_int(230, 120, pulse_n) / 1000.0
 
     def _trigger_drift_pulse(self) -> None:
         pulse_n = (self._drift_level - 0.14) / 0.86
         pulse_n = self._clamp01(pulse_n)
         self._drift_pulse_weak = self._scale_int(1800, 5200, pulse_n)
         self._drift_pulse_strong = self._scale_int(5200, 16000, pulse_n)
-        self._drift_pulse_time_s = float(self._scale_int(24, 42, pulse_n)) / 1000.0
-        self._drift_cycle_time_s = float(self._scale_int(155, 82, pulse_n)) / 1000.0
+        self._drift_pulse_time_s = self._scale_int(24, 42, pulse_n) / 1000.0
+        self._drift_cycle_time_s = self._scale_int(155, 82, pulse_n) / 1000.0
 
     @staticmethod
     def _clamp01(value: float) -> float:
@@ -382,12 +382,12 @@ class Haptics:
             return 0.0
         if value >= 1.0:
             return 1.0
-        return float(value)
+        return value
 
     @staticmethod
     def _scale_int(low: int, high: int, t: float) -> int:
         t_i = Haptics._clamp01(t)
-        return int(float(low) + (float(high) - float(low)) * t_i)
+        return int(low + (high - low) * t_i)
 
     def _drive_feedback_mult(self) -> float:
         if self._drive_duck_time_s <= 0.0:
@@ -397,7 +397,7 @@ class Haptics:
 
     @staticmethod
     def _scaled_motor(value: int, mult: float) -> int:
-        return int(float(value) * float(mult))
+        return int(value * mult)
 
     @staticmethod
     def _clamp_motor(value: int) -> int:

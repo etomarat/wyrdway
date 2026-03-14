@@ -64,9 +64,9 @@ class UiModalSpec:
 
 def ui_modal_nav_enabled(nav_mode: int, has_scroll: bool) -> bool:
     mode = int(nav_mode)
-    if mode == int(UiModalNavMode.ALWAYS):
+    if mode == UiModalNavMode.ALWAYS:
         return True
-    if mode == int(UiModalNavMode.NEVER):
+    if mode == UiModalNavMode.NEVER:
         return False
     return has_scroll
 

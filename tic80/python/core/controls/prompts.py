@@ -90,7 +90,7 @@ def glyph_label(glyph: int) -> str:
     label = _GLYPH_LABELS.get(int(glyph))
     if label is None:
         return "?"
-    return str(label)
+    return label
 
 
 def format_prompt(glyphs: list[int], detail: PromptGlyphDetailId) -> str:
@@ -183,9 +183,9 @@ def _select_device(device: InputDeviceModeId, pad: list[int], key: list[int]) ->
         # In BOTH mode we only show primary controls for each device.
         out: list[int] = []
         # Keyboard first so "both" reads naturally on PC.
-        if len(key) > 0:
+        if key:
             out.append(key[0])
-        if len(pad) > 0:
+        if pad:
             out.append(pad[0])
         return out
     return list(pad)
@@ -207,4 +207,4 @@ def filter_prompt_glyphs(glyphs: list[int], show_shoulders: bool) -> list[int]:
 
 
 def _glyph_is_pad_shoulder(glyph: int) -> bool:
-    return int(glyph) in _PAD_SHOULDER_GLYPHS
+    return glyph in _PAD_SHOULDER_GLYPHS

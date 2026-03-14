@@ -76,7 +76,7 @@ class ResultScene:
             return "Chase state collapsed before extraction"
         if reason == "RUN INTERRUPTED":
             return "Run session interrupted before return"
-        return str(reason)
+        return reason
 
     def _build_rollback_layout(self, reason: str, theseus_gain: int) -> None:
         lines: list[tuple[str, ColorId]] = [

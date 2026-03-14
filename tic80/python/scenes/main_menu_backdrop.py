@@ -240,7 +240,7 @@ class SimpleRoadBackdrop(MainMenuBackdrop):
         seed = lcg_next_u32(mixed)
         if seed == 0:
             seed = 0x12345678
-        return int(seed)
+        return seed
 
     def _build_menu_road(self, seed: int) -> RoadModel:
         d = TUNING.DRIVE

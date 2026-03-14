@@ -84,7 +84,7 @@ class UiOptionsOverlayState:
     def vibration_supported(self) -> bool:
         if self.mode_draft == self._MODE_KEYBOARD:
             return False
-        return bool(self._rumble_supported)
+        return self._rumble_supported
 
     def vibration_enabled(self) -> bool:
         return self.vibration_supported()

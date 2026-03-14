@@ -52,4 +52,4 @@ def active_pursuer_name() -> str:
 
 
 def active_pursuer_name_color() -> int:
-    return int(create_active_pursuer_archetype().profile.name_color)
+    return create_active_pursuer_archetype().profile.name_color

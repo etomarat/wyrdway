@@ -528,7 +528,7 @@ class GarageScene:
         )
         released_top = -1
         released_bottom = -1
-        if len(released_rows) > 0:
+        if released_rows:
             released_top = int(released_rows[0])
         if len(released_rows) > 1:
             released_bottom = int(released_rows[1])
