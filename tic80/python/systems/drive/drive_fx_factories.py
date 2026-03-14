@@ -244,7 +244,7 @@ def drive_fx_make_start_dust_current(fx: DriveFx, p: _FxStartParams) -> FxSystem
     d = fx._tuning.DRIVE
     rng = Rng(int(p.seed))
     particles = Particles2D(int(d.fx_particles_max))
-    return _StartDustFx(d, rng, particles, float(p.cx), float(p.cy), float(p.seconds))
+    return _StartDustFx(d, rng, particles, p.cx, p.cy, p.seconds)
 
 
 def drive_fx_make_start_smoke_pslib(fx: DriveFx, p: _FxStartParams) -> FxSystem:
@@ -255,9 +255,9 @@ def drive_fx_make_start_smoke_pslib(fx: DriveFx, p: _FxStartParams) -> FxSystem:
 
     rng_l = Rng(int(p.seed))
     rng_r = Rng(int(p.seed) ^ 0x9E3779B9)
-    y = float(p.cy + back)
-    sx_l = float(p.cx - wheel_dx)
-    sx_r = float(p.cx + wheel_dx)
+    y = p.cy + back
+    sx_l = p.cx - wheel_dx
+    sx_r = p.cx + wheel_dx
 
     a = make_smoke_fx(rng_l, sx_l, y)
     b = make_smoke_fx(rng_r, sx_r, y)
@@ -282,7 +282,7 @@ def drive_fx_make_start_smoke_pslib(fx: DriveFx, p: _FxStartParams) -> FxSystem:
     combo = PslibFx()
     combo._systems.extend(a._systems)
     combo._systems.extend(b._systems)
-    return _TimedPslibFx(combo, float(p.seconds))
+    return _TimedPslibFx(combo, p.seconds)
 
 
 def drive_fx_make_start_smoke_vand_dust(fx: DriveFx, p: _FxStartParams) -> FxSystem:
@@ -290,7 +290,7 @@ def drive_fx_make_start_smoke_vand_dust(fx: DriveFx, p: _FxStartParams) -> FxSys
     d = fx._tuning.DRIVE
     v = VandParticles(int(p.seed))
     rng = Rng(int(p.seed) ^ 0xA5A5A5A5)
-    return _StartVandDustFx(d, v, rng, float(p.cx), float(p.cy), float(p.seconds))
+    return _StartVandDustFx(d, v, rng, p.cx, p.cy, p.seconds)
 
 
 def drive_fx_make_hit_sparks_current(fx: DriveFx, p: _FxHitParams) -> FxSystem:
@@ -311,10 +311,10 @@ def drive_fx_make_hit_sparks_current(fx: DriveFx, p: _FxHitParams) -> FxSystem:
         vy = 1.0
 
     off = p.hit_r + 2.0
-    x0 = float(sx - vx * off)
-    y0 = float(sy - vy * off)
+    x0 = sx - vx * off
+    y0 = sy - vy * off
 
-    impact = float(p.impact)
+    impact = p.impact
     n = 3 + int(impact * 0.10)
     if n > 18:
         n = 18
@@ -375,14 +375,14 @@ def drive_fx_make_hit_explosion_pslib(_fx: DriveFx, p: _FxHitParams) -> FxSystem
     """Создаёт pslib-взрыв в точке контакта."""
     rng = Rng(int(p.seed))
     sx, sy = p.proj.world_to_screen(p.wx, p.wy)
-    return make_explosion_fx(rng, float(sx), float(sy))
+    return make_explosion_fx(rng, sx, sy)
 
 
 def drive_fx_make_hit_explosion_vand(_fx: DriveFx, p: _FxHitParams) -> FxSystem:
     """Создаёт компактный `VandParticles`-взрыв, ориентированный по -normal."""
     sx, sy = p.proj.world_to_screen(p.wx, p.wy)
     v = VandParticles(int(p.seed))
-    r = 3.0 + float(p.impact) * 0.03
+    r = 3.0 + p.impact * 0.03
     if r > 8.0:
         r = 8.0
 
@@ -395,5 +395,5 @@ def drive_fx_make_hit_explosion_vand(_fx: DriveFx, p: _FxHitParams) -> FxSystem:
     else:
         dir_x = 0.0
         dir_y = -1.0
-    v.spawn_explosion_dir(float(sx), float(sy), r, float(dir_x), float(dir_y))
+    v.spawn_explosion_dir(sx, sy, r, dir_x, dir_y)
     return v

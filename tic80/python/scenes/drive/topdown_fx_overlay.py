@@ -109,7 +109,7 @@ class TopdownFxOverlay:
         """
         spd = logic.speed
         start_move = False
-        min_speed = float(TUNING.DRIVE.fx_start_move_min_speed)
+        min_speed = TUNING.DRIVE.fx_start_move_min_speed
         if self._prev_speed <= min_speed and spd > min_speed:
             if not logic.offroad:
                 start_move = True
@@ -173,7 +173,7 @@ class TopdownFxOverlay:
             return
         speed_factor = logic.speed / d.feedback_speed_ref
         over = speed_factor - d.fx_exhaust_min_speed_factor
-        ramp = float(d.fx_exhaust_ramp_speed_factor)
+        ramp = d.fx_exhaust_ramp_speed_factor
         ramp = max(0.01, ramp)
         strength = over / ramp
         strength = max(0.0, min(1.0, strength))
@@ -198,13 +198,13 @@ class TopdownFxOverlay:
 
         d = TUNING.DRIVE
         wheel_dx, back = pose.local_from_center_reference(
-            float(d.fx_dust_wheel_dx_px),
-            float(d.fx_dust_back_px)
+            d.fx_dust_wheel_dx_px,
+            d.fx_dust_back_px
         )
-        jitter_x = float(d.fx_dust_jitter_x_px)
-        jitter_y = float(d.fx_dust_jitter_y_px)
-        c0 = int(d.fx_offroad_dust_color_a)
-        c1 = int(d.fx_offroad_dust_color_b)
+        jitter_x = d.fx_dust_jitter_x_px
+        jitter_y = d.fx_dust_jitter_y_px
+        c0 = d.fx_offroad_dust_color_a
+        c1 = d.fx_offroad_dust_color_b
 
         i = 0
         while i < n:
@@ -223,16 +223,16 @@ class TopdownFxOverlay:
             if (r1 % 1000) >= 500:
                 c = c1
 
-            self._offroad_smoke.spawn_dust_down_color(float(x_l), float(y_l), float(r), int(c))
-            self._offroad_smoke.spawn_dust_down_color(float(x_r), float(y_r), float(r), int(c))
+            self._offroad_smoke.spawn_dust_down_color(x_l, y_l, r, c)
+            self._offroad_smoke.spawn_dust_down_color(x_r, y_r, r, c)
 
             r2 = 0.75 + ((r1 % 1000) / 1000.0) * 1.75
             c2 = c1 if c == c0 else c0
             side = 2.0 + ((r1 % 1000) / 1000.0) * 4.0
             x_l2, y_l2 = pose.local_to_screen(-wheel_dx + jx - side, back + jy)
             x_r2, y_r2 = pose.local_to_screen(wheel_dx - jx + side, back + jy)
-            self._offroad_smoke.spawn_dust_down_color(float(x_l2), float(y_l2), float(r2), int(c2))
-            self._offroad_smoke.spawn_dust_down_color(float(x_r2), float(y_r2), float(r2), int(c2))
+            self._offroad_smoke.spawn_dust_down_color(x_l2, y_l2, r2, c2)
+            self._offroad_smoke.spawn_dust_down_color(x_r2, y_r2, r2, c2)
             i += 1
 
     def _emit_exhaust_smoke_vand(
@@ -247,21 +247,21 @@ class TopdownFxOverlay:
             return
 
         d = TUNING.DRIVE
-        s = float(strength)
+        s = strength
         s = max(0.0, min(1.0, s))
 
         base_x, base_back = pose.local_from_center_reference(
-            float(d.fx_exhaust_dx_px),
-            float(d.fx_exhaust_dy_px)
+            d.fx_exhaust_dx_px,
+            d.fx_exhaust_dy_px
         )
-        r0 = float(d.fx_exhaust_r_min)
-        r1 = float(d.fx_exhaust_r_max)
+        r0 = d.fx_exhaust_r_min
+        r1 = d.fx_exhaust_r_max
         if r1 < r0:
             t = r0
             r0 = r1
             r1 = t
-        c0 = int(d.fx_exhaust_color_a)
-        c1 = int(d.fx_exhaust_color_b)
+        c0 = d.fx_exhaust_color_a
+        c1 = d.fx_exhaust_color_b
 
         i = 0
         while i < n:
@@ -322,8 +322,8 @@ class TopdownFxOverlay:
         dir_x, dir_y, cross = self._edge_spark_dir(road, logic, proj, dir_sign, entering_offroad)
 
         spd = logic.speed
-        min_spd = float(d.fx_transition_sparks_min_speed)
-        ramp = float(d.fx_transition_sparks_ramp_speed)
+        min_spd = d.fx_transition_sparks_min_speed
+        ramp = d.fx_transition_sparks_ramp_speed
         ramp = max(0.01, ramp)
         strength = (spd - min_spd) / ramp
         if strength <= 0.0:
@@ -349,14 +349,14 @@ class TopdownFxOverlay:
         life = max(7, min(26, life))
 
         wheel_dx, back = pose.local_from_center_reference(
-            float(d.fx_transition_sparks_wheel_dx_px),
-            float(d.fx_transition_sparks_back_px)
+            d.fx_transition_sparks_wheel_dx_px,
+            d.fx_transition_sparks_back_px
         )
-        wheelbase = float(d.fx_transition_sparks_wheelbase_px)
+        wheelbase = d.fx_transition_sparks_wheelbase_px
 
-        rear_x, rear_y = pose.local_to_screen(float(spawn_sign) * wheel_dx, back)
+        rear_x, rear_y = pose.local_to_screen(spawn_sign * wheel_dx, back)
         front_x, front_y = pose.local_to_screen(
-            float(spawn_sign) * (wheel_dx * 0.72),
+            spawn_sign * (wheel_dx * 0.72),
             back - wheelbase + 3.0
         )
 
@@ -415,8 +415,8 @@ class TopdownFxOverlay:
             sx = 1.0
             sy = 0.0
             d0 = 1.0
-        sx = (sx / d0) * float(dir_sign)
-        sy = (sy / d0) * float(dir_sign)
+        sx = (sx / d0) * dir_sign
+        sy = (sy / d0) * dir_sign
 
         mx, my = proj.world_vec_to_screen(logic.vx, logic.vy)
         d1 = abs(mx) + abs(my)

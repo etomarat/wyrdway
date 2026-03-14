@@ -4,26 +4,31 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from tic80 import circ, circb, ttri
 
-    from ...contracts import PursuerVariantIdValue
-    from ...contracts import PursuerVariantTuning
+    from ...contracts import PursuerVariantIdValue, PursuerVariantTuning
     from ...core.palette import Color
     from ...data.tuning import TUNING
     from ...systems.drive.drive_fx import TopdownProjector
     from ...systems.drive.drive_logic_core import DriveLogic
     from ...systems.drive.drive_objects import DriveObjects, DriveZone
-    from ...systems.drive.pursuer_chase import PURSUER_STATE_FAR, PURSUER_STATE_NEAR, PursuerState
     from ...systems.drive.drive_screen_shake import DriveScreenShake
+    from ...systems.drive.pursuer_chase import (
+        PURSUER_STATE_FAR,
+        PURSUER_STATE_NEAR,
+        PursuerState
+    )
     from ...systems.drive.pursuers.archetypes import PursuerArchetype
     from ...systems.drive.road_model import RoadModel
     from .car_pose2d import CarPose2D
     from .pursuer_body_renderer import PursuerBodyRenderer
     from .pursuer_screen_tracker import PursuerScreenTracker
+    from .pursuer_strike_flash import (
+        pursuer_strike_flash_n as pursuer_strike_flash_n
+    )
     from .pursuer_strike_renderer import PursuerStrikeRenderer
-    from .pursuer_strike_flash import pursuer_strike_flash_n as pursuer_strike_flash_n
     from .pursuer_text_bank import PursuerTextBank
     from .pursuer_text_overlay import PursuerTextOverlay
-    from .topdown_debug_draw import TopdownDebugDraw
     from .topdown_camera_rig import TopdownCameraRig
+    from .topdown_debug_draw import TopdownDebugDraw
     from .topdown_fx_overlay import TopdownFxOverlay
     from .topdown_obstacles_draw import TopdownObstaclesDraw
     from .topdown_road_draw import TopdownRoadDraw
@@ -85,7 +90,7 @@ class DriveTopdownRenderer:
     def notify_pursuer_strike(self, intensity: float, variant_id: PursuerVariantIdValue) -> None:
         if intensity <= 0.0:
             return
-        self._shake.notify_hit(float(intensity), TUNING)
+        self._shake.notify_hit(intensity, TUNING)
         self._pursuer_text_overlay.queue_error_text(variant_id, self._pursuer_anim_t)
 
     def notify_pursuer_hp_strike_fx(
@@ -101,21 +106,19 @@ class DriveTopdownRenderer:
             return
 
         # Спавним FX в фактической точке удара (задний хитбокс машины).
-        fwd_x = float(logic.fwd_x)
-        fwd_y = float(logic.fwd_y)
         hit_r = rear_r
         if hit_r <= 0.0:
             hit_r = 4.0
 
-        impact = float(strike_shake_intensity) * 1.8 + float(hp_loss) * 12.0
+        impact = strike_shake_intensity * 1.8 + hp_loss * 12.0
         if impact < 36.0:
             impact = 36.0
         if impact > 120.0:
             impact = 120.0
 
         # Разворачиваем нормаль так, чтобы вылет искр читался "внутрь машины".
-        nx = -fwd_x
-        ny = -fwd_y
+        nx = -logic.fwd_x
+        ny = -logic.fwd_y
         self._fx_overlay.notify_obstacle_hit(
             rear_x,
             rear_y,
@@ -126,7 +129,7 @@ class DriveTopdownRenderer:
         )
 
     def exhaust_strength(self) -> float:
-        return float(self._fx_overlay.exhaust_strength())
+        return self._fx_overlay.exhaust_strength()
 
     def consume_start_move_event(self) -> bool:
         if not self._start_move_event:
@@ -153,10 +156,11 @@ class DriveTopdownRenderer:
         skid_min_speed: float | None = None
     ) -> None:
         self._shake.ensure_seed(road.seed)
-        self._pursuer_anim_t += float(TUNING.CORE.dt)
-        self._pursuer_text_overlay.update(float(TUNING.CORE.dt))
+        dt = TUNING.CORE.dt
+        self._pursuer_anim_t += dt
+        self._pursuer_text_overlay.update(dt)
         shake_x, shake_y = self._shake.update(
-            float(TUNING.CORE.dt),
+            dt,
             logic.offroad,
             self._fx_overlay.exhaust_strength(),
             TUNING
@@ -245,8 +249,8 @@ class DriveTopdownRenderer:
                 self._debug_draw.draw_pursuer_strike_range(
                     road,
                     proj,
-                    float(logic.road_s),
-                    float(profile.strike_begin_dist_s)
+                    logic.road_s,
+                    profile.strike_begin_dist_s
                 )
 
     def _draw_pursuer_world(
@@ -266,13 +270,13 @@ class DriveTopdownRenderer:
             return
 
         profile = pursuer_archetype.profile
-        contact_s = float(pursuer_s)
+        contact_s = pursuer_s
         if contact_s < 0.0:
             contact_s = 0.0
         if contact_s > road.segment_total_length:
             contact_s = road.segment_total_length
         s = contact_s
-        visual_offset = float(profile.contact_offset_s)
+        visual_offset = profile.contact_offset_s
         if visual_offset > 0.0:
             s -= visual_offset
         if s < 0.0:
@@ -287,7 +291,7 @@ class DriveTopdownRenderer:
         right_y = dir_x
         half_w = road.width_at(draw_s) * 0.5
         max_follow_d = half_w * 0.92
-        target_d = float(logic.road_d)
+        target_d = logic.road_d
         if target_d > max_follow_d:
             target_d = max_follow_d
         if target_d < -max_follow_d:
@@ -299,7 +303,7 @@ class DriveTopdownRenderer:
         wobble = 1.4
         if pursuer_state == PURSUER_STATE_NEAR:
             wobble = 2.2
-        phase = float(road.seed & 1023) * 0.01
+        phase = (road.seed & 1023) * 0.01
         wobble *= (
             0.60 * math.sin(t * 4.5 + phase + cam_angle * 1.6)
             + 0.40 * math.sin(t * 2.7 + phase * 1.3)
@@ -313,7 +317,7 @@ class DriveTopdownRenderer:
             sy,
             profile,
             pursuer_state,
-            float(TUNING.CORE.dt)
+            TUNING.CORE.dt
         )
 
         seed_base = (
@@ -360,7 +364,8 @@ class DriveTopdownRenderer:
 
         rear_x, rear_y, _, _, _, _ = logic.hitbox_world_circles()
         hit_sx, hit_sy = proj.world_to_screen(rear_x, rear_y)
-        flash_n = pursuer_strike_flash_n(strike_flash, float(profile.strike_flash_seconds))
+        flash_n = pursuer_strike_flash_n(
+            strike_flash, profile.strike_flash_seconds)
         if flash_n > 0.0:
             pursuer_archetype.draw_strike(
                 self,

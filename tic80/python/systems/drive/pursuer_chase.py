@@ -145,8 +145,8 @@ class PursuerChase:
 
     def near_intensity(self) -> float:
         p = self._profile
-        show = float(p.show_dist_s)
-        near = float(p.near_dist_s)
+        show = p.show_dist_s
+        near = p.near_dist_s
         d = self._dist_s
         if d >= show:
             return 0.0
@@ -170,11 +170,11 @@ class PursuerChase:
         self._active = bool(TUNING.PURSUER.enabled)
         self._state = PURSUER_STATE_FAR
         self._phase = "SCRAP_HP"
-        self._grace_start_s = float(car_s)
+        self._grace_start_s = car_s
         self._grace_elapsed = 0.0
         self._grace_active = True
-        self._pursuer_s = float(car_s) - float(p.start_gap_s)
-        self._dist_s = float(p.start_gap_s)
+        self._pursuer_s = car_s - p.start_gap_s
+        self._dist_s = p.start_gap_s
         self._reset_runtime_effects()
 
     def disable(self) -> None:
@@ -185,8 +185,8 @@ class PursuerChase:
         self._reset_runtime_effects()
 
     def _in_grace(self, car_s: float) -> bool:
-        grace_m = float(TUNING.PURSUER.grace_meters)
-        grace_t = float(TUNING.PURSUER.grace_seconds_cap)
+        grace_m = TUNING.PURSUER.grace_meters
+        grace_t = TUNING.PURSUER.grace_seconds_cap
         meters_done = False
         time_done = False
         meters_done = True if grace_m <= 0.0 else (car_s - self._grace_start_s) >= grace_m
@@ -213,8 +213,8 @@ class PursuerChase:
         fuel_drain = 0.0
         hp_damage = 0.0
         if self._phase == "FUEL" and fuel_phase_enabled:
-            fuel_before = float(run.car_fuel)
-            fuel_after = fuel_before - float(drain)
+            fuel_before = run.car_fuel
+            fuel_after = fuel_before - drain
             fuel_after = max(0.0, fuel_after)
             fuel_drain = fuel_before - fuel_after
         else:
@@ -223,8 +223,8 @@ class PursuerChase:
             scrap_loss = min(scrap_now, scrap_loss)
             rem = drain - scrap_loss
             if rem > 0 and bool(p.strike_drain_hp_after_scrap):
-                hp_before = float(run.car_hp)
-                hp_after = hp_before - float(rem)
+                hp_before = run.car_hp
+                hp_after = hp_before - rem
                 hp_after = max(0.0, hp_after)
                 hp_damage = hp_before - hp_after
 
@@ -253,37 +253,37 @@ class PursuerChase:
             self._strike_flash -= dt
             self._strike_flash = max(0.0, self._strike_flash)
 
-        car_s = float(logic.road_s)
+        car_s = logic.road_s
         self._grace_active = self._in_grace(car_s)
         p = self._profile
         if self._grace_active:
-            self._pursuer_s = car_s - float(p.start_gap_s)
+            self._pursuer_s = car_s - p.start_gap_s
             self._state = PURSUER_STATE_FAR
-            self._dist_s = float(p.start_gap_s)
+            self._dist_s = p.start_gap_s
             return self._strike_delta
 
-        max_speed = float(TUNING.DRIVE.max_speed)
+        max_speed = TUNING.DRIVE.max_speed
         speed_factor = 0.0
         if max_speed > self._EPS:
-            speed_factor = float(logic.speed) / max_speed
+            speed_factor = logic.speed / max_speed
         speed_factor = max(0.0, min(2.0, speed_factor))
         slow_factor = self._clamp01(1.0 - speed_factor)
 
-        pursuer_speed = float(p.base_speed)
-        pursuer_speed += slow_factor * float(p.slow_catchup)
+        pursuer_speed = p.base_speed
+        pursuer_speed += slow_factor * p.slow_catchup
         if logic.offroad:
-            pursuer_speed += float(p.offroad_catchup)
+            pursuer_speed += p.offroad_catchup
         pursuer_speed = max(0.0, pursuer_speed)
-        show = float(p.show_dist_s)
-        near = float(p.near_dist_s)
-        gap = float(p.follow_gap_s)
+        show = p.show_dist_s
+        near = p.near_dist_s
+        gap = p.follow_gap_s
         gap = max(0.0, gap)
 
         self._last_speed = pursuer_speed
         self._pursuer_s += pursuer_speed * dt
 
         if boost_pushback_event:
-            pushback = float(p.boost_pushback_s)
+            pushback = p.boost_pushback_s
             if pushback > 0.0:
                 self._pursuer_s -= pushback
 
@@ -301,11 +301,11 @@ class PursuerChase:
         else:
             self._state = PURSUER_STATE_NEAR
 
-        min_speed = float(p.strike_min_speed)
+        min_speed = p.strike_min_speed
         speed_ok = True
         if min_speed > 0.0:
-            speed_ok = float(logic.speed) >= min_speed
-        strike_dist = float(p.strike_begin_dist_s)
+            speed_ok = logic.speed >= min_speed
+        strike_dist = p.strike_begin_dist_s
         close_enough = self._dist_s <= strike_dist
         if close_enough and self._cooldown <= 0.0 and speed_ok:
             self._build_strike_delta(run)

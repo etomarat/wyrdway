@@ -247,11 +247,11 @@ class GameState:
 
     @property
     def options_shoulders_configured(self) -> bool:
-        return bool(self._options_shoulders_configured)
+        return self._options_shoulders_configured
 
     @property
     def options_vibration_configured(self) -> bool:
-        return bool(self._options_vibration_configured)
+        return self._options_vibration_configured
 
     def mark_options_configured(self, shoulders_configured: bool, vibration_configured: bool) -> None:
         if shoulders_configured:
@@ -466,9 +466,9 @@ class GameState:
         if data is None:
             return
         mode = int(data.input_device_mode)
-        if mode == int(InputDeviceMode.GAMEPAD):
+        if mode == InputDeviceMode.GAMEPAD:
             self._input_device_mode = InputDeviceMode.GAMEPAD
-        elif mode == int(InputDeviceMode.KEYBOARD):
+        elif mode == InputDeviceMode.KEYBOARD:
             self._input_device_mode = InputDeviceMode.KEYBOARD
         else:
             self._input_device_mode = InputDeviceMode.BOTH
