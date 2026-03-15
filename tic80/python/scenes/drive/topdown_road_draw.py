@@ -53,6 +53,10 @@ class TopdownRoadDraw:
         prev_lsy = None
         prev_rsx = None
         prev_rsy = None
+        prev_turn_x = [0.0, 0.0]
+        prev_turn_y = [0.0, 0.0]
+        prev_turn_side = [0.0, 0.0]
+        prev_turn_on = [False, False]
 
         i = start_idx
         while i <= end_idx:
@@ -66,9 +70,43 @@ class TopdownRoadDraw:
             rx = cx + nrm_x * half
             ry = cy + nrm_y * half
 
+            turn_level, turn_side = self._turn_shoulder_level_and_side(road, i)
+            lane = 0
+            while lane < 2:
+                if lane >= turn_level or turn_side == 0.0:
+                    prev_turn_on[lane] = False
+                    prev_turn_side[lane] = 0.0
+                    lane += 1
+                    continue
+
+                if prev_turn_side[lane] != turn_side:
+                    prev_turn_on[lane] = False
+
+                s_turn = i * road.ds
+                turn_half = road.width_at(s_turn) * 0.5
+                turn_offset = 1.0 + float(lane)
+                wx, wy = self._road_point_at_sd(
+                    road,
+                    s_turn,
+                    turn_side * (turn_half + turn_offset)
+                )
+                wsx, wsy = proj.world_to_screen(wx, wy)
+                if prev_turn_on[lane]:
+                    line(
+                        int(prev_turn_x[lane]),
+                        int(prev_turn_y[lane]),
+                        int(wsx),
+                        int(wsy),
+                        Color.LIGHT_GREY if lane == 0 else Color.GREY
+                    )
+                prev_turn_x[lane] = wsx
+                prev_turn_y[lane] = wsy
+                prev_turn_side[lane] = turn_side
+                prev_turn_on[lane] = True
+                lane += 1
+
             lsx, lsy = proj.world_to_screen(lx, ly)
             rsx, rsy = proj.world_to_screen(rx, ry)
-
             if prev_lsx is not None and prev_lsy is not None:
                 line(int(prev_lsx), int(prev_lsy), int(
                     lsx), int(lsy), Color.LIGHT_GREEN)
@@ -106,6 +144,79 @@ class TopdownRoadDraw:
                 proj
             )
             i += 1
+
+    # Experimental shoulder fringe kept only as a source note:
+    # it read like some kind of worm, creepy and wrong for a normal shoulder.
+    # Might be useful later for biome-specific roadside growth/corruption or
+    # for showing visual progression of the world.
+    #
+    # def _draw_shoulder_fringe_at(
+    #     self,
+    #     road: RoadModel,
+    #     i: int,
+    #     side_sign: float,
+    #     edge_x: float,
+    #     edge_y: float,
+    #     dir_x: float,
+    #     dir_y: float,
+    #     nrm_x: float,
+    #     nrm_y: float,
+    #     proj: DriveFxProjector
+    # ) -> None:
+    #     salt = 0
+    #     if side_sign > 0.0:
+    #         salt = 2
+    #     pattern = (i + road.seed + salt) & 3
+    #     if pattern >= 2:
+    #         return
+    #     skew = 1.25
+    #     if ((i + road.seed + salt) & 4) != 0:
+    #         skew = -skew
+    #     mid_len = 4.0
+    #     if pattern == 0:
+    #         mid_len = 5.5
+    #     outer_x = edge_x + side_sign * nrm_x * mid_len + dir_x * skew
+    #     outer_y = edge_y + side_sign * nrm_y * mid_len + dir_y * skew
+    #     sx0, sy0 = proj.world_to_screen(edge_x, edge_y)
+    #     sx1, sy1 = proj.world_to_screen(outer_x, outer_y)
+    #     line(int(sx0), int(sy0), int(sx1), int(sy1), Color.ORANGE)
+    #     if pattern != 0:
+    #         return
+    #     far_len = mid_len + 3.5
+    #     far_x = edge_x + side_sign * nrm_x * far_len + dir_x * skew * 1.2
+    #     far_y = edge_y + side_sign * nrm_y * far_len + dir_y * skew * 1.2
+    #     sx2, sy2 = proj.world_to_screen(far_x, far_y)
+    #     line(int(sx1), int(sy1), int(sx2), int(sy2), Color.YELLOW)
+
+    # Shoulder dots experiment kept only as source reference:
+    # visually useful, but not stable enough yet for the default road read.
+    # Could be reused later for sand shoulders, biome edges, or run-state
+    # progression accents.
+    #
+    # def _draw_shoulder_dots_at(...): ...
+
+    # def _draw_edge_shade_dots_at(...): ...
+
+    def _turn_shoulder_level_and_side(
+        self,
+        road: RoadModel,
+        i: int
+    ) -> tuple[int, float]:
+        s = i * road.ds
+        curv_signed = road.curvature_at(s)
+        curv = curv_signed
+        if curv < 0.0:
+            curv = -curv
+        if curv <= 0.003:
+            return (0, 0.0)
+
+        side = 1.0
+        if curv_signed > 0.0:
+            side = -1.0
+
+        if curv >= 0.005:
+            return (2, side)
+        return (1, side)
 
     def draw_finish_gate_back(
         self,
