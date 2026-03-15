@@ -10,6 +10,7 @@
 ## 0) Аккаунты / ссылки (copy-paste)
 
 - itch: `https://etomarat.itch.io/wyrdway`
+- Telegram (RU): `https://t.me/wyrdway`
 - Mastodon: `https://mastodon.gamedev.place/@wyrdway` (`@wyrdway@mastodon.gamedev.place`)
 - Bluesky: `https://bsky.app/profile/wyrdwaygame.bsky.social` (`@wyrdwaygame.bsky.social`)
 

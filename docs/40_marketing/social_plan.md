@@ -10,6 +10,7 @@
 
 - **itch (игра):** `https://etomarat.itch.io/wyrdway`
 - **itch devlog:** 1 пост (`First public pre-alpha build`, 2026-02-24)
+- **Telegram (RU):** `https://t.me/wyrdway`
 - **Mastodon:** `https://mastodon.gamedev.place/@wyrdway`
 - **Bluesky:** `https://bsky.app/profile/wyrdwaygame.bsky.social`
 - **X/Twitter:** `https://x.com/wyrdwaygame`
@@ -17,6 +18,7 @@
 ### Copy/paste (для био и постов)
 
 - **itch:** `https://etomarat.itch.io/wyrdway`
+- **Telegram:** `https://t.me/wyrdway`
 - **Mastodon:** `@wyrdway@mastodon.gamedev.place`
 - **Bluesky:** `@wyrdwaygame.bsky.social`
 - **X/Twitter:** `@wyrdwaygame`

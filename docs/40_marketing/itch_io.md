@@ -1,6 +1,6 @@
 # itch.io page — current copy & notes
 
-Обновлено: 2026-02-26
+Обновлено: 2026-03-15
 
 Здесь лежит актуальный текст страницы (Markdown) + заметки по оформлению.
 Старые версии не храним.
@@ -8,6 +8,8 @@
 ---
 
 ## Description (EN) — paste into itch.io
+
+Early Access / v0.0.2 Alpha
 
 Wyrdway is a **retro road‑trip roguelite** you can play in the **browser** (and download for **Windows / macOS / Linux**).
 
@@ -19,9 +21,11 @@ Drive → reach a POI → loot what you can → extract → **survive the return
 #### What’s in the build
 - **Arcade top‑down driving** with drift/handbrake and strong feedback
 - **Return chase**: a glitchy pursuer that bites your run loot and HP on the way home
+- **New intro/setup flow**: cleaner run start with difficulty and campaign setup before you hit the road
 - **POI raids (prototype)**: currently a simple timer + reward (full POI gameplay is planned)
 - **Garage loop (prototype)**: repair and prep (upgrades are planned, not in yet)
 - **Route/map (prototype)**: currently a simple selection screen (branching routes are planned)
+- **Controls/UI pass**: intro/setup flow, saved options, difficulty setting, mouse-friendly menus, gamepad prompts, and rumble/haptics support
 
 #### Planned (subject to change)
 - Garage upgrades and build customization
@@ -35,9 +39,17 @@ Drive → reach a POI → loot what you can → extract → **survive the return
 This is a **work in progress / pre‑alpha** build. Expect frequent changes.
 
 #### Controls
-- **Keyboard**: Arrow keys + `X` (handbrake for drift)
-- **Gamepad**: supported (not fully tested yet; keyboard recommended for now)
+- **Keyboard**:
+  - steer: Arrow Left / Arrow Right
+  - throttle: Arrow Up
+  - brake / reverse: Arrow Down
+  - handbrake: `Space`, `X` (alternative)
+- **Gamepad**: recommended way to play; button prompts are shown in-game, and rumble/haptics are supported when the device/runtime allows it
+- **Vibration**: if your browser/device supports it, turning vibration on is recommended for the intended driving feel
+- **Mouse**: supported in menus and setup flow
 - **CRT filter**: toggle with `F6`
+
+Detailed control bindings are listed in the **Options** menu inside the game.
 
 #### Platforms
 - **Web (browser)**
@@ -47,27 +59,32 @@ This is a **work in progress / pre‑alpha** build. Expect frequent changes.
 Wyrdway is built with **TIC‑80** (a tiny “fantasy console”) for a tight, bite‑sized retro feel — you don’t need to know anything about it to play.
 
 #### Feedback
-If you try the build, I’d love your feedback:
-- What felt good?
-- What was confusing?
-- Did anything break?
+If you try the build, I’d really appreciate a quick note in the comments -- even 2-3 lines helps a lot.
 
-Leave a comment on this page.
+A few specific things I’m watching:
+- Which **difficulty** did you pick on the start screen, and did it feel right for this build?
+- Did the **return chase** feel fair, too punishing, or too easy on that difficulty?
+- Does **gamepad + vibration** feel better than keyboard for this build?
 
-Follow me on itch.io for updates.
+Also, if something breaks, tell me what you did right before it happened.
 
-Dev updates:
-- Mastodon: **https://mastodon.gamedev.place/@wyrdway**
+#### Dev updates
 - Bluesky: **https://bsky.app/profile/wyrdwaygame.bsky.social**
+- Mastodon: **https://mastodon.gamedev.place/@wyrdway**
+- Telegram (RU): **https://t.me/wyrdway**
+- X: **https://x.com/wyrdwaygame**
 
 #### Support
 - Crypto tip jar: **https://nowpayments.io/donation/etomarat**
+- If you liked it, please **leave a comment**, **rate** the game, **follow** me for updates, and **add it to a collection**.
 
 Thanks for playing.
 
 ---
 
 ## Description (RU) — reference translation
+
+Ранний доступ / v0.0.2 Alpha
 
 Wyrdway — **ретро роад‑трип роглайт**, в который можно играть **в браузере** (и скачать для **Windows / macOS / Linux**).
 
@@ -82,6 +99,7 @@ Wyrdway — **ретро роад‑трип роглайт**, в который
 - **POI‑рейд (прототип)**: сейчас это таймер + награда (полноценный слой POI‑геймплея в планах)
 - **Гараж‑петля (прототип)**: ремонт и подготовка (апгрейды будут, но их пока нет)
 - **Карта/маршрут (прототип)**: пока это простой экран выбора (развилки и выбор пути в планах)
+- **Проход по управлению и UI**: интро и setup flow, сохранение опций, выбор сложности, меню с мышью, подсказки для геймпада и rumble/haptics
 
 #### Планы (могут меняться)
 - Апгрейды в гараже и сборки машины
@@ -95,9 +113,18 @@ Wyrdway — **ретро роад‑трип роглайт**, в который
 Это **work in progress / pre‑alpha** билд. Ожидай частых изменений.
 
 #### Управление
-- **Клавиатура**: стрелки + `X` (ручник для дрифта)
-- **Геймпад**: поддерживается (пока не до конца проверено; пока лучше на клавиатуре)
+- **Клавиатура**:
+  - руль: стрелки `Left / Right`
+  - газ: стрелка `Up`
+  - тормоз / задний ход: стрелка `Down`
+  - ручник: `Space` (рекомендуется), `X` (альтернатива)
+  - модуль / подтверждение действий: `Z` там, где игра это запрашивает
+- **Геймпад**: рекомендуемый способ играть; игра показывает подсказки кнопок, а также поддерживает вибрацию там, где её даёт устройство/рантайм
+- **Вибрация**: если браузер/устройство её поддерживают, лучше играть с включённой вибрацией для задуманного ощущения машины
+- **Мышь**: работает в меню и setup flow
 - **CRT‑фильтр**: включить/выключить `F6`
+
+Подробная раскладка управления указана в меню **Options** внутри игры.
 
 #### Платформы
 - **Web (браузер)**
@@ -110,6 +137,8 @@ Wyrdway — **ретро роад‑трип роглайт**, в который
 Если попробуешь билд, очень нужны впечатления:
 - что понравилось
 - что было непонятно
+- стало ли удобнее между клавиатурой и геймпадом
+- `Space` ощущается лучше, чем `X`, как основная клавиша ручника?
 - что сломалось
 
 Оставь комментарий на странице.
@@ -149,6 +178,7 @@ Wyrdway — **ретро роад‑трип роглайт**, в который
 - 1 **cover**: машина на дороге + читаемый намёк на аномалию/погоню (глич/молнии/стружка)
 - 3–6 скриншотов: drive, POI, return chase, garage/result
 - 1 короткий GIF (3–6 сек): момент дрифта или укус преследователя
+- Для `v0.0.2 alpha` лучше переснять свежие кадры: текущие `cover.png`, `poster.png` и `last_gameplay.gif` относятся к более раннему состоянию билда и не показывают новый UI/feedback pass.
 
 ### Небольшие тех‑советы по захвату (чтобы пиксель не “мылся”)
 - Старайся захватывать кадры с **integer scaling** (кратно 240×136), чтобы не было блюра.

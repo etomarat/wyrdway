@@ -1,4 +1,4 @@
-GAME_VERSION = "0.0.1 alpha"
+GAME_VERSION = "0.0.2 alpha"
 
 
 def game_version_label() -> str:
